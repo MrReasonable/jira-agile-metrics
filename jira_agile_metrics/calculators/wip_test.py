@@ -1,11 +1,11 @@
-import pytest
 import datetime
+
+import pytest
 from pandas import DataFrame, Timestamp, date_range
 
+from ..utils import extend_dict
 from .cfd import CFDCalculator
 from .wip import WIPChartCalculator
-
-from ..utils import extend_dict
 
 
 @pytest.fixture
@@ -20,7 +20,6 @@ def query_manager(minimal_query_manager):
 
 @pytest.fixture
 def results(query_manager, settings, large_cycle_time_results):
-
     # CFD data frame and WIP
     #
     #              Backlog  Committed  Build  Test  Done
@@ -37,11 +36,7 @@ def results(query_manager, settings, large_cycle_time_results):
 
     return extend_dict(
         large_cycle_time_results,
-        {
-            CFDCalculator: CFDCalculator(
-                query_manager, settings, large_cycle_time_results
-            ).run()
-        },
+        {CFDCalculator: CFDCalculator(query_manager, settings, large_cycle_time_results).run()},
     )
 
 
@@ -50,9 +45,7 @@ def test_empty(query_manager, settings, minimal_cycle_time_columns):
         CFDCalculator: DataFrame(
             [],
             columns=["Backlog", "Committed", "Build", "Test", "Done"],
-            index=date_range(
-                start=datetime.date(2018, 1, 1), periods=0, freq="D"
-            ),
+            index=date_range(start=datetime.date(2018, 1, 1), periods=0, freq="D"),
         )
     }
 
@@ -101,7 +94,6 @@ def test_calculate_wip(query_manager, settings, results):
 
 
 def test_calculate_wip_different_columns(query_manager, settings, results):
-
     settings.update(
         {
             "committed_column": "Build",

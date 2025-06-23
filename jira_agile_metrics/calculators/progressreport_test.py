@@ -1,30 +1,36 @@
 import random
-import pytest
+from datetime import date, datetime, timedelta
+
 import pandas as pd
-from datetime import datetime, date, timedelta
+import pytest
+
 from ..conftest import (
-    FauxJIRA as JIRA,
-    FauxIssue as Issue,
     FauxChange as Change,
+)
+from ..conftest import (
     FauxFieldValue as Value,
 )
-
+from ..conftest import (
+    FauxIssue as Issue,
+)
+from ..conftest import (
+    FauxJIRA as JIRA,
+)
 from ..querymanager import QueryManager
 from ..utils import extend_dict
-
 from .progressreport import (
-    throughput_range_sampler,
-    update_team_sampler,
-    calculate_team_throughput,
-    calculate_epic_target,
-    find_outcomes,
-    find_epics,
-    update_story_counts,
-    forecast_to_complete,
-    Outcome,
-    Team,
     Epic,
+    Outcome,
     ProgressReportCalculator,
+    Team,
+    calculate_epic_target,
+    calculate_team_throughput,
+    find_epics,
+    find_outcomes,
+    forecast_to_complete,
+    throughput_range_sampler,
+    update_story_counts,
+    update_team_sampler,
 )
 
 # for debugging - leave off!
@@ -85,12 +91,8 @@ def settings(custom_settings):
             "quantiles": [0.1, 0.3, 0.5],
             "progress_report": "progress.html",
             "progress_report_title": "Test progress report",
-            "progress_report_epic_query_template": (
-                "issuetype=epic " "AND Outcome={outcome}"
-            ),
-            "progress_report_story_query_template": (
-                "issuetype=story" " AND Epic={epic}"
-            ),
+            "progress_report_epic_query_template": ("issuetype=epic AND Outcome={outcome}"),
+            "progress_report_story_query_template": ("issuetype=story AND Epic={epic}"),
             "progress_report_epic_deadline_field": "Deadline",
             "progress_report_epic_min_stories_field": "Min stories",
             "progress_report_epic_max_stories_field": "Max stories",
@@ -108,9 +110,7 @@ def settings(custom_settings):
                     "name": "Team 2",
                     "min_throughput": None,
                     "max_throughput": None,
-                    "throughput_samples": (
-                        "issuetype=feature " "AND resolution=Done"
-                    ),
+                    "throughput_samples": ("issuetype=feature AND resolution=Done"),
                     "throughput_samples_window": 6,
                     "wip": 2,
                 },
@@ -126,9 +126,7 @@ def settings(custom_settings):
                     "key": None,
                     "name": "Outcome two",
                     "deadline": None,
-                    "epic_query": (
-                        'outcome="Outcome two" ' "AND status=in-progress"
-                    ),
+                    "epic_query": ('outcome="Outcome two" AND status=in-progress'),
                 },
             ],
             "progress_report_outcome_query": None,
@@ -139,7 +137,6 @@ def settings(custom_settings):
 
 @pytest.fixture
 def query_manager(fields, settings):
-
     field_lookup = {v["name"].lower(): v["id"] for v in fields}
 
     def compare_value(i, clause):
@@ -696,7 +693,6 @@ def test_calculate_epic_target():
 
 
 def test_find_outcomes(query_manager):
-
     outcomes = list(
         find_outcomes(
             query_manager=query_manager,
@@ -720,7 +716,6 @@ def test_find_outcomes(query_manager):
 
 
 def test_find_outcomes_no_deadline_field(query_manager):
-
     outcomes = list(
         find_outcomes(
             query_manager=query_manager,
@@ -744,10 +739,7 @@ def test_find_outcomes_no_deadline_field(query_manager):
 
 
 def test_find_epics(query_manager):
-
-    outcome = Outcome(
-        "Outcome one", "O1", None, "issuetype=epic AND Outcome=O1"
-    )
+    outcome = Outcome("Outcome one", "O1", None, "issuetype=epic AND Outcome=O1")
 
     epics = list(
         find_epics(
@@ -788,10 +780,7 @@ def test_find_epics(query_manager):
 
 
 def test_find_epics_minimal_fields(query_manager):
-
-    outcome = Outcome(
-        "Outcome one", "O1", None, "issuetype=epic AND Outcome=O1"
-    )
+    outcome = Outcome("Outcome one", "O1", None, "issuetype=epic AND Outcome=O1")
 
     epics = list(
         find_epics(
@@ -832,7 +821,6 @@ def test_find_epics_minimal_fields(query_manager):
 
 
 def test_find_epics_defaults_to_outcome_deadline(query_manager):
-
     outcome = Outcome(
         "Outcome one",
         "O1",
@@ -883,7 +871,6 @@ def test_find_epics_defaults_to_outcome_deadline(query_manager):
 
 
 def test_update_story_counts(query_manager, settings):
-
     e1 = Epic(
         key="E-1",
         summary="Epic 1",
@@ -979,7 +966,6 @@ def test_update_story_counts(query_manager, settings):
 
 
 def test_calculate_team_throughput(query_manager, settings):
-
     t = Team(
         name="Team 1",
         wip=1,
@@ -1074,7 +1060,6 @@ def test_calculate_team_throughput(query_manager, settings):
 
 
 def test_update_team_sampler(query_manager, settings):
-
     # min/max only
 
     t = Team(
@@ -1192,7 +1177,6 @@ def test_update_team_sampler(query_manager, settings):
 
 
 def test_forecast_to_complete_wip_1():
-
     team = Team(
         name="Team 1",
         wip=1,
@@ -1250,9 +1234,7 @@ def test_forecast_to_complete_wip_1():
         ),
     ]
 
-    forecast_to_complete(
-        team, epics, [0.5, 0.9], trials=10, now=datetime(2018, 1, 10)
-    )
+    forecast_to_complete(team, epics, [0.5, 0.9], trials=10, now=datetime(2018, 1, 10))
 
     assert epics[0].forecast is not None
     assert epics[1].forecast is not None
@@ -1268,21 +1250,16 @@ def test_forecast_to_complete_wip_1():
         (0.5, 5.0),
         (0.9, 5.0),
     ]  # +2 weeks after E-1 since wip=1
-    assert (
-        epics[1].forecast.deadline_quantile == 0
-    )  # deadline is before best case scenario
+    assert epics[1].forecast.deadline_quantile == 0  # deadline is before best case scenario
 
     assert epics[2].forecast.quantiles == [
         (0.5, 7.0),
         (0.9, 7.0),
     ]  # +2 weeks after E-2 since wip=1
-    assert (
-        epics[2].forecast.deadline_quantile == 1
-    )  # deadline is after worst case scenario
+    assert epics[2].forecast.deadline_quantile == 1  # deadline is after worst case scenario
 
 
 def test_forecast_to_complete_wip_2():
-
     # double the wip, but also double the throughput of wip=1 test
     team = Team(
         name="Team 1",
@@ -1343,9 +1320,7 @@ def test_forecast_to_complete_wip_2():
         ),
     ]
 
-    forecast_to_complete(
-        team, epics, [0.5, 0.9], trials=10, now=datetime(2018, 1, 10)
-    )
+    forecast_to_complete(team, epics, [0.5, 0.9], trials=10, now=datetime(2018, 1, 10))
 
     assert epics[0].forecast is not None
     assert epics[1].forecast is not None
@@ -1361,17 +1336,13 @@ def test_forecast_to_complete_wip_2():
         (0.5, 2.0),
         (0.9, 2.0),
     ]  # +2 weeks in parallel with E-1 since wip=2
-    assert (
-        epics[1].forecast.deadline_quantile == 1
-    )  # deadline is same week as best case scenario
+    assert epics[1].forecast.deadline_quantile == 1  # deadline is same week as best case scenario
 
     assert epics[2].forecast.quantiles == [
         (0.5, 4.0),
         (0.9, 4.0),
     ]  # +2 weeks after E-2 since wip=2 and it finishes first
-    assert (
-        epics[2].forecast.deadline_quantile == 1
-    )  # deadline is after worst case scenario
+    assert epics[2].forecast.deadline_quantile == 1  # deadline is after worst case scenario
 
 
 def test_forecast_to_complete_no_epics():
@@ -1383,15 +1354,12 @@ def test_forecast_to_complete_no_epics():
 
     epics = []
 
-    forecast_to_complete(
-        team, epics, [0.5, 0.9], trials=10, now=datetime(2018, 1, 10)
-    )
+    forecast_to_complete(team, epics, [0.5, 0.9], trials=10, now=datetime(2018, 1, 10))
 
     assert len(epics) == 0
 
 
 def test_forecast_to_complete_with_randomness():
-
     team = Team(
         name="Team 1",
         wip=2,
@@ -1449,9 +1417,7 @@ def test_forecast_to_complete_with_randomness():
         ),
     ]
 
-    forecast_to_complete(
-        team, epics, [0.5, 0.9], trials=100, now=datetime(2018, 1, 10)
-    )
+    forecast_to_complete(team, epics, [0.5, 0.9], trials=100, now=datetime(2018, 1, 10))
 
     assert epics[0].forecast is not None
     assert epics[1].forecast is not None
@@ -1461,19 +1427,13 @@ def test_forecast_to_complete_with_randomness():
     assert epics[0].forecast.deadline_quantile is None
 
     assert [q[0] for q in epics[1].forecast.quantiles] == [0.5, 0.9]
-    assert (
-        epics[1].forecast.deadline_quantile > 0
-        and epics[1].forecast.deadline_quantile < 1
-    )
+    assert epics[1].forecast.deadline_quantile > 0 and epics[1].forecast.deadline_quantile < 1
 
     assert [q[0] for q in epics[2].forecast.quantiles] == [0.5, 0.9]
-    assert (
-        epics[2].forecast.deadline_quantile == 1
-    )  # deadline is after worst case scenario
+    assert epics[2].forecast.deadline_quantile == 1  # deadline is after worst case scenario
 
 
 def test_calculator(query_manager, settings, results):
-
     calculator = ProgressReportCalculator(query_manager, settings, results)
 
     data = calculator.run(trials=10, now=datetime(2018, 1, 10))
@@ -1526,10 +1486,7 @@ def test_calculator(query_manager, settings, results):
     assert data["teams"][1].name == "Team 2"
     assert data["teams"][1].min_throughput is None
     assert data["teams"][1].max_throughput is None
-    assert (
-        data["teams"][1].throughput_samples
-        == "issuetype=feature AND resolution=Done"
-    )
+    assert data["teams"][1].throughput_samples == "issuetype=feature AND resolution=Done"
     assert data["teams"][1].throughput_samples_window == 6
 
     # results[ProgressReportCalculator] = data
@@ -1540,9 +1497,7 @@ def test_calculator_no_outcomes(query_manager, settings, results):
     settings = extend_dict(
         settings,
         {
-            "progress_report_epic_query_template": (
-                "issuetype=epic " 'AND Outcome="O1'
-            ),
+            "progress_report_epic_query_template": ('issuetype=epic AND Outcome="O1'),
             "progress_report_outcomes": [],
         },
     )
@@ -1595,10 +1550,7 @@ def test_calculator_no_outcomes(query_manager, settings, results):
     assert data["teams"][1].name == "Team 2"
     assert data["teams"][1].min_throughput is None
     assert data["teams"][1].max_throughput is None
-    assert (
-        data["teams"][1].throughput_samples
-        == "issuetype=feature AND resolution=Done"
-    )
+    assert data["teams"][1].throughput_samples == "issuetype=feature AND resolution=Done"
     assert data["teams"][1].throughput_samples_window == 6
 
     # results[ProgressReportCalculator] = data
@@ -1680,7 +1632,6 @@ def test_calculator_no_fields(query_manager, settings, results):
 
 
 def test_with_large_dataset(fields, settings, results):
-
     today = date.today()
 
     # build a large and partially randomised data set to forecast on
@@ -1725,9 +1676,7 @@ def test_with_large_dataset(fields, settings, results):
                 {
                     "key": "O1",
                     "name": "MVP",
-                    "deadline": random_date_future(
-                        today + timedelta(days=55), 65
-                    ),
+                    "deadline": random_date_future(today + timedelta(days=55), 65),
                     "epic_query": None,
                 },
                 {
@@ -1752,8 +1701,7 @@ def test_with_large_dataset(fields, settings, results):
     epics = [
         Issue(
             "E-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Epic", "epic"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -1779,7 +1727,6 @@ def test_with_large_dataset(fields, settings, results):
     ]
 
     def make_story(i):
-
         epic = random.choice(epics)
         current_status = random.choice(statuses)
         created = random_date_past(today, 15)
@@ -1799,13 +1746,10 @@ def test_with_large_dataset(fields, settings, results):
 
         return Issue(
             "S-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
-            resolution=Value("Done", "done")
-            if current_status == "Done"
-            else None,
+            resolution=Value("Done", "done") if current_status == "Done" else None,
             resolutiondate="%s 00:00:00" % changes[-1]["date"]
             if current_status == "Done"
             else None,
@@ -1848,7 +1792,6 @@ def test_with_large_dataset(fields, settings, results):
 
 
 def test_with_large_dataset_and_outcome_as_tickets(fields, settings, results):
-
     today = date.today()
 
     # build a large and partially randomised data set to forecast on
@@ -1900,8 +1843,7 @@ def test_with_large_dataset_and_outcome_as_tickets(fields, settings, results):
     outcomes = [
         Issue(
             "O-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Outcome", "outcome"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -1925,8 +1867,7 @@ def test_with_large_dataset_and_outcome_as_tickets(fields, settings, results):
     epics = [
         Issue(
             "E-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Epic", "epic"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -1952,7 +1893,6 @@ def test_with_large_dataset_and_outcome_as_tickets(fields, settings, results):
     ]
 
     def make_story(i):
-
         epic = random.choice(epics)
         current_status = random.choice(statuses)
         created = random_date_past(today, 15)
@@ -1972,13 +1912,10 @@ def test_with_large_dataset_and_outcome_as_tickets(fields, settings, results):
 
         return Issue(
             "S-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
-            resolution=Value("Done", "done")
-            if current_status == "Done"
-            else None,
+            resolution=Value("Done", "done") if current_status == "Done" else None,
             resolutiondate="%s 00:00:00" % changes[-1]["date"]
             if current_status == "Done"
             else None,
@@ -2003,9 +1940,7 @@ def test_with_large_dataset_and_outcome_as_tickets(fields, settings, results):
     stories = [make_story(i) for i in range(100, 300)]
 
     query_manager = QueryManager(
-        jira=JIRA(
-            fields=fields, filter=simple_ql, issues=outcomes + epics + stories
-        ),
+        jira=JIRA(fields=fields, filter=simple_ql, issues=outcomes + epics + stories),
         settings=settings,
     )
 
@@ -2021,10 +1956,7 @@ def test_with_large_dataset_and_outcome_as_tickets(fields, settings, results):
         calculator.write()
 
 
-def test_with_large_dataset_and_outcome_as_tickets_no_forecast(
-    fields, settings, results
-):
-
+def test_with_large_dataset_and_outcome_as_tickets_no_forecast(fields, settings, results):
     today = date.today()
 
     # build a large and partially randomised data set to forecast on
@@ -2076,8 +2008,7 @@ def test_with_large_dataset_and_outcome_as_tickets_no_forecast(
     outcomes = [
         Issue(
             "O-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Outcome", "outcome"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -2101,8 +2032,7 @@ def test_with_large_dataset_and_outcome_as_tickets_no_forecast(
     epics = [
         Issue(
             "E-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Epic", "epic"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -2128,7 +2058,6 @@ def test_with_large_dataset_and_outcome_as_tickets_no_forecast(
     ]
 
     def make_story(i):
-
         epic = random.choice(epics)
         current_status = random.choice(statuses)
         created = random_date_past(today, 15)
@@ -2148,13 +2077,10 @@ def test_with_large_dataset_and_outcome_as_tickets_no_forecast(
 
         return Issue(
             "S-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
-            resolution=Value("Done", "done")
-            if current_status == "Done"
-            else None,
+            resolution=Value("Done", "done") if current_status == "Done" else None,
             resolutiondate="%s 00:00:00" % changes[-1]["date"]
             if current_status == "Done"
             else None,
@@ -2179,9 +2105,7 @@ def test_with_large_dataset_and_outcome_as_tickets_no_forecast(
     stories = [make_story(i) for i in range(100, 300)]
 
     query_manager = QueryManager(
-        jira=JIRA(
-            fields=fields, filter=simple_ql, issues=outcomes + epics + stories
-        ),
+        jira=JIRA(fields=fields, filter=simple_ql, issues=outcomes + epics + stories),
         settings=settings,
     )
 
@@ -2197,10 +2121,7 @@ def test_with_large_dataset_and_outcome_as_tickets_no_forecast(
         calculator.write()
 
 
-def test_with_large_dataset_and_outcome_as_tickets_mixed_forecast(
-    fields, settings, results
-):
-
+def test_with_large_dataset_and_outcome_as_tickets_mixed_forecast(fields, settings, results):
     today = date.today()
 
     # build a large and partially randomised data set to forecast on
@@ -2252,8 +2173,7 @@ def test_with_large_dataset_and_outcome_as_tickets_mixed_forecast(
     outcomes = [
         Issue(
             "O-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Outcome", "outcome"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -2277,8 +2197,7 @@ def test_with_large_dataset_and_outcome_as_tickets_mixed_forecast(
     epics = [
         Issue(
             "E-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Epic", "epic"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -2304,7 +2223,6 @@ def test_with_large_dataset_and_outcome_as_tickets_mixed_forecast(
     ]
 
     def make_story(i):
-
         epic = random.choice(epics)
         current_status = random.choice(statuses)
         created = random_date_past(today, 15)
@@ -2324,13 +2242,10 @@ def test_with_large_dataset_and_outcome_as_tickets_mixed_forecast(
 
         return Issue(
             "S-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
-            resolution=Value("Done", "done")
-            if current_status == "Done"
-            else None,
+            resolution=Value("Done", "done") if current_status == "Done" else None,
             resolutiondate="%s 00:00:00" % changes[-1]["date"]
             if current_status == "Done"
             else None,
@@ -2355,9 +2270,7 @@ def test_with_large_dataset_and_outcome_as_tickets_mixed_forecast(
     stories = [make_story(i) for i in range(100, 300)]
 
     query_manager = QueryManager(
-        jira=JIRA(
-            fields=fields, filter=simple_ql, issues=outcomes + epics + stories
-        ),
+        jira=JIRA(fields=fields, filter=simple_ql, issues=outcomes + epics + stories),
         settings=settings,
     )
 
@@ -2374,7 +2287,6 @@ def test_with_large_dataset_and_outcome_as_tickets_mixed_forecast(
 
 
 def test_with_large_dataset_minimal(fields, settings, results):
-
     today = date.today()
 
     # build a large and partially randomised data set to forecast on
@@ -2398,9 +2310,7 @@ def test_with_large_dataset_minimal(fields, settings, results):
             "progress_report_title": "Acme Corp Websites",
             "progress_report": "progress-minimal.html",
             "progress_report_epic_query_template": "issuetype=epic",
-            "progress_report_story_query_template": (
-                "issuetype=story " "AND Epic={epic}"
-            ),
+            "progress_report_story_query_template": ("issuetype=story AND Epic={epic}"),
             "progress_report_epic_deadline_field": None,
             "progress_report_epic_min_stories_field": None,
             "progress_report_epic_max_stories_field": None,
@@ -2424,8 +2334,7 @@ def test_with_large_dataset_minimal(fields, settings, results):
     epics = [
         Issue(
             "E-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Epic", "epic"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -2437,7 +2346,6 @@ def test_with_large_dataset_minimal(fields, settings, results):
     ]
 
     def make_story(i):
-
         epic = random.choice(epics)
         current_status = random.choice(statuses)
         created = random_date_past(today, 15)
@@ -2457,13 +2365,10 @@ def test_with_large_dataset_minimal(fields, settings, results):
 
         return Issue(
             "S-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
-            resolution=Value("Done", "done")
-            if current_status == "Done"
-            else None,
+            resolution=Value("Done", "done") if current_status == "Done" else None,
             resolutiondate="%s 00:00:00" % changes[-1]["date"]
             if current_status == "Done"
             else None,
@@ -2502,7 +2407,6 @@ def test_with_large_dataset_minimal(fields, settings, results):
 
 
 def test_with_large_dataset_minimal_no_forecast(fields, settings, results):
-
     today = date.today()
 
     # build a large and partially randomised data set to forecast on
@@ -2526,9 +2430,7 @@ def test_with_large_dataset_minimal_no_forecast(fields, settings, results):
             "progress_report": "progress-minimal-no-forecast.html",
             "progress_report_title": "Acme Corp Websites",
             "progress_report_epic_query_template": "issuetype=epic",
-            "progress_report_story_query_template": (
-                "issuetype=" "story AND Epic={epic}"
-            ),
+            "progress_report_story_query_template": ("issuetype=story AND Epic={epic}"),
             "progress_report_epic_deadline_field": None,
             "progress_report_epic_min_stories_field": None,
             "progress_report_epic_max_stories_field": None,
@@ -2552,8 +2454,7 @@ def test_with_large_dataset_minimal_no_forecast(fields, settings, results):
     epics = [
         Issue(
             "E-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Epic", "epic"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -2565,7 +2466,6 @@ def test_with_large_dataset_minimal_no_forecast(fields, settings, results):
     ]
 
     def make_story(i):
-
         epic = random.choice(epics)
         current_status = random.choice(statuses)
         created = random_date_past(today, 15)
@@ -2585,13 +2485,10 @@ def test_with_large_dataset_minimal_no_forecast(fields, settings, results):
 
         return Issue(
             "S-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
-            resolution=Value("Done", "done")
-            if current_status == "Done"
-            else None,
+            resolution=Value("Done", "done") if current_status == "Done" else None,
             resolutiondate="%s 00:00:00" % changes[-1]["date"]
             if current_status == "Done"
             else None,
@@ -2630,7 +2527,6 @@ def test_with_large_dataset_minimal_no_forecast(fields, settings, results):
 
 
 def test_with_large_dataset_teams_no_outcomes(fields, settings, results):
-
     today = date.today()
 
     # build a large and partially randomised data set to forecast on
@@ -2683,8 +2579,7 @@ def test_with_large_dataset_teams_no_outcomes(fields, settings, results):
     epics = [
         Issue(
             "E-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Epic", "epic"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -2710,7 +2605,6 @@ def test_with_large_dataset_teams_no_outcomes(fields, settings, results):
     ]
 
     def make_story(i):
-
         epic = random.choice(epics)
         current_status = random.choice(statuses)
         created = random_date_past(today, 15)
@@ -2730,13 +2624,10 @@ def test_with_large_dataset_teams_no_outcomes(fields, settings, results):
 
         return Issue(
             "S-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
-            resolution=Value("Done", "done")
-            if current_status == "Done"
-            else None,
+            resolution=Value("Done", "done") if current_status == "Done" else None,
             resolutiondate="%s 00:00:00" % changes[-1]["date"]
             if current_status == "Done"
             else None,
@@ -2778,7 +2669,6 @@ def test_with_large_dataset_teams_no_outcomes(fields, settings, results):
 
 
 def test_with_large_dataset_no_teams(fields, settings, results):
-
     today = date.today()
 
     # build a large and partially randomised data set to forecast on
@@ -2812,8 +2702,7 @@ def test_with_large_dataset_no_teams(fields, settings, results):
     outcomes = [
         Issue(
             "O-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Outcome", "outcome"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -2837,8 +2726,7 @@ def test_with_large_dataset_no_teams(fields, settings, results):
     epics = [
         Issue(
             "E-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Epic", "epic"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -2863,7 +2751,6 @@ def test_with_large_dataset_no_teams(fields, settings, results):
     ]
 
     def make_story(i):
-
         epic = random.choice(epics)
         current_status = random.choice(statuses)
         created = random_date_past(today, 15)
@@ -2883,13 +2770,10 @@ def test_with_large_dataset_no_teams(fields, settings, results):
 
         return Issue(
             "S-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
-            resolution=Value("Done", "done")
-            if current_status == "Done"
-            else None,
+            resolution=Value("Done", "done") if current_status == "Done" else None,
             resolutiondate="%s 00:00:00" % changes[-1]["date"]
             if current_status == "Done"
             else None,
@@ -2913,9 +2797,7 @@ def test_with_large_dataset_no_teams(fields, settings, results):
     stories = [make_story(i) for i in range(100, 300)]
 
     query_manager = QueryManager(
-        jira=JIRA(
-            fields=fields, filter=simple_ql, issues=outcomes + epics + stories
-        ),
+        jira=JIRA(fields=fields, filter=simple_ql, issues=outcomes + epics + stories),
         settings=settings,
     )
 
@@ -2932,7 +2814,6 @@ def test_with_large_dataset_no_teams(fields, settings, results):
 
 
 def test_with_large_dataset_dynamic_teams(fields, settings, results):
-
     today = date.today()
 
     # build a large and partially randomised data set to forecast on
@@ -2967,8 +2848,7 @@ def test_with_large_dataset_dynamic_teams(fields, settings, results):
     outcomes = [
         Issue(
             "O-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Outcome", "outcome"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -2992,8 +2872,7 @@ def test_with_large_dataset_dynamic_teams(fields, settings, results):
     epics = [
         Issue(
             "E-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Epic", "epic"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -3019,7 +2898,6 @@ def test_with_large_dataset_dynamic_teams(fields, settings, results):
     ]
 
     def make_story(i):
-
         epic = random.choice(epics)
         current_status = random.choice(statuses)
         created = random_date_past(today, 15)
@@ -3039,13 +2917,10 @@ def test_with_large_dataset_dynamic_teams(fields, settings, results):
 
         return Issue(
             "S-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
-            resolution=Value("Done", "done")
-            if current_status == "Done"
-            else None,
+            resolution=Value("Done", "done") if current_status == "Done" else None,
             resolutiondate="%s 00:00:00" % changes[-1]["date"]
             if current_status == "Done"
             else None,
@@ -3070,9 +2945,7 @@ def test_with_large_dataset_dynamic_teams(fields, settings, results):
     stories = [make_story(i) for i in range(100, 300)]
 
     query_manager = QueryManager(
-        jira=JIRA(
-            fields=fields, filter=simple_ql, issues=outcomes + epics + stories
-        ),
+        jira=JIRA(fields=fields, filter=simple_ql, issues=outcomes + epics + stories),
         settings=settings,
     )
 
@@ -3086,10 +2959,7 @@ def test_with_large_dataset_dynamic_teams(fields, settings, results):
         calculator.write()
 
 
-def test_with_large_dataset_static_and_dynamic_teams(
-    fields, settings, results
-):
-
+def test_with_large_dataset_static_and_dynamic_teams(fields, settings, results):
     today = date.today()
 
     # build a large and partially randomised data set to forecast on
@@ -3136,8 +3006,7 @@ def test_with_large_dataset_static_and_dynamic_teams(
     outcomes = [
         Issue(
             "O-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Outcome", "outcome"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -3161,8 +3030,7 @@ def test_with_large_dataset_static_and_dynamic_teams(
     epics = [
         Issue(
             "E-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Epic", "epic"),
             status=Value("In progress", "in-progress"),
             resolution=None,
@@ -3188,7 +3056,6 @@ def test_with_large_dataset_static_and_dynamic_teams(
     ]
 
     def make_story(i):
-
         epic = random.choice(epics)
         current_status = random.choice(statuses)
         created = random_date_past(today, 15)
@@ -3208,13 +3075,10 @@ def test_with_large_dataset_static_and_dynamic_teams(
 
         return Issue(
             "S-%d" % i,
-            summary="%s %s"
-            % (random.choice(verbs).capitalize(), random.choice(nouns)),
+            summary="%s %s" % (random.choice(verbs).capitalize(), random.choice(nouns)),
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
-            resolution=Value("Done", "done")
-            if current_status == "Done"
-            else None,
+            resolution=Value("Done", "done") if current_status == "Done" else None,
             resolutiondate="%s 00:00:00" % changes[-1]["date"]
             if current_status == "Done"
             else None,
@@ -3239,9 +3103,7 @@ def test_with_large_dataset_static_and_dynamic_teams(
     stories = [make_story(i) for i in range(100, 300)]
 
     query_manager = QueryManager(
-        jira=JIRA(
-            fields=fields, filter=simple_ql, issues=outcomes + epics + stories
-        ),
+        jira=JIRA(fields=fields, filter=simple_ql, issues=outcomes + epics + stories),
         settings=settings,
     )
 

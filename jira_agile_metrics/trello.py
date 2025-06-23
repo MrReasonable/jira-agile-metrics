@@ -1,9 +1,9 @@
-import sys
 import logging
-from datetime import datetime, date
-from trello import TrelloApi
-import requests
+import sys
+from datetime import date, datetime
 
+import requests
+from trello import TrelloApi
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,6 @@ class JiraLikeHistory(object):
 
 class JiraLikeHistoryItem(object):
     def __init__(self, field, fromString, toString):
-
         self.field = field
         self.fromString = fromString
         self.toString = toString
@@ -46,7 +45,6 @@ class JiraLikeHistoryItem(object):
 
 class JiraLikeField(object):
     def __init__(self, name):
-
         self.name = name
 
 
@@ -60,7 +58,6 @@ class JiraLikeFields(object):
         issuetype=JiraLikeField("card"),
         resolution=JiraLikeField("na"),
     ):
-
         self.labels = labels
         self.summary = summary
         self.status = status
@@ -75,10 +72,7 @@ class TrelloClient(object):
     those provided by the JIRA client
     """
 
-    def __init__(
-        self, member, key, token, type_mapping=None, flagged_mapping=None
-    ):
-
+    def __init__(self, member, key, token, type_mapping=None, flagged_mapping=None):
         self.member = member
         self.key = key
         self.token = token
@@ -149,11 +143,7 @@ class TrelloClient(object):
                 continue
 
             work_item = next(
-                (
-                    work_item
-                    for work_item in _work_items
-                    if work_item.id == card_id
-                ),
+                (work_item for work_item in _work_items if work_item.id == card_id),
                 None,
             )
 
@@ -175,22 +165,18 @@ class TrelloClient(object):
                             sys.stdout.flush()
                             card = None
                             break
-                        logger.error(
-                            f"get cards from trello failed:{exception}"
-                        )
+                        logger.error(f"get cards from trello failed:{exception}")
 
                 if card is not None:
-                    date_created = datetime.fromtimestamp(
-                        int(card["id"][0:8], 16)
-                    ).strftime("%m/%d/%Y, %H:%M:%S")
+                    date_created = datetime.fromtimestamp(int(card["id"][0:8], 16)).strftime(
+                        "%m/%d/%Y, %H:%M:%S"
+                    )
                     while True:
                         try:
                             card_list = self.trello.lists.get(card["idList"])
                             break
                         except requests.exceptions.HTTPError as exception:
-                            logger.error(
-                                f"get lists from trello failed:{exception}"
-                            )
+                            logger.error(f"get lists from trello failed:{exception}")
 
                     labels = []
 
@@ -237,24 +223,18 @@ class TrelloClient(object):
                     from_state = action["data"]["listBefore"]["name"]
                     break
                 elif action["type"] == "moveCardToBoard":
-                    list_details = self.trello.lists.get(
-                        action["data"]["list"]["id"]
-                    )
+                    list_details = self.trello.lists.get(action["data"]["list"]["id"])
                     to_state = list_details["name"]
                     from_state = "undefined"
                     break
                 elif action["type"] == "moveCardFromBoard":
                     to_state = "undefined"
-                    list_details = self.trello.lists.get(
-                        action["data"]["list"]["id"]
-                    )
+                    list_details = self.trello.lists.get(action["data"]["list"]["id"])
                     from_state = list_details["name"]
                     break
                 elif action["type"] == "createCard":
                     from_state = "CREATED"
-                    list_details = self.trello.lists.get(
-                        action["data"]["list"]["id"]
-                    )
+                    list_details = self.trello.lists.get(action["data"]["list"]["id"])
                     to_state = list_details["name"]
                     break
                 elif action["type"] in [
@@ -281,9 +261,7 @@ class TrelloClient(object):
 
         state_transition = JiraLikeHistory(
             action["date"],
-            JiraLikeHistoryItem(
-                field="status", fromString=from_state, toString=to_state
-            ),
+            JiraLikeHistoryItem(field="status", fromString=from_state, toString=to_state),
         )
 
         return state_transition

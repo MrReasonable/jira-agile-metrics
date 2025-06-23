@@ -1,21 +1,24 @@
-import logging
+import base64
 import contextlib
 import io
+import logging
 import os
 import os.path
 import shutil
 import tempfile
-import base64
 import zipfile
-import jinja2
 
+import jinja2
+from dotenv import load_dotenv
 from flask import Flask, render_template, request
 from jira import JIRA
 from jira.exceptions import JIRAError
 
-from ..config import config_to_options, CALCULATORS, ConfigError
-from ..querymanager import QueryManager
 from ..calculator import run_calculators
+from ..config import CALCULATORS, ConfigError, config_to_options
+from ..querymanager import QueryManager
+
+load_dotenv()
 
 template_folder = os.path.join(os.path.dirname(__file__), "templates")
 static_folder = os.path.join(os.path.dirname(__file__), "static")
@@ -26,18 +29,14 @@ app = Flask(
     static_folder=static_folder,
 )
 
-app.jinja_loader = jinja2.PackageLoader(
-    "jira_agile_metrics.webapp", "templates"
-)
+app.jinja_loader = jinja2.PackageLoader("jira_agile_metrics.webapp", "templates")
 
 logger = logging.getLogger(__name__)
 
 
 @app.route("/")
 def index():
-    return render_template(
-        "index.html", max_results=request.args.get("max_results", "")
-    )
+    return render_template("index.html", max_results=request.args.get("max_results", ""))
 
 
 @app.route("/run", methods=["POST"])
@@ -49,7 +48,6 @@ def run():
     log_buffer = io.StringIO()
 
     with capture_log(log_buffer, logging.DEBUG, "%(levelname)s: %(message)s"):
-
         # We swallow exceptions here because we
         # want to show them in the output
         # log on the result page.
@@ -61,17 +59,13 @@ def run():
             # parameter for faster debugging
             if request.form.get("max_results"):
                 try:
-                    options["settings"]["max_results"] = int(
-                        request.form.get("max_results")
-                    )
+                    options["settings"]["max_results"] = int(request.form.get("max_results"))
                 except ValueError:
                     options["settings"]["max_results"] = None
 
             jira = get_jira_client(options["connection"])
             query_manager = QueryManager(jira, options["settings"])
-            zip_data = get_archive(
-                CALCULATORS, query_manager, options["settings"]
-            )
+            zip_data = get_archive(CALCULATORS, query_manager, options["settings"])
             data = base64.b64encode(zip_data).decode("ascii")
         except Exception as e:
             logger.error("%s", e)
@@ -127,9 +121,9 @@ def override_options(options, form):
 def get_jira_client(connection):
     """Create a JIRA client with the given connection options"""
 
-    url = connection["domain"]
-    username = connection["username"]
-    password = connection["password"]
+    url = connection["domain"] or os.environ.get("JIRA_URL")
+    username = connection["username"] or os.environ.get("JIRA_USERNAME")
+    password = connection["password"] or os.environ.get("JIRA_PASSWORD")
     jira_client_options = connection["jira_client_options"]
     jira_server_version_check = connection["jira_server_version_check"]
 

@@ -2,7 +2,6 @@ import logging
 
 from ..calculator import Calculator
 from ..utils import get_extension
-
 from .cycletime import CycleTimeCalculator
 
 logger = logging.getLogger(__name__)

@@ -75,9 +75,7 @@ def breakdown_by_month(
         if end_date is pd.NaT:
             end_date = pd.Timestamp.today()
 
-        first_month = (
-            start_date.normalize().to_period("M").to_timestamp("D", "S")
-        )
+        first_month = start_date.normalize().to_period("M").to_timestamp("D", "S")
         last_month = end_date.normalize().to_period("M").to_timestamp("D", "S")
 
         index = pd.date_range(first_month, last_month, freq="MS")
@@ -85,15 +83,11 @@ def breakdown_by_month(
         return pd.DataFrame(index=index, data=[[key]], columns=[value])
 
     breakdown = (
-        pd.concat([build_df(t) for t in df.itertuples()], sort=True)
-        .resample("MS")
-        .agg(aggfunc)
+        pd.concat([build_df(t) for t in df.itertuples()], sort=True).resample("MS").agg(aggfunc)
     )
 
     if output_columns:
-        breakdown = breakdown[
-            [s for s in output_columns if s in breakdown.columns]
-        ]
+        breakdown = breakdown[[s for s in output_columns if s in breakdown.columns]]
 
     return breakdown
 
@@ -123,9 +117,7 @@ def breakdown_by_month_sum_days(
             end_date = pd.Timestamp.today()
 
         days_range = pd.date_range(start_date, end_date, freq="D")
-        first_month = (
-            start_date.normalize().to_period("M").to_timestamp("D", "S")
-        )
+        first_month = start_date.normalize().to_period("M").to_timestamp("D", "S")
         last_month = end_date.normalize().to_period("M").to_timestamp("D", "S")
 
         index = pd.date_range(first_month, last_month, freq="MS")
@@ -148,15 +140,11 @@ def breakdown_by_month_sum_days(
         )
 
     breakdown = (
-        pd.concat([build_df(t) for t in df.itertuples()], sort=True)
-        .resample("MS")
-        .agg(aggfunc)
+        pd.concat([build_df(t) for t in df.itertuples()], sort=True).resample("MS").agg(aggfunc)
     )
 
     if output_columns:
-        breakdown = breakdown[
-            [s for s in output_columns if s in breakdown.columns]
-        ]
+        breakdown = breakdown[[s for s in output_columns if s in breakdown.columns]]
 
     return breakdown
 

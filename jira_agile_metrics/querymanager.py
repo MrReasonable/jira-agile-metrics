@@ -1,12 +1,14 @@
-import json
 import itertools
+import json
 import logging
+
 import dateutil.parser
 import dateutil.tz
 
 from .config import ConfigError
 
 logger = logging.getLogger(__name__)
+
 
 def multi_getattr(obj, attr, **kw):
     attributes = attr.split(".")
@@ -17,12 +19,13 @@ def multi_getattr(obj, attr, **kw):
                 obj = obj()
         except AttributeError:
             logger.info("Not able to get data")
-        
-            if kw.has_key('default'):
-                return kw['default']
+
+            if kw.has_key("default"):
+                return kw["default"]
             else:
                 raise
     return obj
+
 
 class IssueSnapshot(object):
     """A snapshot of the key fields of an issue
@@ -85,9 +88,7 @@ class QueryManager(object):
                 )
             ) from None
 
-        self.jira_fields_to_names = {
-            field["id"]: field["name"] for field in self.jira_fields
-        }
+        self.jira_fields_to_names = {field["id"]: field["name"] for field in self.jira_fields}
         field_id = None
 
         for name, field in self.settings["attributes"].items():
@@ -97,18 +98,13 @@ class QueryManager(object):
 
     def field_name_to_id(self, name):
         arr_name = name.split(".")
-        first_name = arr_name[0]
         append_text = ("." + ".".join(arr_name[1:])) if len(arr_name) > 1 else ""
         try:
-            return next(
-                (
-                    f["id"]
-                    for f in self.jira_fields
-                    if f["name"].lower() == name.lower()
-                )
-            ) + append_text
+            return (
+                next((f["id"] for f in self.jira_fields if f["name"].lower() == name.lower()))
+                + append_text
+            )
         except StopIteration:
-
             # XXX: we are having problems with
             # this falsely claiming fields don't exist
             logger.debug(
@@ -139,11 +135,9 @@ class QueryManager(object):
 
         try:
             field_value = multi_getattr(issue.fields, field_id)
-            
+
         except AttributeError:
-            field_name = self.jira_fields_to_names.get(
-                field_id, "Unknown name"
-            )
+            field_name = self.jira_fields_to_names.get(field_id, "Unknown name")
             logger.debug(
                 (
                     "Could not get field value for field {}. "
@@ -194,9 +188,7 @@ class QueryManager(object):
         """
 
         for field in fields:
-            initial_value = self.resolve_field_value(
-                issue, self.field_name_to_id(field)
-            )
+            initial_value = self.resolve_field_value(issue, self.field_name_to_id(field))
             try:
                 initial_value = next(
                     filter(
@@ -206,9 +198,7 @@ class QueryManager(object):
                                 c.items
                                 for c in sorted(
                                     issue.changelog.histories,
-                                    key=lambda c: dateutil.parser.parse(
-                                        c.created
-                                    ),
+                                    key=lambda c: dateutil.parser.parse(c.created),
                                 )
                             ]
                         ),
@@ -254,8 +244,6 @@ class QueryManager(object):
         if max_results:
             logger.info("Limiting to %d results", max_results)
 
-        issues = self.jira.search_issues(
-            jql, expand=expand, maxResults=max_results
-        )
+        issues = self.jira.search_issues(jql, expand=expand, maxResults=max_results)
         logger.info("Fetched %d issues", len(issues))
         return issues

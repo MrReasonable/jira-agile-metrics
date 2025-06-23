@@ -1,14 +1,20 @@
-import pytest
 import datetime
-from pandas import NaT, Timestamp, Timedelta
+
+import pytest
+from pandas import NaT, Timedelta, Timestamp
 
 from ..conftest import (
-    FauxJIRA as JIRA,
-    FauxIssue as Issue,
     FauxChange as Change,
+)
+from ..conftest import (
     FauxFieldValue as Value,
 )
-
+from ..conftest import (
+    FauxIssue as Issue,
+)
+from ..conftest import (
+    FauxJIRA as JIRA,
+)
 from ..querymanager import QueryManager
 from .cycletime import CycleTimeCalculator
 
@@ -63,9 +69,7 @@ def jira(custom_fields):
                             )
                         ],
                     ),
-                    Change(
-                        "2018-01-04 10:01:01", [("Flagged", "", "Impediment")]
-                    ),
+                    Change("2018-01-04 10:01:01", [("Flagged", "", "Impediment")]),
                     Change(
                         "2018-01-05 08:01:01", [("Flagged", "Impediment", "")]
                     ),  # was blocked 1 day

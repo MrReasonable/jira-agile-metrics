@@ -1,10 +1,12 @@
+import datetime
 import json
 import logging
-import datetime
+
 import dateutil
 import pandas as pd
-from ..trello import TrelloClient
+
 from ..calculator import Calculator
+from ..trello import TrelloClient
 from ..utils import get_extension, to_json_string
 
 logger = logging.getLogger(__name__)
@@ -39,7 +41,6 @@ class CycleTimeCalculator(Calculator):
     """
 
     def run(self, now=None):
-
         return calculate_cycle_times(
             self.query_manager,
             self.settings["cycle"],
@@ -62,9 +63,7 @@ class CycleTimeCalculator(Calculator):
         cycle_names = [s["name"] for s in self.settings["cycle"]]
         attribute_names = sorted(self.settings["attributes"].keys())
         query_attribute_names = (
-            [self.settings["query_attribute"]]
-            if self.settings["query_attribute"]
-            else []
+            [self.settings["query_attribute"]] if self.settings["query_attribute"] else []
         )
 
         header = (
@@ -85,14 +84,12 @@ class CycleTimeCalculator(Calculator):
         )
 
         for output_file in output_files:
-
             logger.info("Writing cycle time data to %s", output_file)
             output_extension = get_extension(output_file)
 
             if output_extension == ".json":
                 values = [header] + [
-                    list(map(to_json_string, row))
-                    for row in cycle_data[columns].values.tolist()
+                    list(map(to_json_string, row)) for row in cycle_data[columns].values.tolist()
                 ]
                 with open(output_file, "w") as out:
                     out.write(json.dumps(values))
@@ -124,7 +121,6 @@ def calculate_cycle_times(
     query_attribute=None,  # ""
     now=None,
 ):
-
     # Allows unit testing to use a fixed date
     if now is None:
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -171,7 +167,7 @@ def calculate_cycle_times(
 
     for criteria in queries:
         for issue in query_manager.find_issues(criteria["jql"]):
-            if type(query_manager.jira) == TrelloClient:
+            if isinstance(query_manager.jira, TrelloClient):
                 issue_url = issue.url
             else:
                 issue_url = "%s/browse/%s" % (
@@ -184,9 +180,7 @@ def calculate_cycle_times(
                 "issue_type": issue.fields.issuetype.name,
                 "summary": issue.fields.summary,
                 "status": issue.fields.status.name,
-                "resolution": issue.fields.resolution.name
-                if issue.fields.resolution
-                else None,
+                "resolution": issue.fields.resolution.name if issue.fields.resolution else None,
                 "cycle_time": None,
                 "completed_timestamp": None,
                 "blocked_days": 0,
@@ -208,13 +202,9 @@ def calculate_cycle_times(
             impediment_start = None
 
             # Record date of status and impediments flag changes
-            for snapshot in query_manager.iter_changes(
-                issue, ["status", "Flagged"]
-            ):
+            for snapshot in query_manager.iter_changes(issue, ["status", "Flagged"]):
                 if snapshot.change == "status":
-                    snapshot_cycle_step = cycle_lookup.get(
-                        snapshot.to_string.lower(), None
-                    )
+                    snapshot_cycle_step = cycle_lookup.get(snapshot.to_string.lower(), None)
                     if snapshot_cycle_step is None:
                         logger.info(
                             "Issue %s transitioned to unknown JIRA status %s",
@@ -224,9 +214,7 @@ def calculate_cycle_times(
                         unmapped_statuses.add(snapshot.to_string)
                         continue
 
-                    last_status = (
-                        snapshot_cycle_step_name
-                    ) = snapshot_cycle_step["name"]
+                    last_status = snapshot_cycle_step_name = snapshot_cycle_step["name"]
 
                     # Keep the first time we entered a step
                     if item[snapshot_cycle_step_name] is None:
@@ -236,10 +224,7 @@ def calculate_cycle_times(
                     # in case this was a move backwards
                     found_cycle_name = False
                     for cycle_name in cycle_names:
-                        if (
-                            not found_cycle_name
-                            and cycle_name == snapshot_cycle_step_name
-                        ):
+                        if not found_cycle_name and cycle_name == snapshot_cycle_step_name:
                             found_cycle_name = True
                             continue
                         elif found_cycle_name and item[cycle_name] is not None:
@@ -260,16 +245,11 @@ def calculate_cycle_times(
                     if snapshot.from_string == snapshot.to_string is None:
                         # Initial state from None -> None
                         continue
-                    elif (
-                        snapshot.to_string is not None
-                        and snapshot.to_string != ""
-                    ):
+                    elif snapshot.to_string is not None and snapshot.to_string != "":
                         impediment_flag = snapshot.to_string
                         impediment_start = snapshot.date.date()
                         impediment_start_status = last_status
-                    elif (
-                        snapshot.to_string is None or snapshot.to_string == ""
-                    ):
+                    elif snapshot.to_string is None or snapshot.to_string == "":
                         if impediment_start is None:
                             logger.warning(
                                 (
@@ -282,9 +262,7 @@ def calculate_cycle_times(
                             continue
 
                         if impediment_start_status in active_columns:
-                            item["blocked_days"] += (
-                                snapshot.date.date() - impediment_start
-                            ).days
+                            item["blocked_days"] += (snapshot.date.date() - impediment_start).days
                         item["impediments"].append(
                             {
                                 "start": impediment_start,
@@ -305,13 +283,9 @@ def calculate_cycle_times(
             # else as still open until today.
             if impediment_start is not None:
                 if issue.fields.resolutiondate:
-                    resolution_date = dateutil.parser.parse(
-                        issue.fields.resolutiondate
-                    ).date()
+                    resolution_date = dateutil.parser.parse(issue.fields.resolutiondate).date()
                     if impediment_start_status in active_columns:
-                        item["blocked_days"] += (
-                            resolution_date - impediment_start
-                        ).days
+                        item["blocked_days"] += (resolution_date - impediment_start).days
                     item["impediments"].append(
                         {
                             "start": impediment_start,
@@ -322,9 +296,7 @@ def calculate_cycle_times(
                     )
                 else:
                     if impediment_start_status in active_columns:
-                        item["blocked_days"] += (
-                            now.date() - impediment_start
-                        ).days
+                        item["blocked_days"] += (now.date() - impediment_start).days
                     item["impediments"].append(
                         {
                             "start": impediment_start,

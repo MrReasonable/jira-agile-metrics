@@ -1,16 +1,19 @@
-import os
 import argparse
 import getpass
 import logging
+import os
 
+from dotenv import load_dotenv
 from jira import JIRA
 
-from .config import config_to_options, CALCULATORS, ConfigError
-from .webapp.app import app as webapp
-from .querymanager import QueryManager
 from .calculator import run_calculators
-from .utils import set_chart_context
+from .config import CALCULATORS, ConfigError, config_to_options
+from .querymanager import QueryManager
 from .trello import TrelloClient
+from .utils import set_chart_context
+from .webapp.app import app as webapp
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -19,19 +22,12 @@ def configure_argument_parser():
     """Configure an ArgumentParser that manages command line options."""
 
     parser = argparse.ArgumentParser(
-        description=(
-            "Extract Agile metrics data from JIRA/"
-            "Trello and produce data and charts."
-        )
+        description=("Extract Agile metrics data from JIRA/Trello and produce data and charts.")
     )
 
     # Basic options
-    parser.add_argument(
-        "config", metavar="config.yml", nargs="?", help="Configuration file"
-    )
-    parser.add_argument(
-        "-v", dest="verbose", action="store_true", help="Verbose output"
-    )
+    parser.add_argument("config", metavar="config.yml", nargs="?", help="Configuration file")
+    parser.add_argument("-v", dest="verbose", action="store_true", help="Verbose output")
     parser.add_argument(
         "-vv",
         dest="very_verbose",
@@ -61,25 +57,16 @@ def configure_argument_parser():
         "--output-directory",
         "-o",
         metavar="metrics",
-        help=(
-            "Write output files to this directory,"
-            "rather than the current working directory."
-        ),
+        help=("Write output files to this directory,rather than the current working directory."),
     )
 
     # Connection options
-    parser.add_argument(
-        "--domain", metavar="https://my.jira.com", help="JIRA domain name"
-    )
-    parser.add_argument(
-        "--username", metavar="user", help="JIRA/Trello user name"
-    )
+    parser.add_argument("--domain", metavar="https://my.jira.com", help="JIRA domain name")
+    parser.add_argument("--username", metavar="user", help="JIRA/Trello user name")
     parser.add_argument("--password", metavar="password", help="JIRA password")
     parser.add_argument("--key", metavar="key", help="Trello API key")
     parser.add_argument("--token", metavar="token", help="Trello API password")
-    parser.add_argument(
-        "--http-proxy", metavar="https://proxy.local", help="URL to HTTP Proxy"
-    )
+    parser.add_argument("--http-proxy", metavar="https://proxy.local", help="URL to HTTP Proxy")
     parser.add_argument(
         "--https-proxy",
         metavar="https://proxy.local",
@@ -164,9 +151,7 @@ def run_command_line(parser, args):
     if options["connection"]["type"] == "jira":
         jira = get_jira_client(options["connection"])
     elif options["connection"]["type"] == "trello":
-        jira = get_trello_client(
-            options["connection"], options["settings"]["type_mapping"]
-        )
+        jira = get_trello_client(options["connection"], options["settings"]["type_mapping"])
     else:
         raise ConfigError("Unknown source")
     # Query JIRA and run calculators
@@ -185,9 +170,9 @@ def override_options(options, arguments):
 
 
 def get_jira_client(connection):
-    url = connection["domain"]
-    username = connection["username"]
-    password = connection["password"]
+    url = connection["domain"] or os.environ.get("JIRA_URL")
+    username = connection["username"] or os.environ.get("JIRA_USERNAME")
+    password = connection["password"] or os.environ.get("JIRA_PASSWORD")
     http_proxy = connection["http_proxy"]
     https_proxy = connection["https_proxy"]
     jira_server_version_check = connection["jira_server_version_check"]
@@ -237,3 +222,7 @@ def get_trello_client(connection, type_mapping):
         token = getpass.getpass("Token: ")
 
     return TrelloClient(username, key, token, type_mapping=type_mapping)
+
+
+if __name__ == "__main__":
+    main()

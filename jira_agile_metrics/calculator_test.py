@@ -2,7 +2,6 @@ from .calculator import Calculator, run_calculators
 
 
 def test_run_calculator():
-
     written = []
 
     class Enabled(Calculator):

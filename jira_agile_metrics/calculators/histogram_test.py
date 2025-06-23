@@ -1,11 +1,10 @@
+import pandas as pd
 import pytest
 from pandas import DataFrame
-import pandas as pd
-
-from .cycletime import CycleTimeCalculator
-from .histogram import HistogramCalculator
 
 from ..utils import extend_dict
+from .cycletime import CycleTimeCalculator
+from .histogram import HistogramCalculator
 
 
 @pytest.fixture
@@ -24,18 +23,14 @@ def results(large_cycle_time_results):
 
 
 def test_empty(query_manager, settings, minimal_cycle_time_columns):
-    results = {
-        CycleTimeCalculator: DataFrame(
-            [], columns=minimal_cycle_time_columns, index=[]
-        )
-    }
+    results = {CycleTimeCalculator: DataFrame([], columns=minimal_cycle_time_columns, index=[])}
 
     calculator = HistogramCalculator(query_manager, settings, results)
 
     # Should not raise error on empty input
     try:
         data = calculator.run()
-    except AttributeError as e:
+    except AttributeError:
         # Acceptable if .dt accessor fails on empty input
         data = None
     assert data is None or isinstance(data, pd.Series)

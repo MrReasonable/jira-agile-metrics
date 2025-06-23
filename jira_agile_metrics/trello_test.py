@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 from .trello import (
-    TrelloClient,
-    JiraLikeHistoryItem,
-    JiraLikeHistory,
-    JiraLikeIssue,
     JiraLikeFields,
+    JiraLikeHistory,
+    JiraLikeHistoryItem,
+    JiraLikeIssue,
+    TrelloClient,
 )
 
 member = "chrisyoung277"
@@ -19,7 +19,7 @@ def test_create(mock_trello_api):
     """
 
     my_trello = TrelloClient(member, key, token)
-    assert type(my_trello) == TrelloClient
+    assert isinstance(my_trello, TrelloClient)
 
 
 def test_search_issues(mock_trello_api):
@@ -54,10 +54,8 @@ def test_jira_like_history_item():
     The events in the history of a trello card - JIRA style
     """
 
-    my_item = JiraLikeHistoryItem(
-        field="status", fromString="Open", toString="Closed"
-    )
-    assert type(my_item) == JiraLikeHistoryItem
+    my_item = JiraLikeHistoryItem(field="status", fromString="Open", toString="Closed")
+    assert isinstance(my_item, JiraLikeHistoryItem)
 
 
 def test_jira_like_history():
@@ -67,11 +65,9 @@ def test_jira_like_history():
 
     my_history = JiraLikeHistory(
         created="",
-        item=JiraLikeHistoryItem(
-            field="status", fromString="Open", toString="Closed"
-        ),
+        item=JiraLikeHistoryItem(field="status", fromString="Open", toString="Closed"),
     )
-    assert type(my_history) == JiraLikeHistory
+    assert isinstance(my_history, JiraLikeHistory)
 
 
 def test_jira_like_issue():
@@ -85,12 +81,10 @@ def test_jira_like_issue():
         fields=None,
         history=JiraLikeHistory(
             created="",
-            item=JiraLikeHistoryItem(
-                field="status", fromString="Open", toString="Closed"
-            ),
+            item=JiraLikeHistoryItem(field="status", fromString="Open", toString="Closed"),
         ),
     )
-    assert type(my_jira_like_issue) == JiraLikeIssue
+    assert isinstance(my_jira_like_issue, JiraLikeIssue)
 
 
 def test_jira_like_fields():
@@ -105,7 +99,7 @@ def test_jira_like_fields():
         issuetype="hmmm",
     )
 
-    assert type(my_jira_fields) == JiraLikeFields
+    assert isinstance(my_jira_fields, JiraLikeFields)
 
 
 def test_set_type_from_label(mock_trello_api):
@@ -114,8 +108,6 @@ def test_set_type_from_label(mock_trello_api):
     a specific label
     """
 
-    my_trello = TrelloClient(
-        member, key, token, type_mapping={"defect": ["bug"]}
-    )
+    my_trello = TrelloClient(member, key, token, type_mapping={"defect": ["bug"]})
     issues = my_trello.search_issues("my_board")
     assert issues[1].fields.issuetype.name == "defect"

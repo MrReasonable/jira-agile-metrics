@@ -1,14 +1,20 @@
-import pytest
 import datetime
 
+import pytest
+
 from .conftest import (
-    FauxJIRA as JIRA,
-    FauxIssue as Issue,
     FauxChange as Change,
+)
+from .conftest import (
     FauxFieldValue as Value,
 )
-
-from .querymanager import QueryManager, IssueSnapshot
+from .conftest import (
+    FauxIssue as Issue,
+)
+from .conftest import (
+    FauxJIRA as JIRA,
+)
+from .querymanager import IssueSnapshot, QueryManager
 from .utils import extend_dict
 
 
@@ -112,9 +118,7 @@ def test_resolve_attribute_value(jira, settings):
 
     assert qm.resolve_attribute_value(issues[0], "Team") == "Team 1"
     assert qm.resolve_attribute_value(issues[0], "Estimate") == 30
-    assert (
-        qm.resolve_attribute_value(issues[0], "Release") == "R3"
-    )  # due to known_value
+    assert qm.resolve_attribute_value(issues[0], "Release") == "R3"  # due to known_value
 
 
 def test_resolve_field_value(jira, settings):
@@ -123,9 +127,7 @@ def test_resolve_field_value(jira, settings):
 
     assert qm.resolve_field_value(issues[0], "customfield_001") == "Team 1"
     assert qm.resolve_field_value(issues[0], "customfield_002") == 30
-    assert (
-        qm.resolve_field_value(issues[0], "customfield_003") == "R3"
-    )  # due to known_value
+    assert qm.resolve_field_value(issues[0], "customfield_003") == "R3"  # due to known_value
 
 
 def test_iter_changes(jira, settings):

@@ -2,10 +2,10 @@ import json
 import tempfile
 
 from .cli import (
-    override_options,
-    run_command_line,
     configure_argument_parser,
     get_trello_client,
+    override_options,
+    run_command_line,
 )
 
 
@@ -30,7 +30,6 @@ def test_override_options():
 
 
 def test_run_command_line_with_trello_client(mocker):
-
     config = """
 Connection:
   Type: trello
@@ -59,9 +58,7 @@ Output:
         - cycletime.json
     CFD data: cfd.csv
 """
-    mock_get_trello_client = mocker.patch(
-        "jira_agile_metrics.cli.get_trello_client"
-    )
+    mock_get_trello_client = mocker.patch("jira_agile_metrics.cli.get_trello_client")
     mocker.patch("jira_agile_metrics.cli.QueryManager")
     with tempfile.NamedTemporaryFile(mode="w", delete=False) as config_file:
         config_file.write(config)
@@ -73,11 +70,8 @@ Output:
 
 
 def test_get_trello_client(mocker):
-
     mock_trello = mocker.patch("jira_agile_metrics.cli.TrelloClient")
 
-    get_trello_client(
-        {"username": "me", "key": "my_key", "token": "my_token"}, {}
-    )
+    get_trello_client({"username": "me", "key": "my_key", "token": "my_token"}, {})
 
     mock_trello.assert_called_once()
