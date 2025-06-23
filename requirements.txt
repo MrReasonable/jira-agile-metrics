@@ -16,4 +16,6 @@ Jinja2
 pytest-mock
 mock
 trello
-scipy>=1.15.0
+scipy >=1.15.0, <1.16.0
+python-dotenv
+ruff
