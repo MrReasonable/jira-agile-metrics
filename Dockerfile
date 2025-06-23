@@ -1,4 +1,4 @@
-FROM python:3
+FROM python:3-slim
 
 LABEL version="0.6"
 LABEL description="Produce charts and data files of Agile metrics extracted \

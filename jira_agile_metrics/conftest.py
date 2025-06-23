@@ -273,14 +273,13 @@ def _issues(issues):
     ]
 
 
-def _ts(datestring, timestring="00:00:00", freq=None):
+def _ts(datestring, timestring="00:00:00"):
     return Timestamp(
         "%s %s"
         % (
             datestring,
             timestring,
-        ),
-        freq=freq,
+        )
     )
 
 
@@ -527,12 +526,12 @@ def minimal_cfd_results(minimal_cycle_time_results, cfd_columns):
                 ],
                 columns=cfd_columns,
                 index=[
-                    _ts("2018-01-01", "00:00:00", freq="D"),
-                    _ts("2018-01-02", "00:00:00", freq="D"),
-                    _ts("2018-01-03", "00:00:00", freq="D"),
-                    _ts("2018-01-04", "00:00:00", freq="D"),
-                    _ts("2018-01-05", "00:00:00", freq="D"),
-                    _ts("2018-01-06", "00:00:00", freq="D"),
+                    _ts("2018-01-01", "00:00:00"),
+                    _ts("2018-01-02", "00:00:00"),
+                    _ts("2018-01-03", "00:00:00"),
+                    _ts("2018-01-04", "00:00:00"),
+                    _ts("2018-01-05", "00:00:00"),
+                    _ts("2018-01-06", "00:00:00"),
                 ],
             )
         },

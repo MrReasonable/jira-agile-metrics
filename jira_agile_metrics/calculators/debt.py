@@ -31,7 +31,7 @@ class DebtCalculator(Calculator):
 
         # Allows unit testing to use a fixed date
         if now is None:
-            now = datetime.datetime.utcnow()
+            now = datetime.datetime.now(datetime.timezone.utc)
 
         # This calculation is expensive. Only run it if we have a query.
         if not query:
@@ -76,14 +76,18 @@ class DebtCalculator(Calculator):
             )
             series["created"]["data"].append(created_date)
             series["resolved"]["data"].append(resolved_date)
-            series["age"]["data"].append(
-                (
-                    resolved_date.replace(tzinfo=None)
-                    if resolved_date is not None
-                    else now
-                )
-                - created_date.replace(tzinfo=None)
-            )
+
+            # Ensure both datetimes are offset-naive for subtraction
+            if resolved_date is not None:
+                resolved_dt = resolved_date.replace(tzinfo=None)
+            else:
+                # If now is offset-aware, convert to naive
+                if now.tzinfo is not None:
+                    resolved_dt = now.replace(tzinfo=None)
+                else:
+                    resolved_dt = now
+            created_dt = created_date.replace(tzinfo=None) if created_date.tzinfo is not None else created_date
+            series["age"]["data"].append(resolved_dt - created_dt)
 
         data = {}
         for k, v in series.items():

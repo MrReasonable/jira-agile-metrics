@@ -10,14 +10,13 @@ from ..utils import extend_dict
 from ..conftest import _issues
 
 
-def _ts(datestring, timestring="00:00:00", freq=None):
+def _ts(datestring, timestring="00:00:00"):
     return Timestamp(
         "%s %s"
         % (
             datestring,
             timestring,
-        ),
-        freq=freq,
+        )
     )
 
 

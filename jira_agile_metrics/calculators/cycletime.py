@@ -127,7 +127,7 @@ def calculate_cycle_times(
 
     # Allows unit testing to use a fixed date
     if now is None:
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc)
 
     cycle_names = [s["name"] for s in cycle]
     active_columns = cycle_names[

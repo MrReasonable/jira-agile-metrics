@@ -1,9 +1,9 @@
 cryptography
 pyjwt
-requests-oauthlib>=1.2.0
+requests-oauthlib
 jira
 PyYAML
-pandas>=0.23.0,<2.0.0
+pandas
 numpy
 seaborn
 matplotlib
@@ -16,3 +16,4 @@ Jinja2
 pytest-mock
 mock
 trello
+scipy>=1.15.0

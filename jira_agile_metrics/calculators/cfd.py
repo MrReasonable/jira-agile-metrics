@@ -118,7 +118,7 @@ def calculate_cfd_data(cycle_data, cycle_names):
 
     # Replace missing NaT values (happens if a status is skipped)
     # with the subsequent timestamp
-    cfd_data = cfd_data.fillna(method="bfill", axis=1)
+    cfd_data = cfd_data.bfill(axis=1)
 
     # Count number of times each date occurs, preserving column order
     cfd_data = pd.concat(
@@ -132,7 +132,7 @@ def calculate_cfd_data(cycle_data, cycle_names):
     start, end = cfd_data.index.min(), cfd_data.index.max()
     if start is not pd.NaT and end is not pd.NaT:
         cfd_data = cfd_data.reindex(
-            pd.date_range(start, end, freq="D"), method="ffill"
-        )
+            pd.date_range(start, end, freq="D")
+        ).ffill()
 
     return cfd_data

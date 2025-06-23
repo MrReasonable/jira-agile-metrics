@@ -21,7 +21,7 @@ class HistogramCalculator(Calculator):
         cycle_data = self.get_result(CycleTimeCalculator)
 
         cycle_times = (
-            cycle_data["cycle_time"].astype("timedelta64[D]").dropna().tolist()
+            cycle_data["cycle_time"].dt.days.dropna().tolist()
         )
 
         if not cycle_times:

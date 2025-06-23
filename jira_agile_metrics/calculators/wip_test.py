@@ -76,15 +76,15 @@ def test_calculate_wip(query_manager, settings, results):
     data = calculator.run()
 
     assert list(data.index) == [
-        Timestamp("2018-01-01 00:00:00", freq="D"),
-        Timestamp("2018-01-02 00:00:00", freq="D"),
-        Timestamp("2018-01-03 00:00:00", freq="D"),
-        Timestamp("2018-01-04 00:00:00", freq="D"),
-        Timestamp("2018-01-05 00:00:00", freq="D"),
-        Timestamp("2018-01-06 00:00:00", freq="D"),
-        Timestamp("2018-01-07 00:00:00", freq="D"),
-        Timestamp("2018-01-08 00:00:00", freq="D"),
-        Timestamp("2018-01-09 00:00:00", freq="D"),
+        Timestamp("2018-01-01 00:00:00"),
+        Timestamp("2018-01-02 00:00:00"),
+        Timestamp("2018-01-03 00:00:00"),
+        Timestamp("2018-01-04 00:00:00"),
+        Timestamp("2018-01-05 00:00:00"),
+        Timestamp("2018-01-06 00:00:00"),
+        Timestamp("2018-01-07 00:00:00"),
+        Timestamp("2018-01-08 00:00:00"),
+        Timestamp("2018-01-09 00:00:00"),
     ]
 
     assert data.to_dict("records") == [
@@ -114,15 +114,15 @@ def test_calculate_wip_different_columns(query_manager, settings, results):
     data = calculator.run()
 
     assert list(data.index) == [
-        Timestamp("2018-01-01 00:00:00", freq="D"),
-        Timestamp("2018-01-02 00:00:00", freq="D"),
-        Timestamp("2018-01-03 00:00:00", freq="D"),
-        Timestamp("2018-01-04 00:00:00", freq="D"),
-        Timestamp("2018-01-05 00:00:00", freq="D"),
-        Timestamp("2018-01-06 00:00:00", freq="D"),
-        Timestamp("2018-01-07 00:00:00", freq="D"),
-        Timestamp("2018-01-08 00:00:00", freq="D"),
-        Timestamp("2018-01-09 00:00:00", freq="D"),
+        Timestamp("2018-01-01 00:00:00"),
+        Timestamp("2018-01-02 00:00:00"),
+        Timestamp("2018-01-03 00:00:00"),
+        Timestamp("2018-01-04 00:00:00"),
+        Timestamp("2018-01-05 00:00:00"),
+        Timestamp("2018-01-06 00:00:00"),
+        Timestamp("2018-01-07 00:00:00"),
+        Timestamp("2018-01-08 00:00:00"),
+        Timestamp("2018-01-09 00:00:00"),
     ]
 
     assert data.to_dict("records") == [

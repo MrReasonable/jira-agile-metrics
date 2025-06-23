@@ -145,6 +145,6 @@ def calculate_scatterplot_data(cycle_data):
         .rename(columns={"completed_timestamp": "completed_date"})
     )
 
-    data["cycle_time"] = data["cycle_time"].astype("timedelta64[D]")
+    data["cycle_time"] = data["cycle_time"].dt.days
 
     return data

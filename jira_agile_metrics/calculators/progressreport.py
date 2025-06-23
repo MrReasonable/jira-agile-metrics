@@ -789,7 +789,7 @@ def forecast_to_complete(
 
     # Allows unit testing to use a fixed date
     if now is None:
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.timezone.utc)
 
     epic_trials = {e.key: pd.Series([np.nan] * trials) for e in epics}
 
