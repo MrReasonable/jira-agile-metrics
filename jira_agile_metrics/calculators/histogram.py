@@ -102,7 +102,8 @@ class HistogramCalculator(Calculator):
         fig, ax = plt.subplots()
         bins = range(int(ct_days.max()) + 2)
 
-        sns.distplot(ct_days, bins=bins, ax=ax, kde=False, axlabel="Cycle time (days)")
+        sns.histplot(ct_days, bins=bins, ax=ax, kde=False)
+        ax.set_xlabel("Cycle time (days)")
 
         if self.settings["histogram_chart_title"]:
             ax.set_title(self.settings["histogram_chart_title"])
@@ -112,19 +113,16 @@ class HistogramCalculator(Calculator):
 
         # Add quantiles
         bottom, top = ax.get_ylim()
+        quantile_labels = []
         for quantile, value in ct_days.quantile(quantiles).items():
             ax.vlines(value, bottom, top - 0.001, linestyles="--", linewidths=1)
-            ax.annotate(
-                "%.0f%% (%.0f days)"
-                % (
-                    (quantile * 100),
-                    value,
-                ),
-                xy=(value, top),
-                xytext=(value - 0.1, top - 0.001),
-                rotation="vertical",
-                fontsize="x-small",
-                ha="right",
+            label = "%.0f%% (%.0f days)" % ((quantile * 100), value)
+            quantile_labels.append(label)
+
+        # Add quantile labels as a block of text below the chart
+        if quantile_labels:
+            fig.text(
+                0.5, -0.03, " | ".join(quantile_labels), ha="center", va="top", fontsize="small"
             )
 
         ax.set_ylabel("Frequency")

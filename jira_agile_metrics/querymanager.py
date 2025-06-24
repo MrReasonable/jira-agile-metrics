@@ -239,8 +239,6 @@ class QueryManager(object):
         max_results = self.settings["max_results"]
 
         logger.info("Fetching issues with query `%s`", jql)
-        print(f"[DEBUG] JQL being sent: {jql}")
-        print(f"[DEBUG] JQL repr: {repr(jql)}")
         if max_results:
             logger.info("Limiting to %d results", max_results)
 
@@ -248,6 +246,5 @@ class QueryManager(object):
             issues = self.jira.search_issues(jql, expand=expand, maxResults=max_results)
             logger.info("Fetched %d issues", len(issues))
             return issues
-        except Exception as e:
-            print(f"[DEBUG] Exception from Jira API: {e}")
+        except Exception:
             raise

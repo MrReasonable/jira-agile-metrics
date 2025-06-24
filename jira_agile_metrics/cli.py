@@ -1,6 +1,5 @@
 import argparse
 import getpass
-import http.client as http_client
 import logging
 import os
 

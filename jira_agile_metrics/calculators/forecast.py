@@ -98,12 +98,8 @@ class BurnupForecastCalculator(Calculator):
                 cycle_data, freq, window=(sampling_window_end - throughput_window_start).days
             )
             mean_throughput = td["count"].mean() if len(td) > 0 else 0
-            print(
-                f"[DEBUG] Trying {freq_label} throughput: mean={mean_throughput}, samples={len(td)}"
-            )
             if mean_throughput > 0:
                 throughput_data = td
-                print(f"[INFO] Using {freq_label} throughput for forecast.")
                 break
         else:
             print(
@@ -120,23 +116,23 @@ class BurnupForecastCalculator(Calculator):
             backlog_growth_window_end,
         )
         # Debug: print last 60 days of backlog growth data
-        print("[DEBUG] Backlog growth data (last 60 days):\n", backlog_growth_data.tail(60))
-        print("[DEBUG] Backlog growth data index (last 5):\n", backlog_growth_data.index[-5:])
+        # print("[DEBUG] Backlog growth data (last 60 days):\n", backlog_growth_data.tail(60))
+        # print("[DEBUG] Backlog growth data index (last 5):\n", backlog_growth_data.index[-5:])
 
         # Debug: print last 60 days of backlog column from burnup_data
-        print(
-            "[DEBUG] burnup_data[backlog_column] (last 60 days):\n",
-            burnup_data[backlog_column].tail(60),
-        )
-        print(
-            "[DEBUG] burnup_data[backlog_column] index (last 5):\n",
-            burnup_data[backlog_column].index[-5:],
-        )
+        # print(
+        #     "[DEBUG] burnup_data[backlog_column] (last 60 days):\n",
+        #     burnup_data[backlog_column].tail(60),
+        # )
+        # print(
+        #     "[DEBUG] burnup_data[backlog_column] index (last 5):\n",
+        #     burnup_data[backlog_column].index[-5:],
+        # )
 
         # --- Throughput sampling window ---
-        print(f"[DEBUG] Throughput window: {throughput_window_start} to {sampling_window_end}")
-        print(f"[DEBUG] Throughput samples found: {len(throughput_data)}")
-        print(f"[DEBUG] Throughput samples: {throughput_data}")
+        # print(f"[DEBUG] Throughput window: {throughput_window_start} to {sampling_window_end}")
+        # print(f"[DEBUG] Throughput samples found: {len(throughput_data)}")
+        # print(f"[DEBUG] Throughput samples: {throughput_data}")
         if len(throughput_data) == 0:
             warnings.warn(
                 "No throughput samples available, aborting forecast simulations", RuntimeWarning
@@ -311,20 +307,14 @@ class BurnupForecastCalculator(Calculator):
                 finish_dates = pd.Series(finish_dates)
                 quantiles = [0.5, 0.85, 0.95]
                 finish_date_quantiles = finish_dates.quantile(quantiles)
+                quantile_handles = []
+                quantile_labels = []
                 for q, value in zip(quantiles, finish_date_quantiles):
-                    ax.axvline(value, linestyle="--", color="#444444", linewidth=1)
-                    ax.annotate(
-                        f"{int(q * 100)}% ("
-                        f"{pd.to_datetime(value).strftime(self.settings['date_format'])})",
-                        xy=(value, target),
-                        xytext=(0, 5),
-                        textcoords="offset points",
-                        rotation=90,
-                        va="bottom",
-                        ha="center",
-                        fontsize="x-small",
-                        backgroundcolor="#ffffff",
-                    )
+                    vline = ax.axvline(value, linestyle="--", color="#444444", linewidth=1)
+                    date_str = pd.to_datetime(value).strftime(self.settings["date_format"])
+                    label = f"{int(q * 100)}% ({date_str})"
+                    quantile_handles.append(vline)
+                    quantile_labels.append(label)
         # --- Clean up legend: only show key elements ---
         handles, labels = ax.get_legend_handles_labels()
         keep_labels = set(
@@ -342,6 +332,10 @@ class BurnupForecastCalculator(Calculator):
         filtered = [(h, label) for h, label in zip(handles, labels) if label in keep_labels]
         if filtered:
             handles, labels = zip(*filtered)
+        # Add quantile completion date lines to legend
+        if target is not None and "quantile_handles" in locals():
+            handles = list(handles) + quantile_handles
+            labels = list(labels) + quantile_labels
         ax.legend(
             handles,
             labels,
@@ -396,7 +390,7 @@ def calculate_daily_backlog_growth(burnup_data, backlog_column, window_start, wi
     backlog_series = (
         burnup_data[backlog_column]
         .reindex(pd.date_range(start=window_start, end=window_end, freq="D"))
-        .fillna(method="ffill")
+        .ffill()
         .fillna(0)
     )
     # Daily growth is the positive difference (new items only)
