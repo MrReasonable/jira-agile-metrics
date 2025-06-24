@@ -94,3 +94,4 @@ ENV/
 progress*.html
 config.yaml
 config.yml
+output/

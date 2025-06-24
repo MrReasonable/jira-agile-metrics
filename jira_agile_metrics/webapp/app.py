@@ -122,12 +122,16 @@ def get_jira_client(connection):
     """Create a JIRA client with the given connection options"""
 
     url = connection["domain"] or os.environ.get("JIRA_URL")
-    username = connection["username"] or os.environ.get("JIRA_USERNAME")
-    password = connection["password"] or os.environ.get("JIRA_PASSWORD")
+    username = connection["username"]
+    if not username:
+        username = os.environ.get("JIRA_USERNAME")
+    password = connection["password"]
+    if not password:
+        password = os.environ.get("JIRA_PASSWORD")
     jira_client_options = connection["jira_client_options"]
     jira_server_version_check = connection["jira_server_version_check"]
 
-    jira_options = {"server": url}
+    jira_options = {"server": url, "rest_api_version": 3}
     jira_options.update(jira_client_options)
 
     try:

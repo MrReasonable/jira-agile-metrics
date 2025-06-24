@@ -234,16 +234,20 @@ class QueryManager(object):
     # Basic queries
 
     def find_issues(self, jql, expand="changelog"):
-        """Return a list of issues with changelog metadata for the given
-        JQL.
-        """
+        """Return a list of issues with changelog metadata for the given JQL."""
 
         max_results = self.settings["max_results"]
 
         logger.info("Fetching issues with query `%s`", jql)
+        print(f"[DEBUG] JQL being sent: {jql}")
+        print(f"[DEBUG] JQL repr: {repr(jql)}")
         if max_results:
             logger.info("Limiting to %d results", max_results)
 
-        issues = self.jira.search_issues(jql, expand=expand, maxResults=max_results)
-        logger.info("Fetched %d issues", len(issues))
-        return issues
+        try:
+            issues = self.jira.search_issues(jql, expand=expand, maxResults=max_results)
+            logger.info("Fetched %d issues", len(issues))
+            return issues
+        except Exception as e:
+            print(f"[DEBUG] Exception from Jira API: {e}")
+            raise

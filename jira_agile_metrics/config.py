@@ -229,6 +229,7 @@ def config_to_options(data, cwd=None, extended=False):
             "burnup_forecast_chart_trials": 100,
             "burnup_forecast_chart_throughput_window": 60,
             "burnup_forecast_chart_throughput_window_end": None,
+            "burnup_forecast_chart_backlog_growth_window": None,
             "wip_frequency": "1W-MON",
             "wip_window": None,
             "wip_chart": None,
@@ -380,6 +381,7 @@ def config_to_options(data, cwd=None, extended=False):
             "defects_window",
             "debt_window",
             "waste_window",
+            "burnup_forecast_chart_backlog_growth_window",
         ]:
             if expand_key(key) in config["output"]:
                 options["settings"][key] = force_int(key, config["output"][expand_key(key)])
@@ -662,8 +664,7 @@ def config_to_options(data, cwd=None, extended=False):
         raise ConfigError("`Workflow` section not found")
 
     # Parse attributes (fields) - merge from extended file if needed
-
-    if "attributes" in config:
+    if "attributes" in config and config["attributes"] is not None:
         options["settings"]["attributes"].update(dict(config["attributes"]))
 
     if "known values" in config:

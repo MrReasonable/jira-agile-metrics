@@ -1,5 +1,6 @@
 import argparse
 import getpass
+import http.client as http_client
 import logging
 import os
 
@@ -128,10 +129,17 @@ def run_command_line(parser, args):
     # (command line arguments override config file options)
 
     logger.debug("Parsing options from %s", args.config)
-    with open(args.config) as config:
-        options = config_to_options(
-            config.read(), cwd=os.path.dirname(os.path.abspath(args.config))
+    try:
+        with open(args.config) as config:
+            options = config_to_options(
+                config.read(), cwd=os.path.dirname(os.path.abspath(args.config))
+            )
+    except FileNotFoundError:
+        print(
+            f"Error: Configuration file '{args.config}' not found. "
+            "Please provide a valid config file."
         )
+        return
 
     # Allow command line arguments to override options
     override_options(options["connection"], args)
@@ -171,12 +179,15 @@ def override_options(options, arguments):
 
 def get_jira_client(connection):
     url = connection["domain"] or os.environ.get("JIRA_URL")
-    username = connection["username"] or os.environ.get("JIRA_USERNAME")
-    password = connection["password"] or os.environ.get("JIRA_PASSWORD")
+    username = connection["username"]
+    if not username:
+        username = os.environ.get("JIRA_USERNAME")
+    password = connection["password"]
+    if not password:
+        password = os.environ.get("JIRA_PASSWORD")
     http_proxy = connection["http_proxy"]
     https_proxy = connection["https_proxy"]
     jira_server_version_check = connection["jira_server_version_check"]
-
     jira_client_options = connection["jira_client_options"]
 
     logger.info("Connecting to %s", url)
@@ -187,7 +198,7 @@ def get_jira_client(connection):
     if not password:
         password = getpass.getpass("Password: ")
 
-    options = {"server": url}
+    options = {"server": url, "rest_api_version": 3}
     proxies = None
 
     if http_proxy or https_proxy:
