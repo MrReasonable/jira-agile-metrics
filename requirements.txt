@@ -19,3 +19,4 @@ trello
 scipy >=1.15.0, <1.16.0
 python-dotenv
 ruff
+bokeh

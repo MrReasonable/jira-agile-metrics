@@ -1,4 +1,4 @@
-FROM tiangolo/uwsgi-nginx-flask:python3.6
+FROM tiangolo/uwsgi-nginx-flask:python3.12
 
 LABEL version="0.6"
 LABEL description="Web server version of jira-agile-metrics"

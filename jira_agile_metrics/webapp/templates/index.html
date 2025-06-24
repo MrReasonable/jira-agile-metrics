@@ -1,23 +1,39 @@
 {% extends "layout.html" %}
 {% block main %}
 
-<div class="upload-area">
+<h2 class="mt-5">Interactive Bokeh Charts</h2>
+<ul>
+    <li><a href="/burnup">Burnup Chart</a></li>
+    <li><a href="/burnup-forecast">Burnup Forecast Chart</a></li>
+    <li><a href="/cfd">Cumulative Flow Diagram (CFD)</a></li>
+    <li><a href="/histogram">Cycle Time Histogram</a></li>
+    <li><a href="/scatterplot">Cycle Time Scatterplot</a></li>
+    <li><a href="/netflow">Net Flow Chart</a></li>
+    <li><a href="/ageingwip">Ageing WIP Chart</a></li>
+    <li><a href="/debt">Technical Debt Chart</a></li>
+    <li><a href="/debt-age">Debt Age Chart</a></li>
+    <li><a href="/defects-priority">Defects by Priority</a></li>
+    <li><a href="/defects-type">Defects by Type</a></li>
+    <li><a href="/defects-environment">Defects by Environment</a></li>
+    <li><a href="/impediments">Impediments Chart</a></li>
+    <li><a href="/waste">Waste Chart</a></li>
+    <li><a href="/progress">Progress Report Chart</a></li>
+    <li><a href="/percentiles">Percentiles Chart</a></li>
+    <li><a href="/cycletime">Cycle Time Chart</a></li>
+</ul>
 
-    <form class="form-upload" method="POST" enctype="multipart/form-data" action="/run">
-        <h1 class="h3 mb-3 font-weight-normal">Upload & run</h1>
-        <p class="lead">Upload a <code>.yml</code> configuration file.</p>
-        <label for="config" class="sr-only">Configuration file</label>
-        <input type="file" name="config" id="config" class="form-control-file" placeholder="Configuration file" />
-        <label for="url" class="sr-only">JIRA URL</label>
-        <input type="text" name="url" id="url" class="form-control" placeholder="JIRA server" />
-        <label for="username" class="sr-only">JIRA username</label>
-        <input type="text" name="username" id="username" class="form-control" placeholder="JIRA username" />
-        <label for="password" class="sr-only">JIRA password</label>
-        <input type="password" name="password" id="password" class="form-control" placeholder="JIRA password" />
-        <input type="hidden" name="max_results" value="{{max_results}}" />
-        <button class="btn btn-lg btn-primary btn-block" type="submit">Run</button>
-        <p class="mt-3 mb-3 text-muted">This can take a long time. JIRA connection details are optional if specified in the configuration file.</p>
-    </form>
-</div>
+{% if session.user_query %}
+<div class="alert alert-info">Current JQL query: <code>{{ session.user_query }}</code></div>
+{% endif %}
+<form method="POST" action="/set_query" class="mb-4">
+    <div class="form-group">
+        <label for="user_query">Custom JQL Query</label>
+        <input type="text" class="form-control" id="user_query" name="user_query" placeholder="Enter JQL query" value="{{ session.user_query or '' }}">
+    </div>
+    <button type="submit" class="btn btn-primary">Set Query</button>
+    {% if session.user_query %}
+    <button type="submit" name="user_query" value="" class="btn btn-secondary ml-2">Clear</button>
+    {% endif %}
+</form>
 
 {% endblock %}

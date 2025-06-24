@@ -1,0 +1,10 @@
+services:
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile.webapp
+    ports:
+      - "80:80"
+    environment:
+      - MPLBACKEND=agg
+    restart: unless-stopped 
