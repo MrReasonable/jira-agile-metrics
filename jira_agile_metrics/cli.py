@@ -148,9 +148,19 @@ def run_command_line(parser, args):
     set_chart_context("paper")
 
     # Set output directory if required
+    output_dir = None
+    if "output_directory" in options:
+        output_dir = options["output_directory"]
     if args.output_directory:
-        logger.info("Changing working directory to %s" % args.output_directory)
-        os.chdir(args.output_directory)
+        output_dir = args.output_directory
+    if output_dir:
+        logger.info("Changing working directory to %s" % output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+        os.chdir(output_dir)
+    logger.debug(f"[DEBUG] Config file path: {args.config}")
+    logger.debug(f"[DEBUG] Initial output_directory in options: {options.get('output_directory')}")
+    logger.debug(f"[DEBUG] Current working directory: {os.getcwd()}")
+    logger.debug(f"[DEBUG] output_dir value: {output_dir}")
 
     # Select data source
     jira = None

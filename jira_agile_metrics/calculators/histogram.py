@@ -46,6 +46,13 @@ class HistogramCalculator(Calculator):
     def write(self):
         data = self.get_result()
 
+        logger.debug(
+            f"[DEBUG] lead_time_histogram_data: {self.settings.get('lead_time_histogram_data')}"
+        )
+        logger.debug(
+            f"[DEBUG] lead_time_histogram_chart: {self.settings.get('lead_time_histogram_chart')}"
+        )
+
         if self.settings["histogram_data"]:
             self.write_file(data, self.settings["histogram_data"])
         else:
@@ -55,6 +62,18 @@ class HistogramCalculator(Calculator):
             self.write_chart(data, self.settings["histogram_chart"])
         else:
             logger.debug("No output file specified for histogram chart")
+
+        # Lead time histogram outputs
+        if self.settings.get("lead_time_histogram_data"):
+            self.write_lead_time_file(data, self.settings["lead_time_histogram_data"])
+        else:
+            logger.debug("No output file specified for lead time histogram data")
+
+        if self.settings.get("lead_time_histogram_chart"):
+            for output_file in self.settings["lead_time_histogram_chart"]:
+                self.write_lead_time_chart(data, output_file)
+        else:
+            logger.debug("No output file specified for lead time histogram chart")
 
     def write_file(self, data, output_files):
         file_data = self.get_result()
@@ -130,5 +149,75 @@ class HistogramCalculator(Calculator):
 
         # Write file
         logger.info("Writing histogram chart to %s", output_file)
+        fig.savefig(output_file, bbox_inches="tight", dpi=300)
+        plt.close(fig)
+
+    def write_lead_time_file(self, data, output_files):
+        cycle_data = self.get_result(CycleTimeCalculator)
+        lead_times = cycle_data["lead_time"].dt.days.dropna().tolist()
+        if not lead_times:
+            bins = range(11)
+        else:
+            bins = range(int(max(lead_times)) + 2)
+        values, edges = np.histogram(lead_times, bins=bins, density=False)
+        index = []
+        for i, _ in enumerate(edges):
+            if i == 0:
+                continue
+            index.append("%.01f to %.01f" % (edges[i - 1], edges[i]))
+        file_data = pd.Series(values, name="Items", index=index)
+        for output_file in output_files:
+            output_extension = get_extension(output_file)
+            logger.info("Writing lead time histogram data to %s", output_file)
+            if output_extension == ".json":
+                file_data.to_json(output_file, date_format="iso")
+            elif output_extension == ".xlsx":
+                file_data.to_frame(name="lead_time_histogram").to_excel(
+                    output_file, "LeadTimeHistogram", header=True
+                )
+            else:
+                file_data.to_csv(output_file, header=True)
+
+    def write_lead_time_chart(self, data, output_file):
+        cycle_data = self.get_result(CycleTimeCalculator)
+        chart_data = cycle_data[["lead_time", "completed_timestamp"]].dropna(subset=["lead_time"])
+        lt_days = chart_data["lead_time"].dt.days
+        if len(lt_days.index) < 2:
+            logger.warning("Need at least 2 completed items to draw lead time histogram")
+            return
+        window = self.settings.get("histogram_window")
+        if window:
+            start = chart_data["completed_timestamp"].max().normalize() - pd.Timedelta(window, "D")
+            chart_data = chart_data[chart_data.completed_timestamp >= start]
+            lt_days = chart_data["lead_time"].dt.days
+            if len(lt_days.index) < 2:
+                logger.warning("Need at least 2 completed items to draw lead time histogram")
+                return
+        quantiles = self.settings["quantiles"]
+        logger.debug(
+            "Showing lead time histogram at quantiles %s",
+            ", ".join(["%.2f" % (q * 100.0) for q in quantiles]),
+        )
+        fig, ax = plt.subplots()
+        bins = range(int(lt_days.max()) + 2)
+        sns.histplot(lt_days, bins=bins, ax=ax, kde=False)
+        ax.set_xlabel("Lead time (days)")
+        if self.settings.get("lead_time_histogram_chart_title"):
+            ax.set_title(self.settings["lead_time_histogram_chart_title"])
+        _, right = ax.get_xlim()
+        ax.set_xlim(0, right)
+        bottom, top = ax.get_ylim()
+        quantile_labels = []
+        for quantile, value in lt_days.quantile(quantiles).items():
+            ax.vlines(value, bottom, top - 0.001, linestyles="--", linewidths=1)
+            label = "%.0f%% (%.0f days)" % ((quantile * 100), value)
+            quantile_labels.append(label)
+        if quantile_labels:
+            fig.text(
+                0.5, -0.03, " | ".join(quantile_labels), ha="center", va="top", fontsize="small"
+            )
+        ax.set_ylabel("Frequency")
+        set_chart_style()
+        logger.info("Writing lead time histogram chart to %s", output_file)
         fig.savefig(output_file, bbox_inches="tight", dpi=300)
         plt.close(fig)

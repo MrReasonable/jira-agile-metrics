@@ -1,9 +1,14 @@
 import datetime
 import json
 import logging
+import pprint
+import traceback
 
 import dateutil
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+import seaborn as sns
 
 from ..calculator import Calculator
 from ..trello import TrelloClient
@@ -49,7 +54,9 @@ class CycleTimeCalculator(Calculator):
             self.settings["done_column"],
             self.settings["queries"],
             self.settings["query_attribute"],
+            lead_time_start_column=self.settings.get("lead_time_start_column"),
             now=now,
+            reset_on_backwards=self.settings.get("reset_on_backwards", True),
         )
 
     def write(self):
@@ -119,13 +126,17 @@ def calculate_cycle_times(
     done_column,  # "" in `cycle`
     queries,  # [{jql:"", value:""}]
     query_attribute=None,  # ""
+    lead_time_start_column=None,  # Optional: name of the column to use as lead time start
     now=None,
+    reset_on_backwards=True,  # New option
 ):
     # Allows unit testing to use a fixed date
     if now is None:
         now = datetime.datetime.now(datetime.timezone.utc)
 
     cycle_names = [s["name"] for s in cycle]
+    if lead_time_start_column is None:
+        lead_time_start_column = cycle_names[0]
     active_columns = cycle_names[
         cycle_names.index(committed_column) : cycle_names.index(done_column)
     ]
@@ -148,6 +159,7 @@ def calculate_cycle_times(
         "status": {"data": [], "dtype": "str"},
         "resolution": {"data": [], "dtype": "str"},
         "cycle_time": {"data": [], "dtype": "timedelta64[ns]"},
+        "lead_time": {"data": [], "dtype": "timedelta64[ns]"},
         "completed_timestamp": {"data": [], "dtype": "datetime64[ns]"},
         "blocked_days": {"data": [], "dtype": "int"},
         "impediments": {
@@ -182,6 +194,7 @@ def calculate_cycle_times(
                 "status": issue.fields.status.name,
                 "resolution": issue.fields.resolution.name if issue.fields.resolution else None,
                 "cycle_time": None,
+                "lead_time": None,
                 "completed_timestamp": None,
                 "blocked_days": 0,
                 "impediments": [],
@@ -222,25 +235,26 @@ def calculate_cycle_times(
 
                     # Wipe any subsequent dates,
                     # in case this was a move backwards
-                    found_cycle_name = False
-                    for cycle_name in cycle_names:
-                        if not found_cycle_name and cycle_name == snapshot_cycle_step_name:
-                            found_cycle_name = True
-                            continue
-                        elif found_cycle_name and item[cycle_name] is not None:
-                            logger.info(
-                                (
-                                    "Issue %s moved backwards to %s "
-                                    "[JIRA: %s -> %s], wiping data "
-                                    "for subsequent step %s"
-                                ),
-                                issue.key,
-                                snapshot_cycle_step_name,
-                                snapshot.from_string,
-                                snapshot.to_string,
-                                cycle_name,
-                            )
-                            item[cycle_name] = None
+                    if reset_on_backwards:
+                        found_cycle_name = False
+                        for cycle_name in cycle_names:
+                            if not found_cycle_name and cycle_name == snapshot_cycle_step_name:
+                                found_cycle_name = True
+                                continue
+                            elif found_cycle_name and item[cycle_name] is not None:
+                                logger.info(
+                                    (
+                                        "Issue %s moved backwards to %s "
+                                        "[JIRA: %s -> %s], wiping data "
+                                        "for subsequent step %s"
+                                    ),
+                                    issue.key,
+                                    snapshot_cycle_step_name,
+                                    snapshot.from_string,
+                                    snapshot.to_string,
+                                    cycle_name,
+                                )
+                                item[cycle_name] = None
                 elif snapshot.change == "Flagged":
                     if snapshot.from_string == snapshot.to_string is None:
                         # Initial state from None -> None
@@ -309,11 +323,12 @@ def calculate_cycle_times(
                 impediment_start = None
                 impediment_start_status = None
 
-            # calculate cycle time
+            # calculate cycle time and lead time
 
             previous_timestamp = None
             committed_timestamp = None
             done_timestamp = None
+            lead_time_start_timestamp = None
 
             for cycle_name in reversed(cycle_names):
                 if item[cycle_name] is not None:
@@ -325,10 +340,19 @@ def calculate_cycle_times(
                         done_timestamp = previous_timestamp
                     if cycle_name == committed_column:
                         committed_timestamp = previous_timestamp
+                    if cycle_name == lead_time_start_column:
+                        lead_time_start_timestamp = previous_timestamp
 
             if committed_timestamp is not None and done_timestamp is not None:
                 item["cycle_time"] = done_timestamp - committed_timestamp
                 item["completed_timestamp"] = done_timestamp
+            else:
+                item["cycle_time"] = None
+
+            if lead_time_start_timestamp is not None and done_timestamp is not None:
+                item["lead_time"] = done_timestamp - lead_time_start_timestamp
+            else:
+                item["lead_time"] = None
 
             for k, v in item.items():
                 series[k]["data"].append(v)
@@ -352,6 +376,202 @@ def calculate_cycle_times(
         columns=["key", "url", "issue_type", "summary", "status", "resolution"]
         + sorted(attributes.keys())
         + ([query_attribute] if query_attribute else [])
-        + ["cycle_time", "completed_timestamp", "blocked_days", "impediments"]
+        + ["cycle_time", "lead_time", "completed_timestamp", "blocked_days", "impediments"]
         + cycle_names,
     )
+
+
+def calculate_column_durations(cycle_data, cycle_names):
+    # Returns a DataFrame: rows=issues, columns=cycle columns, values=duration in days
+    durations = []
+    for _, row in cycle_data.iterrows():
+        times = [row.get(col) for col in cycle_names]
+        # Convert to pandas Timestamp if not already
+        times = [pd.Timestamp(t) if not pd.isnull(t) else pd.NaT for t in times]
+        durations_row = []
+        for i in range(len(times) - 1):
+            if pd.isnull(times[i]) or pd.isnull(times[i + 1]):
+                durations_row.append(np.nan)
+            else:
+                durations_row.append((times[i + 1] - times[i]).days)
+        durations.append(durations_row)
+    duration_cols = [f"{cycle_names[i]}→{cycle_names[i + 1]}" for i in range(len(cycle_names) - 1)]
+    return pd.DataFrame(durations, columns=duration_cols, index=cycle_data["key"])
+
+
+def calculate_column_durations_per_column(
+    cycle_data, cycle_names, negative_duration_handling="zero"
+):
+    # Returns a DataFrame: rows=issues, columns=cycle columns (except last),
+    # values=duration in days spent in each column
+    durations = []
+    for _, row in cycle_data.iterrows():
+        times = [row.get(col) for col in cycle_names]
+        times = [pd.Timestamp(t) if not pd.isnull(t) else pd.NaT for t in times]
+        durations_row = []
+        for i in range(len(times) - 1):
+            if pd.isnull(times[i]) or pd.isnull(times[i + 1]):
+                durations_row.append(np.nan)
+            else:
+                val = (times[i + 1] - times[i]).days
+                if val < 0:
+                    if negative_duration_handling == "zero":
+                        val = 0
+                    elif negative_duration_handling == "nan":
+                        val = np.nan
+                    elif negative_duration_handling == "abs":
+                        val = abs(val)
+                durations_row.append(val)
+        durations.append(durations_row)
+    # Use column names (except last)
+    return pd.DataFrame(durations, columns=cycle_names[:-1], index=cycle_data["key"])
+
+
+class BottleneckChartsCalculator(Calculator):
+    """
+    Generates bottleneck visualizations: per-issue stacked bar, aggregate stacked bar,
+    and box/violin plots.
+    """
+
+    def run(self):
+        cycle_data = self.get_result(CycleTimeCalculator)
+        cycle_names = [s["name"] for s in self.settings["cycle"]]
+        negative_duration_handling = self.settings.get("negative_duration_handling", "zero")
+        # Return both transition durations and per-column durations
+        return {
+            "transitions": calculate_column_durations(cycle_data, cycle_names),
+            "columns": calculate_column_durations_per_column(
+                cycle_data, cycle_names, negative_duration_handling
+            ),
+        }
+
+    def write(self):
+        results = self.get_result()
+        # durations_transitions = results["transitions"]  # Unused
+        durations_columns = results["columns"]
+        output_settings = self.settings
+        logger.debug(
+            "[BottleneckChartsCalculator] output_settings: %s",
+            pprint.pformat(output_settings),
+        )
+        for key in [
+            "bottleneck_stacked_per_issue_chart",
+            "bottleneck_stacked_aggregate_mean_chart",
+            "bottleneck_stacked_aggregate_median_chart",
+            "bottleneck_boxplot_chart",
+            "bottleneck_violin_chart",
+        ]:
+            logger.debug("[BottleneckChartsCalculator] %s: %s", key, output_settings.get(key))
+        # 1. Stacked bar per issue (now uses per-column durations)
+        if output_settings.get("bottleneck_stacked_per_issue_chart"):
+            self.write_stacked_per_issue(
+                durations_columns, output_settings["bottleneck_stacked_per_issue_chart"]
+            )
+        # 2. Aggregated stacked bar (mean, by column)
+        if output_settings.get("bottleneck_stacked_aggregate_mean_chart"):
+            self.write_stacked_aggregate(
+                durations_columns,
+                output_settings["bottleneck_stacked_aggregate_mean_chart"],
+                aggfunc="mean",
+            )
+        # 3. Aggregated stacked bar (median, by column)
+        if output_settings.get("bottleneck_stacked_aggregate_median_chart"):
+            self.write_stacked_aggregate(
+                durations_columns,
+                output_settings["bottleneck_stacked_aggregate_median_chart"],
+                aggfunc="median",
+            )
+        # 4. Boxplot (by column)
+        if output_settings.get("bottleneck_boxplot_chart"):
+            self.write_boxplot(durations_columns, output_settings["bottleneck_boxplot_chart"])
+        # 5. Violin plot (by column)
+        if output_settings.get("bottleneck_violin_chart"):
+            self.write_violin(durations_columns, output_settings["bottleneck_violin_chart"])
+
+    def write_stacked_per_issue(self, durations, output_file):
+        logger = logging.getLogger(__name__)
+        try:
+            logger.info(f"Writing bottleneck stacked per issue chart to {output_file}")
+            N = 30
+            plot_data = durations.dropna(how="all").iloc[:N]
+            fig, ax = plt.subplots(figsize=(12, 6))
+            plot_data.plot(kind="bar", stacked=True, ax=ax)
+            ax.set_xlabel("Issue key")
+            ax.set_ylabel("Days in column")
+            ax.set_title(f"Time spent in each column (per issue, first {N} issues)")
+            plt.xticks(rotation=90)
+            plt.tight_layout()
+            fig.savefig(output_file, bbox_inches="tight", dpi=300)
+            plt.close(fig)
+            logger.info(f"Successfully wrote {output_file}")
+        except Exception as e:
+            logger.error(
+                "Error writing bottleneck stacked per issue chart to %s: %s\n%s"
+                % (output_file, e, traceback.format_exc())
+            )
+
+    def write_stacked_aggregate(self, durations, output_file, aggfunc="mean"):
+        logger = logging.getLogger(__name__)
+        try:
+            logger.info(f"Writing bottleneck stacked aggregate chart to {output_file}")
+            if aggfunc == "mean":
+                agg = durations.mean(skipna=True)
+                title = "Average time spent in each column (all issues)"
+            else:
+                agg = durations.median(skipna=True)
+                title = "Median time spent in each column (all issues)"
+            fig, ax = plt.subplots(figsize=(10, 5))
+            agg.plot(kind="bar", stacked=False, ax=ax, color=sns.color_palette("tab10"))
+            ax.set_xlabel("Column")
+            ax.set_ylabel("Days")
+            ax.set_title(title)
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            fig.savefig(output_file, bbox_inches="tight", dpi=300)
+            plt.close(fig)
+            logger.info(f"Successfully wrote {output_file}")
+        except Exception as e:
+            logger.error(
+                "Error writing bottleneck stacked aggregate chart to %s: %s\n%s"
+                % (output_file, e, traceback.format_exc())
+            )
+
+    def write_boxplot(self, durations, output_file):
+        logger = logging.getLogger(__name__)
+        try:
+            logger.info(f"Writing bottleneck boxplot chart to {output_file}")
+            fig, ax = plt.subplots(figsize=(10, 5))
+            sns.boxplot(data=durations, ax=ax)
+            ax.set_xlabel("Column")
+            ax.set_ylabel("Days")
+            ax.set_title("Distribution of time spent in each column (boxplot)")
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            fig.savefig(output_file, bbox_inches="tight", dpi=300)
+            plt.close(fig)
+            logger.info(f"Successfully wrote {output_file}")
+        except Exception as e:
+            logger.error(
+                "Error writing bottleneck boxplot chart to %s: %s\n%s"
+                % (output_file, e, traceback.format_exc())
+            )
+
+    def write_violin(self, durations, output_file):
+        logger = logging.getLogger(__name__)
+        try:
+            logger.info(f"Writing bottleneck violin chart to {output_file}")
+            fig, ax = plt.subplots(figsize=(10, 5))
+            sns.violinplot(data=durations, ax=ax, cut=0)
+            ax.set_xlabel("Column")
+            ax.set_ylabel("Days")
+            ax.set_title("Distribution of time spent in each column (violin plot)")
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            fig.savefig(output_file, bbox_inches="tight", dpi=300)
+            plt.close(fig)
+            logger.info(f"Successfully wrote {output_file}")
+        except Exception as e:
+            logger.error(
+                "Error writing bottleneck violin chart to %s: %s\n%s"
+                % (output_file, e, traceback.format_exc())
+            )

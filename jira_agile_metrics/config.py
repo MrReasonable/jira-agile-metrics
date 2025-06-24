@@ -8,7 +8,7 @@ from pydicti import odicti
 from .calculators.ageingwip import AgeingWIPChartCalculator
 from .calculators.burnup import BurnupCalculator
 from .calculators.cfd import CFDCalculator
-from .calculators.cycletime import CycleTimeCalculator
+from .calculators.cycletime import BottleneckChartsCalculator, CycleTimeCalculator
 from .calculators.debt import DebtCalculator
 from .calculators.defects import DefectsCalculator
 from .calculators.forecast import BurnupForecastCalculator
@@ -24,6 +24,7 @@ from .calculators.wip import WIPChartCalculator
 
 CALCULATORS = (
     CycleTimeCalculator,  # should come first
+    BottleneckChartsCalculator,  # now included for bottleneck visualizations
     # -- others depend on results from this one
     CFDCalculator,  # needs to come before burn-up charts,
     # wip charts, and net flow charts
@@ -290,6 +291,8 @@ def config_to_options(data, cwd=None, extended=False):
             "progress_report_outcomes": None,
             "progress_report_outcome_query": None,
             "progress_report_outcome_deadline_field": None,
+            "lead_time_histogram_chart_title": None,
+            "negative_duration_handling": None,
         },
     }
 
@@ -355,6 +358,9 @@ def config_to_options(data, cwd=None, extended=False):
 
     # Parse and validate output options
     if "output" in config:
+        # Output directory support
+        if expand_key("output_directory") in config["output"]:
+            options["output_directory"] = config["output"][expand_key("output_directory")]
         if "quantiles" in config["output"]:
             try:
                 options["settings"]["quantiles"] = list(map(float, config["output"]["quantiles"]))
@@ -423,6 +429,11 @@ def config_to_options(data, cwd=None, extended=False):
             "debt_age_chart",
             "waste_chart",
             "progress_report",
+            "bottleneck_stacked_per_issue_chart",
+            "bottleneck_stacked_aggregate_mean_chart",
+            "bottleneck_stacked_aggregate_median_chart",
+            "bottleneck_boxplot_chart",
+            "bottleneck_violin_chart",
         ]:
             if expand_key(key) in config["output"]:
                 options["settings"][key] = os.path.basename(config["output"][expand_key(key)])
@@ -436,6 +447,8 @@ def config_to_options(data, cwd=None, extended=False):
             "throughput_data",
             "percentiles_data",
             "impediments_data",
+            "lead_time_histogram_data",
+            "lead_time_histogram_chart",
         ]:
             if expand_key(key) in config["output"]:
                 options["settings"][key] = list(
@@ -456,7 +469,7 @@ def config_to_options(data, cwd=None, extended=False):
             if expand_key(key) in config["output"]:
                 options["settings"][key] = force_list(config["output"][expand_key(key)])
 
-        # string values that copy straight over
+        # string values
         for key in [
             "date_format",
             "backlog_column",
@@ -501,9 +514,11 @@ def config_to_options(data, cwd=None, extended=False):
             "progress_report_epic_team_field",
             "progress_report_outcome_query",
             "progress_report_outcome_deadline_field",
+            "lead_time_histogram_chart_title",
+            "negative_duration_handling",
         ]:
             if expand_key(key) in config["output"]:
-                options["settings"][key] = config["output"][expand_key(key)]
+                options["settings"][key] = str(config["output"][expand_key(key)])
 
         # Special objects for progress reports
         if expand_key("progress_report_teams") in config["output"]:
@@ -514,6 +529,14 @@ def config_to_options(data, cwd=None, extended=False):
             options["settings"]["progress_report_outcomes"] = to_progress_report_outcomes_list(
                 config["output"][expand_key("progress_report_outcomes")]
             )
+
+        # boolean values
+        for key in [
+            "use_cache",
+            "reset_on_backwards",
+        ]:
+            if expand_key(key) in config["output"]:
+                options["settings"][key] = bool(config["output"][expand_key(key)])
 
     # Parse Queries and/or a single Query
 
