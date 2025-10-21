@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 from jira import JIRA
 
 from .calculator import run_calculators
-from .config import CALCULATORS, ConfigError, config_to_options
+from .config import ConfigError, config_to_options
+from .config_main import CALCULATORS
 from .querymanager import QueryManager
 from .trello import TrelloClient
 from .utils import set_chart_context
@@ -118,9 +119,7 @@ def run_command_line(parser, args):
         level=(
             logging.DEBUG
             if args.very_verbose
-            else logging.INFO
-            if args.verbose
-            else logging.WARNING
+            else logging.INFO if args.verbose else logging.WARNING
         ),
     )
 

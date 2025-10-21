@@ -1,7 +1,8 @@
+"""Forecast calculation and burnup chart generation for Jira Agile Metrics."""
+
 import datetime
 import logging
 import warnings
-
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -46,7 +47,8 @@ class BurnupForecastCalculator(Calculator):
 
         # Determine the last date in the data
         last_data_date = burnup_data.index.max().date()
-        # Use the configured window end, but not beyond the last data date for sampling
+        # Use the configured window end, but not beyond the last data date for
+        # sampling
         configured_window_end = self.settings["burnup_forecast_chart_throughput_window_end"]
         if configured_window_end:
             configured_window_end = pd.to_datetime(configured_window_end).date()
@@ -92,10 +94,17 @@ class BurnupForecastCalculator(Calculator):
         start_backlog = burnup_data[backlog_column].max()
         trials = self.settings["burnup_forecast_chart_trials"]
 
-        # Try daily, then weekly, then monthly throughput until we get nonzero mean
-        for freq_label, freq in [("daily", "D"), ("weekly", "W-MON"), ("monthly", "M")]:
+        # Try daily, then weekly, then monthly throughput until we get nonzero
+        # mean
+        for freq_label, freq in [
+            ("daily", "D"),
+            ("weekly", "W-MON"),
+            ("monthly", "M"),
+        ]:
             td = calculate_throughput(
-                cycle_data, freq, window=(sampling_window_end - throughput_window_start).days
+                cycle_data,
+                freq,
+                window=(sampling_window_end - throughput_window_start).days,
             )
             mean_throughput = td["count"].mean() if len(td) > 0 else 0
             if mean_throughput > 0:
@@ -135,7 +144,8 @@ class BurnupForecastCalculator(Calculator):
         # print(f"[DEBUG] Throughput samples: {throughput_data}")
         if len(throughput_data) == 0:
             warnings.warn(
-                "No throughput samples available, aborting forecast simulations", RuntimeWarning
+                "No throughput samples available, aborting forecast simulations",
+                RuntimeWarning,
             )
             return None
 
@@ -144,10 +154,13 @@ class BurnupForecastCalculator(Calculator):
 
             def backlog_growth_sampler_fn():
                 return 0
+
         else:
             backlog_growth_sampler_fn = backlog_growth_sampler(backlog_growth_data)
 
         mean_throughput = throughput_data["count"].mean()
+        std_throughput = throughput_data["count"].std()
+        throughput_sample_count = len(throughput_data)
         if mean_throughput == 0:
             print(
                 "[ERROR] No completed items in the throughput window. Cannot run forecast.\n"
@@ -185,6 +198,30 @@ class BurnupForecastCalculator(Calculator):
             trials=trials,
             target=target,
         )
+        # Trustworthiness metrics
+        if mc_trials is not None and len(mc_trials) > 0:
+            forecast_std = mc_trials.iloc[-1].std()
+            forecast_var = mc_trials.iloc[-1].var()
+        else:
+            forecast_std = float("nan")
+            forecast_var = float("nan")
+        # Traffic light logic
+        rel_std = std_throughput / mean_throughput if mean_throughput else float("inf")
+        if throughput_sample_count >= 30 and rel_std < 0.5:
+            trust_level = "green"
+        elif throughput_sample_count >= 10 and rel_std < 1.0:
+            trust_level = "yellow"
+        else:
+            trust_level = "red"
+        self._trust_metrics = {
+            "throughput_sample_count": throughput_sample_count,
+            "throughput_mean": mean_throughput,
+            "throughput_std": std_throughput,
+            "forecast_std": forecast_std,
+            "forecast_var": forecast_var,
+            "trust_level": trust_level,
+            "rel_std": rel_std,
+        }
         self._backlog_trials = backlog_trials
         self._done_trials = mc_trials
         self._forecast_horizon_end = forecast_horizon_end
@@ -215,6 +252,7 @@ class BurnupForecastCalculator(Calculator):
         backlog_trials = self._backlog_trials
         forecast_horizon_end = self._forecast_horizon_end
         target = self._target
+        trust_metrics = getattr(self, "_trust_metrics", None)
 
         fig, ax = plt.subplots()
 
@@ -346,6 +384,34 @@ class BurnupForecastCalculator(Calculator):
         set_chart_style()
         # Ensure x-axis covers the full forecast period
         ax.set_xlim([burnup_data.index.min(), forecast_horizon_end])
+        # Annotate trustworthiness metrics
+        if trust_metrics:
+            trust_text = (
+                f"Throughput samples: {trust_metrics['throughput_sample_count']}\n"
+                f"Throughput mean: {trust_metrics['throughput_mean']:.2f}\n"
+                f"Throughput std: {trust_metrics['throughput_std']:.2f}\n"
+                f"Forecast std: {trust_metrics['forecast_std']:.2f}\n"
+                f"Trust level: {trust_metrics['trust_level'].capitalize()}\n"
+            )
+            color_map = {
+                "green": "#b6e3b6",
+                "yellow": "#fff7b2",
+                "red": "#f7b2b2",
+            }
+            ax.annotate(
+                trust_text,
+                xy=(0.01, 0.99),
+                xycoords="axes fraction",
+                fontsize=8,
+                ha="left",
+                va="top",
+                bbox=dict(
+                    boxstyle="round,pad=0.3",
+                    fc=color_map.get(trust_metrics["trust_level"], "white"),
+                    ec="gray",
+                    lw=1,
+                ),
+            )
         # Write file
         logger.info("Writing burnup forecast chart to %s", output_file)
         fig.savefig(output_file, bbox_inches="tight", dpi=300)
@@ -441,7 +507,8 @@ def burnup_monte_carlo_horizon(
             dates.append(current_date)
             done_steps.append(current_value)
             backlog_steps.append(current_backlog)
-            # If target is set and median done reaches/exceeds target, stop early
+            # If target is set and median done reaches/exceeds target, stop
+            # early
             if target is not None and current_value >= target:
                 break
         # Pad to full horizon if stopped early

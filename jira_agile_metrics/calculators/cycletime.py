@@ -382,7 +382,8 @@ def calculate_cycle_times(
 
 
 def calculate_column_durations(cycle_data, cycle_names):
-    # Returns a DataFrame: rows=issues, columns=cycle columns, values=duration in days
+    # Returns a DataFrame: rows=issues, columns=cycle columns, values=duration
+    # in days
     durations = []
     for _, row in cycle_data.iterrows():
         times = [row.get(col) for col in cycle_names]

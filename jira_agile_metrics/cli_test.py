@@ -1,12 +1,7 @@
 import json
 import tempfile
 
-from .cli import (
-    configure_argument_parser,
-    get_trello_client,
-    override_options,
-    run_command_line,
-)
+from .cli import configure_argument_parser, get_trello_client, override_options, run_command_line
 
 
 def test_override_options():

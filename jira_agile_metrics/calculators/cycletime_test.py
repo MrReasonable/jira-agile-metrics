@@ -3,18 +3,10 @@ import datetime
 import pytest
 from pandas import NaT, Timedelta, Timestamp
 
-from ..conftest import (
-    FauxChange as Change,
-)
-from ..conftest import (
-    FauxFieldValue as Value,
-)
-from ..conftest import (
-    FauxIssue as Issue,
-)
-from ..conftest import (
-    FauxJIRA as JIRA,
-)
+from ..conftest import FauxChange as Change
+from ..conftest import FauxFieldValue as Value
+from ..conftest import FauxIssue as Issue
+from ..conftest import FauxJIRA as JIRA
 from ..querymanager import QueryManager
 from .cycletime import CycleTimeCalculator
 
@@ -298,6 +290,7 @@ def test_columns(jira, settings):
         "Release",
         "Team",
         "cycle_time",
+        "lead_time",
         "completed_timestamp",
         "blocked_days",
         "impediments",
@@ -340,6 +333,7 @@ def test_movement(jira, settings):
             "Team": "Team 1",
             "completed_timestamp": NaT,
             "cycle_time": NaT,
+            "lead_time": NaT,
             "blocked_days": 0,
             "impediments": [],
             "Backlog": Timestamp("2018-01-01 00:00:00"),
@@ -360,6 +354,7 @@ def test_movement(jira, settings):
             "Team": "Team 1",
             "completed_timestamp": NaT,
             "cycle_time": NaT,
+            "lead_time": NaT,
             "blocked_days": 3,
             "impediments": [
                 {
@@ -399,6 +394,7 @@ def test_movement(jira, settings):
             "Team": "Team 1",
             "completed_timestamp": Timestamp("2018-01-06 00:00:00"),
             "cycle_time": Timedelta("3 days 00:00:00"),
+            "lead_time": Timedelta("3 days 00:00:00"),
             "blocked_days": 2,
             "impediments": [
                 {
@@ -426,6 +422,7 @@ def test_movement(jira, settings):
             "Team": "Team 1",
             "completed_timestamp": NaT,
             "cycle_time": NaT,
+            "lead_time": NaT,
             "blocked_days": 3,
             "impediments": [
                 {
@@ -464,6 +461,7 @@ def test_movement_skipped_columns(jira_with_skipped_columns, settings):
             "Team": "Team 1",
             "completed_timestamp": Timestamp("2018-01-04 00:00:00"),
             "cycle_time": Timedelta("2 days 00:00:00"),
+            "lead_time": Timedelta("3 days 00:00:00"),
             "blocked_days": 0,
             "impediments": [],
             "Backlog": Timestamp("2018-01-01 00:00:00"),
@@ -484,6 +482,7 @@ def test_movement_skipped_columns(jira_with_skipped_columns, settings):
             "Team": "Team 1",
             "completed_timestamp": Timestamp("2018-01-04 00:00:00"),
             "cycle_time": Timedelta("2 days 00:00:00"),
+            "lead_time": Timedelta("3 days 00:00:00"),
             "blocked_days": 0,
             "impediments": [],
             "Backlog": Timestamp("2018-01-01 00:00:00"),

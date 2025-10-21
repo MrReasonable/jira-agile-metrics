@@ -171,6 +171,7 @@ def minimal_cycle_time_columns():
         "status",
         "resolution",
         "cycle_time",
+        "lead_time",
         "completed_timestamp",
         "blocked_days",
         "impediments",
@@ -198,6 +199,7 @@ def custom_cycle_time_columns(minimal_fields):
         "Release",
         "Team",
         "cycle_time",
+        "lead_time",
         "completed_timestamp",
         "blocked_days",
         "impediments",
@@ -245,19 +247,28 @@ def _issues(issues):
             "status": (
                 "Done"
                 if i["Done"] is not NaT
-                else "Test"
-                if i["Test"] is not NaT
-                else "Build"
-                if i["Build"] is not NaT
-                else "Committed"
-                if i["Committed"] is not NaT
-                else "Backlog"
+                else (
+                    "Test"
+                    if i["Test"] is not NaT
+                    else (
+                        "Build"
+                        if i["Build"] is not NaT
+                        else "Committed" if i["Committed"] is not NaT else "Backlog"
+                    )
+                )
             ),
             "resoluton": "Done" if i["Done"] is not NaT else None,
             "completed_timestamp": i["Done"] if i["Done"] is not NaT else None,
-            "cycle_time": (i["Done"] - i["Committed"])
-            if (i["Done"] is not NaT and i["Committed"] is not NaT)
-            else None,
+            "cycle_time": (
+                (i["Done"] - i["Committed"])
+                if (i["Done"] is not NaT and i["Committed"] is not NaT)
+                else None
+            ),
+            "lead_time": (
+                (i["Done"] - i["Backlog"])
+                if (i["Done"] is not NaT and i["Backlog"] is not NaT)
+                else None
+            ),
             "blocked_days": i.get("blocked_days", 0),
             "impediments": i.get("impediments", []),
             "Backlog": i["Backlog"],
@@ -459,6 +470,22 @@ def large_cycle_time_results(minimal_cycle_time_columns):
                         Backlog=_ts("2018-01-01"),
                         Committed=_ts("2018-01-05"),
                         Build=_ts("2018-01-06"),
+                        Test=_ts("2018-01-08"),
+                        Done=_ts("2018-01-09"),
+                    ),
+                    # add more issues done up to 2018-01-09 to ensure forecast
+                    # horizon is after last data point
+                    dict(
+                        Backlog=_ts("2018-01-01"),
+                        Committed=_ts("2018-01-06"),
+                        Build=_ts("2018-01-07"),
+                        Test=_ts("2018-01-08"),
+                        Done=_ts("2018-01-09"),
+                    ),
+                    dict(
+                        Backlog=_ts("2018-01-02"),
+                        Committed=_ts("2018-01-07"),
+                        Build=_ts("2018-01-08"),
                         Test=_ts("2018-01-08"),
                         Done=_ts("2018-01-09"),
                     ),

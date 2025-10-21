@@ -17,7 +17,8 @@ from jira import JIRA
 from jira.exceptions import JIRAError
 
 from ..calculator import run_calculators
-from ..config import CALCULATORS, ConfigError, config_to_options
+from ..config import ConfigError, config_to_options
+from ..config_main import CALCULATORS
 from ..querymanager import QueryManager
 
 load_dotenv()

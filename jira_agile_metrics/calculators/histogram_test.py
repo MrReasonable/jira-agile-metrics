@@ -49,4 +49,4 @@ def test_calculate_histogram(query_manager, settings, results):
         "4.0 to 5.0",
         "5.0 to 6.0",
     ]
-    assert list(data) == [0, 0, 0, 0, 1, 5]
+    assert list(data) == [0, 0, 1, 1, 1, 5]

@@ -155,9 +155,11 @@ class ProgressReportCalculator(Calculator):
                 Outcome(
                     name=o["name"],
                     key=o["key"] if o["key"] else o["name"],
-                    deadline=datetime.datetime.combine(o["deadline"], datetime.datetime.min.time())
-                    if o["deadline"]
-                    else None,
+                    deadline=(
+                        datetime.datetime.combine(o["deadline"], datetime.datetime.min.time())
+                        if o["deadline"]
+                        else None
+                    ),
                     epic_query=(
                         o["epic_query"]
                         if o["epic_query"]
@@ -208,11 +210,13 @@ class ProgressReportCalculator(Calculator):
                 wip=team["wip"],
                 min_throughput=team["min_throughput"],
                 max_throughput=team["max_throughput"],
-                throughput_samples=team["throughput_samples"].format(
-                    team='"%s"' % team["name"],
-                )
-                if team["throughput_samples"]
-                else None,
+                throughput_samples=(
+                    team["throughput_samples"].format(
+                        team='"%s"' % team["name"],
+                    )
+                    if team["throughput_samples"]
+                    else None
+                ),
                 throughput_samples_window=team["throughput_samples_window"],
             )
             for team in teams
@@ -361,27 +365,27 @@ class ProgressReportCalculator(Calculator):
                     color_code=lambda q: (
                         "primary"
                         if q is None
-                        else "danger"
-                        if q <= 0.7
-                        else "warning"
-                        if q <= 0.9
-                        else "success"
+                        else "danger" if q <= 0.7 else "warning" if q <= 0.9 else "success"
                     ),
                     percent_complete=lambda epic: (
                         int(round(((epic.stories_done or 0) / epic.max_stories) * 100))
                     ),
                     outcome_charts={
                         outcome.key: {
-                            "cfd": plot_cfd(
-                                cycle_data=pd.concat([e.story_cycle_times for e in outcome.epics]),
-                                cycle_names=cycle_names,
-                                backlog_column=backlog_column,
-                                date_format=date_format,
-                                target=sum([e.max_stories or 0 for e in outcome.epics]),
-                                deadline=outcome.deadline,
-                            )
-                            if len(outcome.epics) > 0
-                            else None,
+                            "cfd": (
+                                plot_cfd(
+                                    cycle_data=pd.concat(
+                                        [e.story_cycle_times for e in outcome.epics]
+                                    ),
+                                    cycle_names=cycle_names,
+                                    backlog_column=backlog_column,
+                                    date_format=date_format,
+                                    target=sum([e.max_stories or 0 for e in outcome.epics]),
+                                    deadline=outcome.deadline,
+                                )
+                                if len(outcome.epics) > 0
+                                else None
+                            ),
                         }
                         for outcome in data["outcomes"]
                     },
@@ -614,22 +618,26 @@ def find_epics(
             summary=issue.fields.summary,
             status=issue.fields.status.name,
             resolution=issue.fields.resolution.name if issue.fields.resolution else None,
-            resolution_date=dateutil.parser.parse(issue.fields.resolutiondate)
-            if issue.fields.resolutiondate
-            else None,
-            min_stories=int_or_none(
-                query_manager.resolve_field_value(issue, epic_min_stories_field)
-            )
-            if epic_min_stories_field
-            else None,
-            max_stories=int_or_none(
-                query_manager.resolve_field_value(issue, epic_max_stories_field)
-            )
-            if epic_max_stories_field
-            else None,
-            team_name=query_manager.resolve_field_value(issue, epic_team_field)
-            if epic_team_field
-            else None,
+            resolution_date=(
+                dateutil.parser.parse(issue.fields.resolutiondate)
+                if issue.fields.resolutiondate
+                else None
+            ),
+            min_stories=(
+                int_or_none(query_manager.resolve_field_value(issue, epic_min_stories_field))
+                if epic_min_stories_field
+                else None
+            ),
+            max_stories=(
+                int_or_none(query_manager.resolve_field_value(issue, epic_max_stories_field))
+                if epic_max_stories_field
+                else None
+            ),
+            team_name=(
+                query_manager.resolve_field_value(issue, epic_team_field)
+                if epic_team_field
+                else None
+            ),
             deadline=date_value(
                 query_manager,
                 issue,
@@ -1014,9 +1022,7 @@ def int_or_none(value):
     return (
         value
         if isinstance(value, int)
-        else int(value)
-        if isinstance(value, (str, bytes)) and value.isdigit()
-        else None
+        else int(value) if isinstance(value, (str, bytes)) and value.isdigit() else None
     )
 
 

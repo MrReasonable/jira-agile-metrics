@@ -1,170 +1,19 @@
-import datetime
 import logging
 import os.path
 
-import yaml
-from pydicti import odicti
-
-from .calculators.ageingwip import AgeingWIPChartCalculator
-from .calculators.burnup import BurnupCalculator
-from .calculators.cfd import CFDCalculator
-from .calculators.cycletime import BottleneckChartsCalculator, CycleTimeCalculator
-from .calculators.debt import DebtCalculator
-from .calculators.defects import DefectsCalculator
-from .calculators.forecast import BurnupForecastCalculator
-from .calculators.histogram import HistogramCalculator
-from .calculators.impediments import ImpedimentsCalculator
-from .calculators.netflow import NetFlowChartCalculator
-from .calculators.percentiles import PercentilesCalculator
-from .calculators.progressreport import ProgressReportCalculator
-from .calculators.scatterplot import ScatterplotCalculator
-from .calculators.throughput import ThroughputCalculator
-from .calculators.waste import WasteCalculator
-from .calculators.wip import WIPChartCalculator
-
-CALCULATORS = (
-    CycleTimeCalculator,  # should come first
-    BottleneckChartsCalculator,  # now included for bottleneck visualizations
-    # -- others depend on results from this one
-    CFDCalculator,  # needs to come before burn-up charts,
-    # wip charts, and net flow charts
-    ScatterplotCalculator,
-    HistogramCalculator,
-    PercentilesCalculator,
-    ThroughputCalculator,
-    BurnupCalculator,
-    WIPChartCalculator,
-    NetFlowChartCalculator,
-    AgeingWIPChartCalculator,
-    BurnupForecastCalculator,
-    ImpedimentsCalculator,
-    DebtCalculator,
-    DefectsCalculator,
-    WasteCalculator,
-    ProgressReportCalculator,
-)
-
-logger = logging.getLogger(__name__)
-
-
-class ConfigError(Exception):
-    pass
-
-
-# From http://stackoverflow.com/questions/5121931/
-# in-python-how-can-you-load-yaml-mappings-as-ordereddicts
-def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=odicti):
-    class OrderedLoader(Loader):
-        pass
-
-    def construct_mapping(loader, node):
-        loader.flatten_mapping(node)
-        return object_pairs_hook(loader.construct_pairs(node))
-
-    OrderedLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_mapping)
-
-    return yaml.load(stream, OrderedLoader)
-
-
-def force_list(val):
-    return (
-        list(val)
-        if isinstance(
-            val,
-            (
-                list,
-                tuple,
-            ),
-        )
-        else [val]
-    )
-
-
-def force_int(key, value):
-    try:
-        return int(value)
-    except ValueError:
-        raise ConfigError(
-            "Could not convert value `%s` for key `%s` to integer"
-            % (
-                value,
-                expand_key(key),
-            )
-        ) from None
-
-
-def force_float(key, value):
-    try:
-        return float(value)
-    except ValueError:
-        raise ConfigError(
-            "Could not convert value `%s` for key `%s` to decimal"
-            % (
-                value,
-                expand_key(key),
-            )
-        ) from None
-
-
-def force_date(key, value):
-    if not isinstance(value, datetime.date):
-        raise ConfigError(
-            "Value `%s` for key `%s` is not a date"
-            % (
-                value,
-                expand_key(key),
-            )
-        )
-    return value
-
-
-def expand_key(key):
-    return str(key).replace("_", " ").lower()
-
-
-def to_progress_report_teams_list(value):
-    return [
-        {
-            "name": val[expand_key("name")] if expand_key("name") in val else None,
-            "wip": force_int("wip", val[expand_key("wip")]) if expand_key("wip") in val else 1,
-            "min_throughput": force_int("min_throughput", val[expand_key("min_throughput")])
-            if expand_key("min_throughput") in val
-            else None,
-            "max_throughput": force_int("max_throughput", val[expand_key("max_throughput")])
-            if expand_key("max_throughput") in val
-            else None,
-            "throughput_samples": val[expand_key("throughput_samples")]
-            if expand_key("throughput_samples") in val
-            else None,
-            "throughput_samples_window": force_int(
-                "throughput_samples_window",
-                val[expand_key("throughput_samples_window")],
-            )
-            if expand_key("throughput_samples_window") in val
-            else None,
-        }
-        for val in value
-    ]
-
-
-def to_progress_report_outcomes_list(value):
-    return [
-        {
-            "name": val[expand_key("name")] if expand_key("name") in val else None,
-            "key": val[expand_key("key")] if expand_key("key") in val else None,
-            "deadline": force_date("deadline", val[expand_key("deadline")])
-            if expand_key("deadline") in val
-            else None,
-            "epic_query": val[expand_key("epic_query")]
-            if expand_key("epic_query") in val
-            else None,
-        }
-        for val in value
-    ]
+from .exceptions import ConfigError
+from .progress_report_utils import to_progress_report_outcomes_list, to_progress_report_teams_list
+from .type_utils import expand_key, force_date, force_float, force_int, force_list
+from .yaml_utils import ordered_load
 
 
 def config_to_options(data, cwd=None, extended=False):
+    """
+    Parse YAML config data and return options dict.
+    """
     try:
+        import yaml
+
         config = ordered_load(data, yaml.SafeLoader)
     except Exception as e:
         raise ConfigError("Unable to parse YAML configuration file.") from e
@@ -311,7 +160,7 @@ def config_to_options(data, cwd=None, extended=False):
                 "File `%s` referenced in `extends` not found." % extends_filename
             ) from None
 
-        logger.debug("Extending file %s" % extends_filename)
+        logging.getLogger(__name__).debug("Extending file %s" % extends_filename)
         with open(extends_filename) as extends_file:
             options = config_to_options(
                 extends_file.read(),
@@ -559,7 +408,7 @@ def config_to_options(data, cwd=None, extended=False):
         ]
 
     if not extended and len(options["settings"]["queries"]) == 0:
-        logger.warning(
+        logging.getLogger(__name__).warning(
             ("No `Query` value or `Queries` section found. Many calculators rely on one of these.")
         )
 
@@ -579,12 +428,12 @@ def config_to_options(data, cwd=None, extended=False):
         if options["settings"]["backlog_column"] is None:
             if options["settings"]["committed_column"] is None:
                 options["settings"]["backlog_column"] = column_names[0]
-                logger.info(
+                logging.getLogger(__name__).info(
                     "`Backlog column` automatically set to `%s`",
                     options["settings"]["backlog_column"],
                 )
                 options["settings"]["committed_column"] = column_names[1]
-                logger.info(
+                logging.getLogger(__name__).info(
                     "`Committed column` automatically set to `%s`",
                     options["settings"]["committed_column"],
                 )
@@ -601,7 +450,7 @@ def config_to_options(data, cwd=None, extended=False):
                     options["settings"]["backlog_column"] = column_names[
                         column_names.index(options["settings"]["committed_column"]) - 1
                     ]
-                    logger.info(
+                    logging.getLogger(__name__).info(
                         "`Backlog column` automatically set to `%s`",
                         options["settings"]["backlog_column"],
                     )
@@ -628,7 +477,7 @@ def config_to_options(data, cwd=None, extended=False):
                 options["settings"]["committed_column"] = column_names[
                     column_names.index(options["settings"]["backlog_column"]) + 1
                 ]
-                logger.info(
+                logging.getLogger(__name__).info(
                     "`Committed column` automatically set to `%s`",
                     options["settings"]["committed_column"],
                 )
@@ -643,7 +492,7 @@ def config_to_options(data, cwd=None, extended=False):
 
         if options["settings"]["done_column"] is None:
             options["settings"]["done_column"] = column_names[-1]
-            logger.info(
+            logging.getLogger(__name__).info(
                 "`Done column` automatically set to `%s`",
                 options["settings"]["done_column"],
             )

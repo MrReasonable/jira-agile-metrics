@@ -1,18 +1,10 @@
 import pytest
 from pandas import Timestamp
 
-from ..conftest import (
-    FauxChange as Change,
-)
-from ..conftest import (
-    FauxFieldValue as Value,
-)
-from ..conftest import (
-    FauxIssue as Issue,
-)
-from ..conftest import (
-    FauxJIRA as JIRA,
-)
+from ..conftest import FauxChange as Change
+from ..conftest import FauxFieldValue as Value
+from ..conftest import FauxIssue as Issue
+from ..conftest import FauxJIRA as JIRA
 from ..querymanager import QueryManager
 from ..utils import extend_dict
 from .waste import WasteCalculator

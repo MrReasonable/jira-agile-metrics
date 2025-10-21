@@ -4,18 +4,10 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 import pytest
 
-from ..conftest import (
-    FauxChange as Change,
-)
-from ..conftest import (
-    FauxFieldValue as Value,
-)
-from ..conftest import (
-    FauxIssue as Issue,
-)
-from ..conftest import (
-    FauxJIRA as JIRA,
-)
+from ..conftest import FauxChange as Change
+from ..conftest import FauxFieldValue as Value
+from ..conftest import FauxIssue as Issue
+from ..conftest import FauxJIRA as JIRA
 from ..querymanager import QueryManager
 from ..utils import extend_dict
 from .progressreport import (
@@ -1250,13 +1242,15 @@ def test_forecast_to_complete_wip_1():
         (0.5, 5.0),
         (0.9, 5.0),
     ]  # +2 weeks after E-1 since wip=1
-    assert epics[1].forecast.deadline_quantile == 0  # deadline is before best case scenario
+    # deadline is before best case scenario
+    assert epics[1].forecast.deadline_quantile == 0
 
     assert epics[2].forecast.quantiles == [
         (0.5, 7.0),
         (0.9, 7.0),
     ]  # +2 weeks after E-2 since wip=1
-    assert epics[2].forecast.deadline_quantile == 1  # deadline is after worst case scenario
+    # deadline is after worst case scenario
+    assert epics[2].forecast.deadline_quantile == 1
 
 
 def test_forecast_to_complete_wip_2():
@@ -1336,13 +1330,15 @@ def test_forecast_to_complete_wip_2():
         (0.5, 2.0),
         (0.9, 2.0),
     ]  # +2 weeks in parallel with E-1 since wip=2
-    assert epics[1].forecast.deadline_quantile == 1  # deadline is same week as best case scenario
+    # deadline is same week as best case scenario
+    assert epics[1].forecast.deadline_quantile == 1
 
     assert epics[2].forecast.quantiles == [
         (0.5, 4.0),
         (0.9, 4.0),
     ]  # +2 weeks after E-2 since wip=2 and it finishes first
-    assert epics[2].forecast.deadline_quantile == 1  # deadline is after worst case scenario
+    # deadline is after worst case scenario
+    assert epics[2].forecast.deadline_quantile == 1
 
 
 def test_forecast_to_complete_no_epics():
@@ -1430,7 +1426,8 @@ def test_forecast_to_complete_with_randomness():
     assert epics[1].forecast.deadline_quantile > 0 and epics[1].forecast.deadline_quantile < 1
 
     assert [q[0] for q in epics[2].forecast.quantiles] == [0.5, 0.9]
-    assert epics[2].forecast.deadline_quantile == 1  # deadline is after worst case scenario
+    # deadline is after worst case scenario
+    assert epics[2].forecast.deadline_quantile == 1
 
 
 def test_calculator(query_manager, settings, results):
@@ -1709,16 +1706,17 @@ def test_with_large_dataset(fields, settings, results):
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
             customfield_001=random.choice(teams),
             customfield_201=random.choice(outcomes),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             customfield_203=random.randint(15, 20),
             customfield_204=random.randint(20, 25),
             changes=[],
@@ -1750,9 +1748,9 @@ def test_with_large_dataset(fields, settings, results):
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
             resolution=Value("Done", "done") if current_status == "Done" else None,
-            resolutiondate="%s 00:00:00" % changes[-1]["date"]
-            if current_status == "Done"
-            else None,
+            resolutiondate=(
+                "%s 00:00:00" % changes[-1]["date"] if current_status == "Done" else None
+            ),
             created="%s 00:00:00" % created.isoformat(),
             customfield_001=epic.fields.customfield_001,
             customfield_205=epic.key,
@@ -1849,16 +1847,17 @@ def test_with_large_dataset_and_outcome_as_tickets(fields, settings, results):
             resolution=None,
             resolutiondate=None,
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             changes=[],
         )
         for i in range(random.randint(2, 4))
@@ -1875,16 +1874,17 @@ def test_with_large_dataset_and_outcome_as_tickets(fields, settings, results):
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
             customfield_001=random.choice(teams),
             customfield_201=random.choice([o.key for o in outcomes]),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             customfield_203=random.randint(15, 20),
             customfield_204=random.randint(20, 25),
             changes=[],
@@ -1916,9 +1916,9 @@ def test_with_large_dataset_and_outcome_as_tickets(fields, settings, results):
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
             resolution=Value("Done", "done") if current_status == "Done" else None,
-            resolutiondate="%s 00:00:00" % changes[-1]["date"]
-            if current_status == "Done"
-            else None,
+            resolutiondate=(
+                "%s 00:00:00" % changes[-1]["date"] if current_status == "Done" else None
+            ),
             created="%s 00:00:00" % created.isoformat(),
             customfield_001=epic.fields.customfield_001,
             customfield_205=epic.key,
@@ -2014,16 +2014,17 @@ def test_with_large_dataset_and_outcome_as_tickets_no_forecast(fields, settings,
             resolution=None,
             resolutiondate=None,
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             changes=[],
         )
         for i in range(random.randint(2, 4))
@@ -2040,16 +2041,17 @@ def test_with_large_dataset_and_outcome_as_tickets_no_forecast(fields, settings,
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
             customfield_001=random.choice(teams),
             customfield_201=random.choice([o.key for o in outcomes]),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             customfield_203=random.randint(15, 20),
             customfield_204=random.randint(20, 25),
             changes=[],
@@ -2081,9 +2083,9 @@ def test_with_large_dataset_and_outcome_as_tickets_no_forecast(fields, settings,
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
             resolution=Value("Done", "done") if current_status == "Done" else None,
-            resolutiondate="%s 00:00:00" % changes[-1]["date"]
-            if current_status == "Done"
-            else None,
+            resolutiondate=(
+                "%s 00:00:00" % changes[-1]["date"] if current_status == "Done" else None
+            ),
             created="%s 00:00:00" % created.isoformat(),
             customfield_001=epic.fields.customfield_001,
             customfield_205=epic.key,
@@ -2179,16 +2181,17 @@ def test_with_large_dataset_and_outcome_as_tickets_mixed_forecast(fields, settin
             resolution=None,
             resolutiondate=None,
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             changes=[],
         )
         for i in range(random.randint(2, 4))
@@ -2205,16 +2208,17 @@ def test_with_large_dataset_and_outcome_as_tickets_mixed_forecast(fields, settin
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
             customfield_001=random.choice(teams),
             customfield_201=random.choice([o.key for o in outcomes]),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             customfield_203=random.randint(15, 20),
             customfield_204=random.randint(20, 25),
             changes=[],
@@ -2246,9 +2250,9 @@ def test_with_large_dataset_and_outcome_as_tickets_mixed_forecast(fields, settin
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
             resolution=Value("Done", "done") if current_status == "Done" else None,
-            resolutiondate="%s 00:00:00" % changes[-1]["date"]
-            if current_status == "Done"
-            else None,
+            resolutiondate=(
+                "%s 00:00:00" % changes[-1]["date"] if current_status == "Done" else None
+            ),
             created="%s 00:00:00" % created.isoformat(),
             customfield_001=epic.fields.customfield_001,
             customfield_205=epic.key,
@@ -2369,9 +2373,9 @@ def test_with_large_dataset_minimal(fields, settings, results):
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
             resolution=Value("Done", "done") if current_status == "Done" else None,
-            resolutiondate="%s 00:00:00" % changes[-1]["date"]
-            if current_status == "Done"
-            else None,
+            resolutiondate=(
+                "%s 00:00:00" % changes[-1]["date"] if current_status == "Done" else None
+            ),
             created="%s 00:00:00" % created.isoformat(),
             customfield_205=epic.key,
             changes=[
@@ -2489,9 +2493,9 @@ def test_with_large_dataset_minimal_no_forecast(fields, settings, results):
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
             resolution=Value("Done", "done") if current_status == "Done" else None,
-            resolutiondate="%s 00:00:00" % changes[-1]["date"]
-            if current_status == "Done"
-            else None,
+            resolutiondate=(
+                "%s 00:00:00" % changes[-1]["date"] if current_status == "Done" else None
+            ),
             created="%s 00:00:00" % created.isoformat(),
             customfield_205=epic.key,
             changes=[
@@ -2587,16 +2591,17 @@ def test_with_large_dataset_teams_no_outcomes(fields, settings, results):
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
             customfield_001=random.choice(teams),
             customfield_201=None,
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             customfield_203=random.randint(15, 20),
             customfield_204=random.randint(20, 25),
             changes=[],
@@ -2628,9 +2633,9 @@ def test_with_large_dataset_teams_no_outcomes(fields, settings, results):
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
             resolution=Value("Done", "done") if current_status == "Done" else None,
-            resolutiondate="%s 00:00:00" % changes[-1]["date"]
-            if current_status == "Done"
-            else None,
+            resolutiondate=(
+                "%s 00:00:00" % changes[-1]["date"] if current_status == "Done" else None
+            ),
             created="%s 00:00:00" % created.isoformat(),
             customfield_001=epic.fields.customfield_001,
             customfield_205=epic.key,
@@ -2708,16 +2713,17 @@ def test_with_large_dataset_no_teams(fields, settings, results):
             resolution=None,
             resolutiondate=None,
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             changes=[],
         )
         for i in range(random.randint(2, 4))
@@ -2733,16 +2739,17 @@ def test_with_large_dataset_no_teams(fields, settings, results):
             resolutiondate=None,
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
             customfield_201=random.choice([o.key for o in outcomes]),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             customfield_203=random.randint(15, 20),
             customfield_204=random.randint(20, 25),
             changes=[],
@@ -2774,9 +2781,9 @@ def test_with_large_dataset_no_teams(fields, settings, results):
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
             resolution=Value("Done", "done") if current_status == "Done" else None,
-            resolutiondate="%s 00:00:00" % changes[-1]["date"]
-            if current_status == "Done"
-            else None,
+            resolutiondate=(
+                "%s 00:00:00" % changes[-1]["date"] if current_status == "Done" else None
+            ),
             created="%s 00:00:00" % created.isoformat(),
             customfield_205=epic.key,
             changes=[
@@ -2854,16 +2861,17 @@ def test_with_large_dataset_dynamic_teams(fields, settings, results):
             resolution=None,
             resolutiondate=None,
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             changes=[],
         )
         for i in range(random.randint(2, 4))
@@ -2880,16 +2888,17 @@ def test_with_large_dataset_dynamic_teams(fields, settings, results):
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
             customfield_001=random.choice(teams),
             customfield_201=random.choice([o.key for o in outcomes]),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             customfield_203=random.randint(15, 20),
             customfield_204=random.randint(20, 25),
             changes=[],
@@ -2921,9 +2930,9 @@ def test_with_large_dataset_dynamic_teams(fields, settings, results):
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
             resolution=Value("Done", "done") if current_status == "Done" else None,
-            resolutiondate="%s 00:00:00" % changes[-1]["date"]
-            if current_status == "Done"
-            else None,
+            resolutiondate=(
+                "%s 00:00:00" % changes[-1]["date"] if current_status == "Done" else None
+            ),
             created="%s 00:00:00" % created.isoformat(),
             customfield_001=epic.fields.customfield_001,
             customfield_205=epic.key,
@@ -3012,16 +3021,17 @@ def test_with_large_dataset_static_and_dynamic_teams(fields, settings, results):
             resolution=None,
             resolutiondate=None,
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             changes=[],
         )
         for i in range(random.randint(2, 4))
@@ -3038,16 +3048,17 @@ def test_with_large_dataset_static_and_dynamic_teams(fields, settings, results):
             created="%s 00:00:00" % random_date_past(today, 30).isoformat(),
             customfield_001=random.choice(teams),
             customfield_201=random.choice([o.key for o in outcomes]),
-            customfield_202="%s 00:00:00"
-            % random_date_future(today + timedelta(days=55), 65).isoformat()
-            if random.choice(
-                (
-                    True,
-                    True,
-                    False,
+            customfield_202=(
+                "%s 00:00:00" % random_date_future(today + timedelta(days=55), 65).isoformat()
+                if random.choice(
+                    (
+                        True,
+                        True,
+                        False,
+                    )
                 )
-            )
-            else None,
+                else None
+            ),
             customfield_203=random.randint(15, 20),
             customfield_204=random.randint(20, 25),
             changes=[],
@@ -3079,9 +3090,9 @@ def test_with_large_dataset_static_and_dynamic_teams(fields, settings, results):
             issuetype=Value("Story", "story"),
             status=Value(current_status, current_status.lower()),
             resolution=Value("Done", "done") if current_status == "Done" else None,
-            resolutiondate="%s 00:00:00" % changes[-1]["date"]
-            if current_status == "Done"
-            else None,
+            resolutiondate=(
+                "%s 00:00:00" % changes[-1]["date"] if current_status == "Done" else None
+            ),
             created="%s 00:00:00" % created.isoformat(),
             customfield_001=epic.fields.customfield_001,
             customfield_205=epic.key,

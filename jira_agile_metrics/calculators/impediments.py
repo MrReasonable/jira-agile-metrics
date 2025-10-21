@@ -4,12 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from ..calculator import Calculator
-from ..utils import (
-    breakdown_by_month,
-    breakdown_by_month_sum_days,
-    get_extension,
-    set_chart_style,
-)
+from ..utils import breakdown_by_month, breakdown_by_month_sum_days, get_extension, set_chart_style
 from .cycletime import CycleTimeCalculator
 
 logger = logging.getLogger(__name__)
