@@ -12,7 +12,8 @@ import jinja2
 from bokeh.embed import components
 from bokeh.plotting import figure
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import (Flask, flash, redirect, render_template, request, session,
+                   url_for)
 from jira import JIRA
 from jira.exceptions import JIRAError
 
@@ -32,7 +33,9 @@ app = Flask(
     static_folder=static_folder,
 )
 
-app.jinja_loader = jinja2.PackageLoader("jira_agile_metrics.webapp", "templates")
+app.jinja_loader = jinja2.PackageLoader(
+    "jira_agile_metrics.webapp", "templates"
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +72,9 @@ def get_real_results():
             options["connection"]["Query"] = user_query
         options["settings"]["queries"] = [{"jql": user_query}]
     # Use a cache key based on connection, settings, and user_query
-    cache_key = str(options["connection"]) + str(options["settings"]) + str(user_query)
+    cache_key = (
+        str(options["connection"]) + str(options["settings"]) + str(user_query)
+    )
     now = time.time()
     with results_cache_lock:
         if cache_key in results_cache:
@@ -102,9 +107,19 @@ def burnup_forecast():
         from bokeh.embed import components
         from bokeh.plotting import figure
 
-        p = figure(title="Burnup Forecast Chart", x_axis_type="datetime", width=800, height=400)
+        p = figure(
+            title="Burnup Forecast Chart",
+            x_axis_type="datetime",
+            width=800,
+            height=400,
+        )
         for col in chart_data.columns:
-            p.line(chart_data.index, chart_data[col], legend_label=col, line_width=2)
+            p.line(
+                chart_data.index,
+                chart_data[col],
+                legend_label=col,
+                line_width=2,
+            )
         p.legend.location = "top_left"
         p.xaxis.axis_label = "Date"
         p.yaxis.axis_label = "Items"
@@ -124,18 +139,31 @@ def burnup_chart():
         chart_data = results[BurnupCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Burnup Chart.", "warning")
-            return render_template("bokeh_chart.html", title="Burnup Chart", script="", div="")
-        p = figure(title="Burnup Chart", x_axis_type="datetime", width=800, height=400)
+            return render_template(
+                "bokeh_chart.html", title="Burnup Chart", script="", div=""
+            )
+        p = figure(
+            title="Burnup Chart", x_axis_type="datetime", width=800, height=400
+        )
         for col in chart_data.columns:
-            p.line(chart_data.index, chart_data[col], legend_label=col, line_width=2)
+            p.line(
+                chart_data.index,
+                chart_data[col],
+                legend_label=col,
+                line_width=2,
+            )
         p.legend.location = "top_left"
         p.xaxis.axis_label = "Date"
         p.yaxis.axis_label = "Items"
         script, div = components(p)
-        return render_template("bokeh_chart.html", title="Burnup Chart", script=script, div=div)
+        return render_template(
+            "bokeh_chart.html", title="Burnup Chart", script=script, div=div
+        )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Burnup Chart", script="", div="")
+        return render_template(
+            "bokeh_chart.html", title="Burnup Chart", script="", div=""
+        )
 
 
 @app.route("/cfd")
@@ -148,24 +176,41 @@ def cfd_chart():
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for CFD Chart.", "warning")
             return render_template(
-                "bokeh_chart.html", title="Cumulative Flow Diagram (CFD)", script="", div=""
+                "bokeh_chart.html",
+                title="Cumulative Flow Diagram (CFD)",
+                script="",
+                div="",
             )
         p = figure(
-            title="Cumulative Flow Diagram (CFD)", x_axis_type="datetime", width=800, height=400
+            title="Cumulative Flow Diagram (CFD)",
+            x_axis_type="datetime",
+            width=800,
+            height=400,
         )
         for col in chart_data.columns:
-            p.line(chart_data.index, chart_data[col], legend_label=col, line_width=2)
+            p.line(
+                chart_data.index,
+                chart_data[col],
+                legend_label=col,
+                line_width=2,
+            )
         p.legend.location = "top_left"
         p.xaxis.axis_label = "Date"
         p.yaxis.axis_label = "Items"
         script, div = components(p)
         return render_template(
-            "bokeh_chart.html", title="Cumulative Flow Diagram (CFD)", script=script, div=div
+            "bokeh_chart.html",
+            title="Cumulative Flow Diagram (CFD)",
+            script=script,
+            div=div,
         )
     except Exception as e:
         flash(str(e), "danger")
         return render_template(
-            "bokeh_chart.html", title="Cumulative Flow Diagram (CFD)", script="", div=""
+            "bokeh_chart.html",
+            title="Cumulative Flow Diagram (CFD)",
+            script="",
+            div="",
         )
 
 
@@ -179,21 +224,34 @@ def histogram_chart():
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Cycle Time Histogram.", "warning")
             return render_template(
-                "bokeh_chart.html", title="Cycle Time Histogram", script="", div=""
+                "bokeh_chart.html",
+                title="Cycle Time Histogram",
+                script="",
+                div="",
             )
         p = figure(
-            title="Cycle Time Histogram", x_range=list(chart_data.index), width=800, height=400
+            title="Cycle Time Histogram",
+            x_range=list(chart_data.index),
+            width=800,
+            height=400,
         )
-        p.vbar(x=list(chart_data.index), top=list(chart_data.values), width=0.9)
+        p.vbar(
+            x=list(chart_data.index), top=list(chart_data.values), width=0.9
+        )
         p.xaxis.axis_label = "Cycle Time Bin"
         p.yaxis.axis_label = "Items"
         script, div = components(p)
         return render_template(
-            "bokeh_chart.html", title="Cycle Time Histogram", script=script, div=div
+            "bokeh_chart.html",
+            title="Cycle Time Histogram",
+            script=script,
+            div=div,
         )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Cycle Time Histogram", script="", div="")
+        return render_template(
+            "bokeh_chart.html", title="Cycle Time Histogram", script="", div=""
+        )
 
 
 @app.route("/scatterplot")
@@ -206,20 +264,31 @@ def scatterplot_chart():
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Cycle Time Scatterplot.", "warning")
             return render_template(
-                "bokeh_chart.html", title="Cycle Time Scatterplot", script="", div=""
+                "bokeh_chart.html",
+                title="Cycle Time Scatterplot",
+                script="",
+                div="",
             )
         p = figure(title="Cycle Time Scatterplot", width=800, height=400)
-        p.circle(chart_data["x"], chart_data["y"], size=8, color="navy", alpha=0.5)
+        p.circle(
+            chart_data["x"], chart_data["y"], size=8, color="navy", alpha=0.5
+        )
         p.xaxis.axis_label = "X"
         p.yaxis.axis_label = "Y"
         script, div = components(p)
         return render_template(
-            "bokeh_chart.html", title="Cycle Time Scatterplot", script=script, div=div
+            "bokeh_chart.html",
+            title="Cycle Time Scatterplot",
+            script=script,
+            div=div,
         )
     except Exception as e:
         flash(str(e), "danger")
         return render_template(
-            "bokeh_chart.html", title="Cycle Time Scatterplot", script="", div=""
+            "bokeh_chart.html",
+            title="Cycle Time Scatterplot",
+            script="",
+            div="",
         )
 
 
@@ -232,18 +301,34 @@ def netflow_chart():
         chart_data = results[NetFlowChartCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Net Flow Chart.", "warning")
-            return render_template("bokeh_chart.html", title="Net Flow Chart", script="", div="")
-        p = figure(title="Net Flow Chart", x_axis_type="datetime", width=800, height=400)
+            return render_template(
+                "bokeh_chart.html", title="Net Flow Chart", script="", div=""
+            )
+        p = figure(
+            title="Net Flow Chart",
+            x_axis_type="datetime",
+            width=800,
+            height=400,
+        )
         for col in chart_data.columns:
-            p.line(chart_data.index, chart_data[col], legend_label=col, line_width=2)
+            p.line(
+                chart_data.index,
+                chart_data[col],
+                legend_label=col,
+                line_width=2,
+            )
         p.legend.location = "top_left"
         p.xaxis.axis_label = "Date"
         p.yaxis.axis_label = "Items"
         script, div = components(p)
-        return render_template("bokeh_chart.html", title="Net Flow Chart", script=script, div=div)
+        return render_template(
+            "bokeh_chart.html", title="Net Flow Chart", script=script, div=div
+        )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Net Flow Chart", script="", div="")
+        return render_template(
+            "bokeh_chart.html", title="Net Flow Chart", script="", div=""
+        )
 
 
 @app.route("/ageingwip")
@@ -255,21 +340,34 @@ def ageingwip_chart():
         chart_data = results[AgeingWIPChartCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Ageing WIP Chart.", "warning")
-            return render_template("bokeh_chart.html", title="Ageing WIP Chart", script="", div="")
+            return render_template(
+                "bokeh_chart.html", title="Ageing WIP Chart", script="", div=""
+            )
         p = figure(
             title="Ageing WIP Chart",
             x_range=list(chart_data["status"].astype(str)),
             width=800,
             height=400,
         )
-        p.vbar(x=list(chart_data["status"].astype(str)), top=list(chart_data["age"]), width=0.9)
+        p.vbar(
+            x=list(chart_data["status"].astype(str)),
+            top=list(chart_data["age"]),
+            width=0.9,
+        )
         p.xaxis.axis_label = "Status"
         p.yaxis.axis_label = "Age (days)"
         script, div = components(p)
-        return render_template("bokeh_chart.html", title="Ageing WIP Chart", script=script, div=div)
+        return render_template(
+            "bokeh_chart.html",
+            title="Ageing WIP Chart",
+            script=script,
+            div=div,
+        )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Ageing WIP Chart", script="", div="")
+        return render_template(
+            "bokeh_chart.html", title="Ageing WIP Chart", script="", div=""
+        )
 
 
 @app.route("/debt")
@@ -282,21 +380,37 @@ def debt_chart():
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Technical Debt Chart.", "warning")
             return render_template(
-                "bokeh_chart.html", title="Technical Debt Chart", script="", div=""
+                "bokeh_chart.html",
+                title="Technical Debt Chart",
+                script="",
+                div="",
             )
-        p = figure(title="Technical Debt Chart", x_axis_type="datetime", width=800, height=400)
+        p = figure(
+            title="Technical Debt Chart",
+            x_axis_type="datetime",
+            width=800,
+            height=400,
+        )
         p.line(
-            chart_data["created"], chart_data["age"].dt.days, legend_label="Debt Age", line_width=2
+            chart_data["created"],
+            chart_data["age"].dt.days,
+            legend_label="Debt Age",
+            line_width=2,
         )
         p.xaxis.axis_label = "Created Date"
         p.yaxis.axis_label = "Age (days)"
         script, div = components(p)
         return render_template(
-            "bokeh_chart.html", title="Technical Debt Chart", script=script, div=div
+            "bokeh_chart.html",
+            title="Technical Debt Chart",
+            script=script,
+            div=div,
         )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Technical Debt Chart", script="", div="")
+        return render_template(
+            "bokeh_chart.html", title="Technical Debt Chart", script="", div=""
+        )
 
 
 @app.route("/debt-age")
@@ -308,7 +422,9 @@ def debt_age_chart():
         chart_data = results[DebtCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Debt Age Chart.", "warning")
-            return render_template("bokeh_chart.html", title="Debt Age Chart", script="", div="")
+            return render_template(
+                "bokeh_chart.html", title="Debt Age Chart", script="", div=""
+            )
         p = figure(
             title="Debt Age Chart",
             x_range=list(chart_data["priority"].astype(str)),
@@ -323,10 +439,14 @@ def debt_age_chart():
         p.xaxis.axis_label = "Priority"
         p.yaxis.axis_label = "Age (days)"
         script, div = components(p)
-        return render_template("bokeh_chart.html", title="Debt Age Chart", script=script, div=div)
+        return render_template(
+            "bokeh_chart.html", title="Debt Age Chart", script=script, div=div
+        )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Debt Age Chart", script="", div="")
+        return render_template(
+            "bokeh_chart.html", title="Debt Age Chart", script="", div=""
+        )
 
 
 @app.route("/defects-priority")
@@ -339,7 +459,10 @@ def defects_priority_chart():
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Defects by Priority.", "warning")
             return render_template(
-                "bokeh_chart.html", title="Defects by Priority", script="", div=""
+                "bokeh_chart.html",
+                title="Defects by Priority",
+                script="",
+                div="",
             )
         p = figure(
             title="Defects by Priority",
@@ -356,11 +479,16 @@ def defects_priority_chart():
         p.yaxis.axis_label = "Count"
         script, div = components(p)
         return render_template(
-            "bokeh_chart.html", title="Defects by Priority", script=script, div=div
+            "bokeh_chart.html",
+            title="Defects by Priority",
+            script=script,
+            div=div,
         )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Defects by Priority", script="", div="")
+        return render_template(
+            "bokeh_chart.html", title="Defects by Priority", script="", div=""
+        )
 
 
 @app.route("/defects-type")
@@ -372,7 +500,9 @@ def defects_type_chart():
         chart_data = results[DefectsCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Defects by Type.", "warning")
-            return render_template("bokeh_chart.html", title="Defects by Type", script="", div="")
+            return render_template(
+                "bokeh_chart.html", title="Defects by Type", script="", div=""
+            )
         p = figure(
             title="Defects by Type",
             x_range=list(chart_data["type"].astype(str)),
@@ -387,10 +517,14 @@ def defects_type_chart():
         p.xaxis.axis_label = "Type"
         p.yaxis.axis_label = "Count"
         script, div = components(p)
-        return render_template("bokeh_chart.html", title="Defects by Type", script=script, div=div)
+        return render_template(
+            "bokeh_chart.html", title="Defects by Type", script=script, div=div
+        )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Defects by Type", script="", div="")
+        return render_template(
+            "bokeh_chart.html", title="Defects by Type", script="", div=""
+        )
 
 
 @app.route("/defects-environment")
@@ -403,7 +537,10 @@ def defects_environment_chart():
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Defects by Environment.", "warning")
             return render_template(
-                "bokeh_chart.html", title="Defects by Environment", script="", div=""
+                "bokeh_chart.html",
+                title="Defects by Environment",
+                script="",
+                div="",
             )
         p = figure(
             title="Defects by Environment",
@@ -420,12 +557,18 @@ def defects_environment_chart():
         p.yaxis.axis_label = "Count"
         script, div = components(p)
         return render_template(
-            "bokeh_chart.html", title="Defects by Environment", script=script, div=div
+            "bokeh_chart.html",
+            title="Defects by Environment",
+            script=script,
+            div=div,
         )
     except Exception as e:
         flash(str(e), "danger")
         return render_template(
-            "bokeh_chart.html", title="Defects by Environment", script="", div=""
+            "bokeh_chart.html",
+            title="Defects by Environment",
+            script="",
+            div="",
         )
 
 
@@ -438,7 +581,12 @@ def impediments_chart():
         chart_data = results[ImpedimentsCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Impediments Chart.", "warning")
-            return render_template("bokeh_chart.html", title="Impediments Chart", script="", div="")
+            return render_template(
+                "bokeh_chart.html",
+                title="Impediments Chart",
+                script="",
+                div="",
+            )
         p = figure(
             title="Impediments Chart",
             x_range=list(chart_data["status"].astype(str)),
@@ -454,11 +602,16 @@ def impediments_chart():
         p.yaxis.axis_label = "Count"
         script, div = components(p)
         return render_template(
-            "bokeh_chart.html", title="Impediments Chart", script=script, div=div
+            "bokeh_chart.html",
+            title="Impediments Chart",
+            script=script,
+            div=div,
         )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Impediments Chart", script="", div="")
+        return render_template(
+            "bokeh_chart.html", title="Impediments Chart", script="", div=""
+        )
 
 
 @app.route("/waste")
@@ -470,7 +623,9 @@ def waste_chart():
         chart_data = results[WasteCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Waste Chart.", "warning")
-            return render_template("bokeh_chart.html", title="Waste Chart", script="", div="")
+            return render_template(
+                "bokeh_chart.html", title="Waste Chart", script="", div=""
+            )
         p = figure(
             title="Waste Chart",
             x_range=list(chart_data["last_status"].astype(str)),
@@ -485,10 +640,14 @@ def waste_chart():
         p.xaxis.axis_label = "Last Status"
         p.yaxis.axis_label = "Count"
         script, div = components(p)
-        return render_template("bokeh_chart.html", title="Waste Chart", script=script, div=div)
+        return render_template(
+            "bokeh_chart.html", title="Waste Chart", script=script, div=div
+        )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Waste Chart", script="", div="")
+        return render_template(
+            "bokeh_chart.html", title="Waste Chart", script="", div=""
+        )
 
 
 @app.route("/progress")
@@ -498,24 +657,41 @@ def progress_chart():
         from ..calculators.progressreport import ProgressReportCalculator
 
         chart_data = results[ProgressReportCalculator]
-        if not chart_data or "teams" not in chart_data or len(chart_data["teams"]) == 0:
+        if (
+            not chart_data
+            or "teams" not in chart_data
+            or len(chart_data["teams"]) == 0
+        ):
             flash("No data available for Progress Report Chart.", "warning")
             return render_template(
-                "bokeh_chart.html", title="Progress Report Chart", script="", div=""
+                "bokeh_chart.html",
+                title="Progress Report Chart",
+                script="",
+                div="",
             )
         p = figure(title="Progress Report Chart", width=800, height=400)
         for team in chart_data["teams"]:
-            p.line([1, 2, 3], [1, 2, 3], legend_label=team.name, line_width=2)  # Placeholder
+            p.line(
+                [1, 2, 3], [1, 2, 3], legend_label=team.name, line_width=2
+            )  # Placeholder
         p.legend.location = "top_left"
         p.xaxis.axis_label = "X"
         p.yaxis.axis_label = "Y"
         script, div = components(p)
         return render_template(
-            "bokeh_chart.html", title="Progress Report Chart", script=script, div=div
+            "bokeh_chart.html",
+            title="Progress Report Chart",
+            script=script,
+            div=div,
         )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Progress Report Chart", script="", div="")
+        return render_template(
+            "bokeh_chart.html",
+            title="Progress Report Chart",
+            script="",
+            div="",
+        )
 
 
 @app.route("/percentiles")
@@ -527,23 +703,37 @@ def percentiles_chart():
         chart_data = results[PercentilesCalculator]
         if chart_data is None or len(chart_data) == 0:
             flash("No data available for Percentiles Chart.", "warning")
-            return render_template("bokeh_chart.html", title="Percentiles Chart", script="", div="")
+            return render_template(
+                "bokeh_chart.html",
+                title="Percentiles Chart",
+                script="",
+                div="",
+            )
         p = figure(
             title="Percentiles Chart",
             x_range=[str(q) for q in chart_data.index],
             width=800,
             height=400,
         )
-        p.vbar(x=[str(q) for q in chart_data.index], top=list(chart_data.values), width=0.9)
+        p.vbar(
+            x=[str(q) for q in chart_data.index],
+            top=list(chart_data.values),
+            width=0.9,
+        )
         p.xaxis.axis_label = "Quantile"
         p.yaxis.axis_label = "Cycle Time"
         script, div = components(p)
         return render_template(
-            "bokeh_chart.html", title="Percentiles Chart", script=script, div=div
+            "bokeh_chart.html",
+            title="Percentiles Chart",
+            script=script,
+            div=div,
         )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Percentiles Chart", script="", div="")
+        return render_template(
+            "bokeh_chart.html", title="Percentiles Chart", script="", div=""
+        )
 
 
 @app.route("/cycletime")
@@ -555,7 +745,9 @@ def cycletime_chart():
         chart_data = results[CycleTimeCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Cycle Time Chart.", "warning")
-            return render_template("bokeh_chart.html", title="Cycle Time Chart", script="", div="")
+            return render_template(
+                "bokeh_chart.html", title="Cycle Time Chart", script="", div=""
+            )
         p = figure(
             title="Cycle Time Chart",
             x_range=list(chart_data["key"].astype(str)),
@@ -570,10 +762,17 @@ def cycletime_chart():
         p.xaxis.axis_label = "Issue Key"
         p.yaxis.axis_label = "Cycle Time (days)"
         script, div = components(p)
-        return render_template("bokeh_chart.html", title="Cycle Time Chart", script=script, div=div)
+        return render_template(
+            "bokeh_chart.html",
+            title="Cycle Time Chart",
+            script=script,
+            div=div,
+        )
     except Exception as e:
         flash(str(e), "danger")
-        return render_template("bokeh_chart.html", title="Cycle Time Chart", script="", div="")
+        return render_template(
+            "bokeh_chart.html", title="Cycle Time Chart", script="", div=""
+        )
 
 
 @app.route("/set_query", methods=["POST"])

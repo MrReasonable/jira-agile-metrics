@@ -88,7 +88,9 @@ class QueryManager(object):
                 )
             ) from None
 
-        self.jira_fields_to_names = {field["id"]: field["name"] for field in self.jira_fields}
+        self.jira_fields_to_names = {
+            field["id"]: field["name"] for field in self.jira_fields
+        }
         field_id = None
 
         for name, field in self.settings["attributes"].items():
@@ -98,10 +100,18 @@ class QueryManager(object):
 
     def field_name_to_id(self, name):
         arr_name = name.split(".")
-        append_text = ("." + ".".join(arr_name[1:])) if len(arr_name) > 1 else ""
+        append_text = (
+            ("." + ".".join(arr_name[1:])) if len(arr_name) > 1 else ""
+        )
         try:
             return (
-                next((f["id"] for f in self.jira_fields if f["name"].lower() == name.lower()))
+                next(
+                    (
+                        f["id"]
+                        for f in self.jira_fields
+                        if f["name"].lower() == name.lower()
+                    )
+                )
                 + append_text
             )
         except StopIteration:
@@ -137,7 +147,9 @@ class QueryManager(object):
             field_value = multi_getattr(issue.fields, field_id)
 
         except AttributeError:
-            field_name = self.jira_fields_to_names.get(field_id, "Unknown name")
+            field_name = self.jira_fields_to_names.get(
+                field_id, "Unknown name"
+            )
             logger.debug(
                 (
                     "Could not get field value for field {}. "
@@ -188,7 +200,9 @@ class QueryManager(object):
         """
 
         for field in fields:
-            initial_value = self.resolve_field_value(issue, self.field_name_to_id(field))
+            initial_value = self.resolve_field_value(
+                issue, self.field_name_to_id(field)
+            )
             try:
                 initial_value = next(
                     filter(
@@ -198,7 +212,9 @@ class QueryManager(object):
                                 c.items
                                 for c in sorted(
                                     issue.changelog.histories,
-                                    key=lambda c: dateutil.parser.parse(c.created),
+                                    key=lambda c: dateutil.parser.parse(
+                                        c.created
+                                    ),
                                 )
                             ]
                         ),
@@ -243,7 +259,9 @@ class QueryManager(object):
             logger.info("Limiting to %d results", max_results)
 
         try:
-            issues = self.jira.search_issues(jql, expand=expand, maxResults=max_results)
+            issues = self.jira.search_issues(
+                jql, expand=expand, maxResults=max_results
+            )
             logger.info("Fetched %d issues", len(issues))
             return issues
         except Exception:

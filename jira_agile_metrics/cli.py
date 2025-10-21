@@ -23,12 +23,18 @@ def configure_argument_parser():
     """Configure an ArgumentParser that manages command line options."""
 
     parser = argparse.ArgumentParser(
-        description=("Extract Agile metrics data from JIRA/Trello and produce data and charts.")
+        description=(
+            "Extract Agile metrics data from JIRA/Trello and produce data and charts."
+        )
     )
 
     # Basic options
-    parser.add_argument("config", metavar="config.yml", nargs="?", help="Configuration file")
-    parser.add_argument("-v", dest="verbose", action="store_true", help="Verbose output")
+    parser.add_argument(
+        "config", metavar="config.yml", nargs="?", help="Configuration file"
+    )
+    parser.add_argument(
+        "-v", dest="verbose", action="store_true", help="Verbose output"
+    )
     parser.add_argument(
         "-vv",
         dest="very_verbose",
@@ -58,16 +64,24 @@ def configure_argument_parser():
         "--output-directory",
         "-o",
         metavar="metrics",
-        help=("Write output files to this directory,rather than the current working directory."),
+        help=(
+            "Write output files to this directory,rather than the current working directory."
+        ),
     )
 
     # Connection options
-    parser.add_argument("--domain", metavar="https://my.jira.com", help="JIRA domain name")
-    parser.add_argument("--username", metavar="user", help="JIRA/Trello user name")
+    parser.add_argument(
+        "--domain", metavar="https://my.jira.com", help="JIRA domain name"
+    )
+    parser.add_argument(
+        "--username", metavar="user", help="JIRA/Trello user name"
+    )
     parser.add_argument("--password", metavar="password", help="JIRA password")
     parser.add_argument("--key", metavar="key", help="Trello API key")
     parser.add_argument("--token", metavar="token", help="Trello API password")
-    parser.add_argument("--http-proxy", metavar="https://proxy.local", help="URL to HTTP Proxy")
+    parser.add_argument(
+        "--http-proxy", metavar="https://proxy.local", help="URL to HTTP Proxy"
+    )
     parser.add_argument(
         "--https-proxy",
         metavar="https://proxy.local",
@@ -130,7 +144,8 @@ def run_command_line(parser, args):
     try:
         with open(args.config) as config:
             options = config_to_options(
-                config.read(), cwd=os.path.dirname(os.path.abspath(args.config))
+                config.read(),
+                cwd=os.path.dirname(os.path.abspath(args.config)),
             )
     except FileNotFoundError:
         print(
@@ -157,7 +172,9 @@ def run_command_line(parser, args):
         os.makedirs(output_dir, exist_ok=True)
         os.chdir(output_dir)
     logger.debug(f"[DEBUG] Config file path: {args.config}")
-    logger.debug(f"[DEBUG] Initial output_directory in options: {options.get('output_directory')}")
+    logger.debug(
+        f"[DEBUG] Initial output_directory in options: {options.get('output_directory')}"
+    )
     logger.debug(f"[DEBUG] Current working directory: {os.getcwd()}")
     logger.debug(f"[DEBUG] output_dir value: {output_dir}")
 
@@ -167,7 +184,9 @@ def run_command_line(parser, args):
     if options["connection"]["type"] == "jira":
         jira = get_jira_client(options["connection"])
     elif options["connection"]["type"] == "trello":
-        jira = get_trello_client(options["connection"], options["settings"]["type_mapping"])
+        jira = get_trello_client(
+            options["connection"], options["settings"]["type_mapping"]
+        )
     else:
         raise ConfigError("Unknown source")
     # Query JIRA and run calculators
