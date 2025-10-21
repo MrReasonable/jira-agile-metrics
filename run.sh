@@ -22,6 +22,22 @@ fi
 # Always mount output directory
 OUTPUT_MOUNT="-v $PWD/output:/data/output"
 
+# Check if Docker image exists, build if it doesn't
+IMAGE_NAME="jira-agile-metrics-dev"
+if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+  echo "\n==================== Building Docker Image ===================="
+  echo "Docker image '$IMAGE_NAME' not found. Building..."
+  docker build -t "$IMAGE_NAME" -f Dockerfile.develop .
+  if [ $? -ne 0 ]; then
+    echo "Failed to build Docker image. Exiting."
+    exit 1
+  fi
+  echo "Docker image built successfully!"
+else
+  echo "\n==================== Docker Image Found ===================="
+  echo "Using existing Docker image: $IMAGE_NAME"
+fi
+
 # NOTE: Set output paths in config.yml to /app/output or a relative path that resolves there
 
 echo "\n==================== Running jira-agile-metrics CLI ===================="

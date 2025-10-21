@@ -1,5 +1,20 @@
 [flake8]
-ignore = W503, E203
-max-line-length = 79
-# max-complexity = 18
-select = B,C,E,F,W,T4,B9
+max-line-length = 88
+extend-ignore = 
+    E203,
+    E501,
+    W503,
+    W504
+exclude = 
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    env,
+    .env,
+    build,
+    dist,
+    *.egg-info
+per-file-ignores =
+    # Ignore line length for specific files if needed
+    # __init__.py:E501

@@ -36,6 +36,15 @@ FROM python:3
 # This will remove `__pycache__` and `.pyc` files.
 #
 
+# Install build dependencies required for scipy and other packages
+RUN apt-get update && apt-get install -y \
+    gfortran \
+    gcc \
+    g++ \
+    libopenblas-dev \
+    liblapack-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install requirments first to make future rebuilds faster
 RUN pip install pytest
 COPY ./requirements.txt /requirements.txt
