@@ -1,9 +1,15 @@
+"""Configuration loader for Jira Agile Metrics."""
+
 import logging
 import os.path
 
+import yaml
+
 from .exceptions import ConfigError
-from .progress_report_utils import to_progress_report_outcomes_list, to_progress_report_teams_list
-from .type_utils import expand_key, force_date, force_float, force_int, force_list
+from .progress_report_utils import (to_progress_report_outcomes_list,
+                                    to_progress_report_teams_list)
+from .type_utils import (expand_key, force_date, force_float, force_int,
+                         force_list)
 from .yaml_utils import ordered_load
 
 
@@ -12,8 +18,6 @@ def config_to_options(data, cwd=None, extended=False):
     Parse YAML config data and return options dict.
     """
     try:
-        import yaml
-
         config = ordered_load(data, yaml.SafeLoader)
     except Exception as e:
         raise ConfigError("Unable to parse YAML configuration file.") from e
@@ -77,6 +81,7 @@ def config_to_options(data, cwd=None, extended=False):
             "burnup_forecast_chart_deadline": None,
             "burnup_forecast_chart_deadline_confidence": None,
             "burnup_forecast_chart_trials": 100,
+            "burnup_forecast_chart_max_iterations": 9999,
             "burnup_forecast_chart_throughput_window": 60,
             "burnup_forecast_chart_throughput_window_end": None,
             "burnup_forecast_chart_backlog_growth_window": None,
@@ -152,16 +157,20 @@ def config_to_options(data, cwd=None, extended=False):
             raise ConfigError("`extends` is not supported here.")
 
         extends_filename = os.path.abspath(
-            os.path.normpath(os.path.join(cwd, config["extends"].replace("/", os.path.sep)))
+            os.path.normpath(
+                os.path.join(cwd, config["extends"].replace("/", os.path.sep))
+            )
         )
 
         if not os.path.exists(extends_filename):
             raise ConfigError(
-                "File `%s` referenced in `extends` not found." % extends_filename
+                f"File `{extends_filename}` referenced in `extends` not found."
             ) from None
 
-        logging.getLogger(__name__).debug("Extending file %s" % extends_filename)
-        with open(extends_filename) as extends_file:
+        logging.getLogger(__name__).debug(
+            "Extending file %s", extends_filename
+        )
+        with open(extends_filename, encoding="utf-8") as extends_file:
             options = config_to_options(
                 extends_file.read(),
                 cwd=os.path.dirname(extends_filename),
@@ -178,10 +187,14 @@ def config_to_options(data, cwd=None, extended=False):
             options["connection"]["type"] = config["connection"]["type"]
 
         if "username" in config["connection"]:
-            options["connection"]["username"] = config["connection"]["username"]
+            options["connection"]["username"] = config["connection"][
+                "username"
+            ]
 
         if "password" in config["connection"]:
-            options["connection"]["password"] = config["connection"]["password"]
+            options["connection"]["password"] = config["connection"][
+                "password"
+            ]
 
         if "key" in config["connection"]:
             options["connection"]["key"] = config["connection"]["key"]
@@ -190,33 +203,40 @@ def config_to_options(data, cwd=None, extended=False):
             options["connection"]["token"] = config["connection"]["token"]
 
         if "http proxy" in config["connection"]:
-            options["connection"]["http_proxy"] = config["connection"]["http proxy"]
+            options["connection"]["http_proxy"] = config["connection"][
+                "http proxy"
+            ]
 
         if "https proxy" in config["connection"]:
-            options["connection"]["https_proxy"] = config["connection"]["https proxy"]
+            options["connection"]["https_proxy"] = config["connection"][
+                "https proxy"
+            ]
 
         if "jira client options" in config["connection"]:
-            options["connection"]["jira_client_options"] = config["connection"][
-                "jira client options"
-            ]
+            options["connection"]["jira_client_options"] = config[
+                "connection"
+            ]["jira client options"]
 
         if "jira server version check" in config["connection"]:
-            options["connection"]["jira_server_version_check"] = config["connection"][
-                "jira server version check"
-            ]
+            options["connection"]["jira_server_version_check"] = config[
+                "connection"
+            ]["jira server version check"]
 
     # Parse and validate output options
     if "output" in config:
         # Output directory support
         if expand_key("output_directory") in config["output"]:
-            options["output_directory"] = config["output"][expand_key("output_directory")]
+            options["output_directory"] = config["output"][
+                expand_key("output_directory")
+            ]
         if "quantiles" in config["output"]:
             try:
-                options["settings"]["quantiles"] = list(map(float, config["output"]["quantiles"]))
+                options["settings"]["quantiles"] = list(
+                    map(float, config["output"]["quantiles"])
+                )
             except ValueError:
                 raise ConfigError(
-                    ("Could not convert value `%s` for key `quantiles` to a list of decimals")
-                    % (config["output"]["quantiles"],)
+                    f"Could not convert value `{config['output']['quantiles']}` for key `quantiles` to a list of decimals"
                 ) from None
 
         # int values
@@ -232,6 +252,7 @@ def config_to_options(data, cwd=None, extended=False):
             "burnup_forecast_chart_throughput_window",
             "burnup_forecast_chart_target",
             "burnup_forecast_chart_trials",
+            "burnup_forecast_chart_max_iterations",
             "impediments_window",
             "defects_window",
             "debt_window",
@@ -239,14 +260,18 @@ def config_to_options(data, cwd=None, extended=False):
             "burnup_forecast_chart_backlog_growth_window",
         ]:
             if expand_key(key) in config["output"]:
-                options["settings"][key] = force_int(key, config["output"][expand_key(key)])
+                options["settings"][key] = force_int(
+                    key, config["output"][expand_key(key)]
+                )
 
         # float values
         for key in [
             "burnup_forecast_chart_deadline_confidence",
         ]:
             if expand_key(key) in config["output"]:
-                options["settings"][key] = force_float(key, config["output"][expand_key(key)])
+                options["settings"][key] = force_float(
+                    key, config["output"][expand_key(key)]
+                )
 
         # date values
         for key in [
@@ -254,7 +279,9 @@ def config_to_options(data, cwd=None, extended=False):
             "burnup_forecast_chart_deadline",
         ]:
             if expand_key(key) in config["output"]:
-                options["settings"][key] = force_date(key, config["output"][expand_key(key)])
+                options["settings"][key] = force_date(
+                    key, config["output"][expand_key(key)]
+                )
 
         # file name values
         for key in [
@@ -285,7 +312,9 @@ def config_to_options(data, cwd=None, extended=False):
             "bottleneck_violin_chart",
         ]:
             if expand_key(key) in config["output"]:
-                options["settings"][key] = os.path.basename(config["output"][expand_key(key)])
+                options["settings"][key] = os.path.basename(
+                    config["output"][expand_key(key)]
+                )
 
         # file name list values
         for key in [
@@ -316,7 +345,9 @@ def config_to_options(data, cwd=None, extended=False):
             "debt_age_chart_bins",
         ]:
             if expand_key(key) in config["output"]:
-                options["settings"][key] = force_list(config["output"][expand_key(key)])
+                options["settings"][key] = force_list(
+                    config["output"][expand_key(key)]
+                )
 
         # string values
         for key in [
@@ -325,6 +356,7 @@ def config_to_options(data, cwd=None, extended=False):
             "committed_column",
             "done_column",
             "throughput_frequency",
+            "burnup_forecast_chart_throughput_frequency",
             "scatterplot_chart_title",
             "histogram_chart_title",
             "cfd_chart_title",
@@ -367,30 +399,41 @@ def config_to_options(data, cwd=None, extended=False):
             "negative_duration_handling",
         ]:
             if expand_key(key) in config["output"]:
-                options["settings"][key] = str(config["output"][expand_key(key)])
+                options["settings"][key] = str(
+                    config["output"][expand_key(key)]
+                )
 
         # Special objects for progress reports
         if expand_key("progress_report_teams") in config["output"]:
-            options["settings"]["progress_report_teams"] = to_progress_report_teams_list(
-                config["output"][expand_key("progress_report_teams")]
+            options["settings"]["progress_report_teams"] = (
+                to_progress_report_teams_list(
+                    config["output"][expand_key("progress_report_teams")]
+                )
             )
         if expand_key("progress_report_outcomes") in config["output"]:
-            options["settings"]["progress_report_outcomes"] = to_progress_report_outcomes_list(
-                config["output"][expand_key("progress_report_outcomes")]
+            options["settings"]["progress_report_outcomes"] = (
+                to_progress_report_outcomes_list(
+                    config["output"][expand_key("progress_report_outcomes")]
+                )
             )
 
         # boolean values
         for key in [
             "use_cache",
             "reset_on_backwards",
+            "burnup_forecast_chart_smart_window",
         ]:
             if expand_key(key) in config["output"]:
-                options["settings"][key] = bool(config["output"][expand_key(key)])
+                options["settings"][key] = bool(
+                    config["output"][expand_key(key)]
+                )
 
     # Parse Queries and/or a single Query
 
     if "queries" in config:
-        options["settings"]["query_attribute"] = config["queries"].get("attribute", None)
+        options["settings"]["query_attribute"] = config["queries"].get(
+            "attribute", None
+        )
         options["settings"]["queries"] = [
             {
                 "value": q.get("value", None),
@@ -409,20 +452,23 @@ def config_to_options(data, cwd=None, extended=False):
 
     if not extended and len(options["settings"]["queries"]) == 0:
         logging.getLogger(__name__).warning(
-            ("No `Query` value or `Queries` section found. Many calculators rely on one of these.")
-        )
+            ("No `Query` value or `Queries` section found. Many calculators rely on one of these."))
 
     # Parse Workflow. Assume first status is backlog
     # and last status is complete.
 
     if "workflow" in config:
         if len(config["workflow"].keys()) < 3:
-            raise ConfigError("`Workflow` section must contain at least three statuses")
+            raise ConfigError(
+                "`Workflow` section must contain at least three statuses"
+            )
 
         column_names = []
         for name, statuses in config["workflow"].items():
             statuses = force_list(statuses)
-            options["settings"]["cycle"].append({"name": name, "statuses": statuses})
+            options["settings"]["cycle"].append(
+                {"name": name, "statuses": statuses}
+            )
             column_names.append(name)
 
         if options["settings"]["backlog_column"] is None:
@@ -440,15 +486,17 @@ def config_to_options(data, cwd=None, extended=False):
             else:
                 if options["settings"]["committed_column"] not in column_names:
                     raise ConfigError(
-                        "`Committed column` (%s) must exist in `Workflow`: %s"
-                        % (
-                            options["settings"]["committed_column"],
-                            column_names,
-                        )
+                        f"`Committed column` ({options['settings']['committed_column']}) must exist in `Workflow`: {column_names}"
                     )
-                elif column_names.index(options["settings"]["committed_column"]) > 0:
+                elif (
+                    column_names.index(options["settings"]["committed_column"])
+                    > 0
+                ):
                     options["settings"]["backlog_column"] = column_names[
-                        column_names.index(options["settings"]["committed_column"]) - 1
+                        column_names.index(
+                            options["settings"]["committed_column"]
+                        )
+                        - 1
                     ]
                     logging.getLogger(__name__).info(
                         "`Backlog column` automatically set to `%s`",
@@ -456,26 +504,19 @@ def config_to_options(data, cwd=None, extended=False):
                     )
                 else:
                     raise ConfigError(
-                        (
-                            "There must be at least 1 column before "
-                            "`Committed column` (%s) in `Workflow`: %s"
-                        )
-                        % (
-                            options["settings"]["committed_column"],
-                            column_names,
-                        )
-                    )
+                        f"There must be at least 1 column before "
+                        f"`Committed column` ({options['settings']['committed_column']}) in `Workflow`: {column_names}")
         else:
             if options["settings"]["backlog_column"] not in column_names:
                 raise ConfigError(
-                    "`Backlog column` (%s) must exist in `Workflow`: %s"
-                    % (options["settings"]["backlog_column"], column_names)
+                    f"`Backlog column` ({options['settings']['backlog_column']}) must exist in `Workflow`: {column_names}"
                 )
             elif column_names.index(options["settings"]["backlog_column"]) < (
                 len(column_names) - 2
             ):
                 options["settings"]["committed_column"] = column_names[
-                    column_names.index(options["settings"]["backlog_column"]) + 1
+                    column_names.index(options["settings"]["backlog_column"])
+                    + 1
                 ]
                 logging.getLogger(__name__).info(
                     "`Committed column` automatically set to `%s`",
@@ -483,12 +524,8 @@ def config_to_options(data, cwd=None, extended=False):
                 )
             else:
                 raise ConfigError(
-                    (
-                        "There must be at least 2 columns after "
-                        "`Backlog column` (%s) in `Workflow`: %s"
-                    )
-                    % (options["settings"]["committed_column"], column_names)
-                )
+                    f"There must be at least 2 columns after "
+                    f"`Backlog column` ({options['settings']['committed_column']}) in `Workflow`: {column_names}")
 
         if options["settings"]["done_column"] is None:
             options["settings"]["done_column"] = column_names[-1]
@@ -498,8 +535,7 @@ def config_to_options(data, cwd=None, extended=False):
             )
         elif options["settings"]["done_column"] not in column_names:
             raise ConfigError(
-                "`Done column` (%s) must exist in `Workflow`: %s"
-                % (options["settings"]["done_column"], column_names)
+                f"`Done column` ({options['settings']['done_column']}) must exist in `Workflow`: {column_names}"
             )
 
         # backlog column must come before committed column
@@ -507,27 +543,15 @@ def config_to_options(data, cwd=None, extended=False):
             column_names.index(options["settings"]["backlog_column"]) + 1
         ) == column_names.index(options["settings"]["committed_column"]):
             raise ConfigError(
-                (
-                    "`Backlog column` (%s) must come immediately "
-                    "before `Committed column` (%s) in `Workflow`"
-                )
-                % (
-                    options["settings"]["backlog_column"],
-                    options["settings"]["committed_column"],
-                )
-            )
+                f"`Backlog column` ({options['settings']['backlog_column']}) must come immediately "
+                f"before `Committed column` ({options['settings']['committed_column']}) in `Workflow`")
 
         # committed column must come before done column
-        if not column_names.index(options["settings"]["committed_column"]) < column_names.index(
-            options["settings"]["done_column"]
-        ):
+        if not column_names.index(
+            options["settings"]["committed_column"]
+        ) < column_names.index(options["settings"]["done_column"]):
             raise ConfigError(
-                ("`Committed column` (%s) must come before `Done column` (%s) in `Workflow`: %s")
-                % (
-                    options["settings"]["committed_column"],
-                    options["settings"]["done_column"],
-                    column_names,
-                )
+                f"`Committed column` ({options['settings']['committed_column']}) must come before `Done column` ({options['settings']['done_column']}) in `Workflow`: {column_names}"
             )
 
     # Make sure we have workflow

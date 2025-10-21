@@ -9,8 +9,14 @@ def to_progress_report_teams_list(value: Any) -> List[Dict]:
     """
     return [
         {
-            "name": val[expand_key("name")] if expand_key("name") in val else None,
-            "wip": force_int("wip", val[expand_key("wip")]) if expand_key("wip") in val else 1,
+            "name": (
+                val[expand_key("name")] if expand_key("name") in val else None
+            ),
+            "wip": (
+                force_int("wip", val[expand_key("wip")])
+                if expand_key("wip") in val
+                else 1
+            ),
             "min_throughput": (
                 force_int("min_throughput", val[expand_key("min_throughput")])
                 if expand_key("min_throughput") in val
@@ -45,15 +51,21 @@ def to_progress_report_outcomes_list(value: Any) -> List[Dict]:
     """
     return [
         {
-            "name": val[expand_key("name")] if expand_key("name") in val else None,
-            "key": val[expand_key("key")] if expand_key("key") in val else None,
+            "name": (
+                val[expand_key("name")] if expand_key("name") in val else None
+            ),
+            "key": (
+                val[expand_key("key")] if expand_key("key") in val else None
+            ),
             "deadline": (
                 force_date("deadline", val[expand_key("deadline")])
                 if expand_key("deadline") in val
                 else None
             ),
             "epic_query": (
-                val[expand_key("epic_query")] if expand_key("epic_query") in val else None
+                val[expand_key("epic_query")]
+                if expand_key("epic_query") in val
+                else None
             ),
         }
         for val in value

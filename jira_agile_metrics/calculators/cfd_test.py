@@ -31,7 +31,9 @@ def test_empty(query_manager, settings, columns):
 
 
 def test_columns(query_manager, settings, minimal_cycle_time_results):
-    calculator = CFDCalculator(query_manager, settings, minimal_cycle_time_results)
+    calculator = CFDCalculator(
+        query_manager, settings, minimal_cycle_time_results
+    )
 
     data = calculator.run()
 
@@ -45,7 +47,9 @@ def test_columns(query_manager, settings, minimal_cycle_time_results):
 
 
 def test_calculate_cfd(query_manager, settings, minimal_cycle_time_results):
-    calculator = CFDCalculator(query_manager, settings, minimal_cycle_time_results)
+    calculator = CFDCalculator(
+        query_manager, settings, minimal_cycle_time_results
+    )
 
     data = calculator.run()
 

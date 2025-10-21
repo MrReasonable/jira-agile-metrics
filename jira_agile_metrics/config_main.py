@@ -3,7 +3,8 @@ import logging
 from .calculators.ageingwip import AgeingWIPChartCalculator
 from .calculators.burnup import BurnupCalculator
 from .calculators.cfd import CFDCalculator
-from .calculators.cycletime import BottleneckChartsCalculator, CycleTimeCalculator
+from .calculators.cycletime import (BottleneckChartsCalculator,
+                                    CycleTimeCalculator)
 from .calculators.debt import DebtCalculator
 from .calculators.defects import DefectsCalculator
 from .calculators.forecast import BurnupForecastCalculator

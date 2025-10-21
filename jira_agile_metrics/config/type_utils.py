@@ -39,7 +39,9 @@ def force_date(key, value) -> datetime.date:
     Ensure value is a datetime.date, raise ConfigError otherwise.
     """
     if not isinstance(value, datetime.date):
-        raise ConfigError(f"Value `{value}` for key `{expand_key(key)}` is not a date")
+        raise ConfigError(
+            f"Value `{value}` for key `{expand_key(key)}` is not a date"
+        )
     return value
 
 
