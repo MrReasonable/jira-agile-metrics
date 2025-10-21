@@ -10,11 +10,20 @@ from ..conftest import FauxIssue as Issue
 from ..conftest import FauxJIRA as JIRA
 from ..querymanager import QueryManager
 from ..utils import extend_dict
-from .progressreport import (Epic, Outcome, ProgressReportCalculator, Team,
-                             calculate_epic_target, calculate_team_throughput,
-                             find_epics, find_outcomes, forecast_to_complete,
-                             throughput_range_sampler, update_story_counts,
-                             update_team_sampler)
+from .progressreport import (
+    Epic,
+    Outcome,
+    ProgressReportCalculator,
+    Team,
+    calculate_epic_target,
+    calculate_team_throughput,
+    find_epics,
+    find_outcomes,
+    forecast_to_complete,
+    throughput_range_sampler,
+    update_story_counts,
+    update_team_sampler,
+)
 
 # for debugging - leave off!
 WRITE_TEST_OUTPUTS = False

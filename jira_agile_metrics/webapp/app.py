@@ -12,8 +12,15 @@ import jinja2
 from bokeh.embed import components
 from bokeh.plotting import figure
 from dotenv import load_dotenv
-from flask import (Flask, flash, redirect, render_template, request, session,
-                   url_for)
+from flask import (
+    Flask,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from jira import JIRA
 from jira.exceptions import JIRAError
 

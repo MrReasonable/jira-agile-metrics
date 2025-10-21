@@ -3,9 +3,15 @@ import datetime
 import numpy as np
 import pandas as pd
 
-from .utils import (breakdown_by_month, breakdown_by_month_sum_days,
-                    extend_dict, get_extension, to_bin, to_days_since_epoch,
-                    to_json_string)
+from .utils import (
+    breakdown_by_month,
+    breakdown_by_month_sum_days,
+    extend_dict,
+    get_extension,
+    to_bin,
+    to_days_since_epoch,
+    to_json_string,
+)
 
 
 def test_extend_dict():

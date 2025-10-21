@@ -6,10 +6,17 @@ import os.path
 import yaml
 
 from .exceptions import ConfigError
-from .progress_report_utils import (to_progress_report_outcomes_list,
-                                    to_progress_report_teams_list)
-from .type_utils import (expand_key, force_date, force_float, force_int,
-                         force_list)
+from .progress_report_utils import (
+    to_progress_report_outcomes_list,
+    to_progress_report_teams_list,
+)
+from .type_utils import (
+    expand_key,
+    force_date,
+    force_float,
+    force_int,
+    force_list,
+)
 from .yaml_utils import ordered_load
 
 
@@ -236,7 +243,8 @@ def config_to_options(data, cwd=None, extended=False):
                 )
             except ValueError:
                 raise ConfigError(
-                    f"Could not convert value `{config['output']['quantiles']}` for key `quantiles` to a list of decimals"
+                    f"Could not convert value `{config['output']['quantiles']}` "
+                    f"for key `quantiles` to a list of decimals"
                 ) from None
 
         # int values
@@ -452,7 +460,11 @@ def config_to_options(data, cwd=None, extended=False):
 
     if not extended and len(options["settings"]["queries"]) == 0:
         logging.getLogger(__name__).warning(
-            ("No `Query` value or `Queries` section found. Many calculators rely on one of these."))
+            (
+                "No `Query` value or `Queries` section found. "
+                "Many calculators rely on one of these."
+            )
+        )
 
     # Parse Workflow. Assume first status is backlog
     # and last status is complete.
@@ -486,7 +498,8 @@ def config_to_options(data, cwd=None, extended=False):
             else:
                 if options["settings"]["committed_column"] not in column_names:
                     raise ConfigError(
-                        f"`Committed column` ({options['settings']['committed_column']}) must exist in `Workflow`: {column_names}"
+                        f"`Committed column` ({options['settings']['committed_column']}) "
+                        f"must exist in `Workflow`: {column_names}"
                     )
                 elif (
                     column_names.index(options["settings"]["committed_column"])
@@ -505,11 +518,14 @@ def config_to_options(data, cwd=None, extended=False):
                 else:
                     raise ConfigError(
                         f"There must be at least 1 column before "
-                        f"`Committed column` ({options['settings']['committed_column']}) in `Workflow`: {column_names}")
+                        f"`Committed column` ({options['settings']['committed_column']}) "
+                        f"in `Workflow`: {column_names}"
+                    )
         else:
             if options["settings"]["backlog_column"] not in column_names:
                 raise ConfigError(
-                    f"`Backlog column` ({options['settings']['backlog_column']}) must exist in `Workflow`: {column_names}"
+                    f"`Backlog column` ({options['settings']['backlog_column']}) "
+                    f"must exist in `Workflow`: {column_names}"
                 )
             elif column_names.index(options["settings"]["backlog_column"]) < (
                 len(column_names) - 2
@@ -525,7 +541,9 @@ def config_to_options(data, cwd=None, extended=False):
             else:
                 raise ConfigError(
                     f"There must be at least 2 columns after "
-                    f"`Backlog column` ({options['settings']['committed_column']}) in `Workflow`: {column_names}")
+                    f"`Backlog column` ({options['settings']['committed_column']}) "
+                    f"in `Workflow`: {column_names}"
+                )
 
         if options["settings"]["done_column"] is None:
             options["settings"]["done_column"] = column_names[-1]
@@ -535,7 +553,8 @@ def config_to_options(data, cwd=None, extended=False):
             )
         elif options["settings"]["done_column"] not in column_names:
             raise ConfigError(
-                f"`Done column` ({options['settings']['done_column']}) must exist in `Workflow`: {column_names}"
+                f"`Done column` ({options['settings']['done_column']}) "
+                f"must exist in `Workflow`: {column_names}"
             )
 
         # backlog column must come before committed column
@@ -543,15 +562,19 @@ def config_to_options(data, cwd=None, extended=False):
             column_names.index(options["settings"]["backlog_column"]) + 1
         ) == column_names.index(options["settings"]["committed_column"]):
             raise ConfigError(
-                f"`Backlog column` ({options['settings']['backlog_column']}) must come immediately "
-                f"before `Committed column` ({options['settings']['committed_column']}) in `Workflow`")
+                f"`Backlog column` ({options['settings']['backlog_column']}) "
+                f"must come immediately before `Committed column` "
+                f"({options['settings']['committed_column']}) in `Workflow`"
+            )
 
         # committed column must come before done column
         if not column_names.index(
             options["settings"]["committed_column"]
         ) < column_names.index(options["settings"]["done_column"]):
             raise ConfigError(
-                f"`Committed column` ({options['settings']['committed_column']}) must come before `Done column` ({options['settings']['done_column']}) in `Workflow`: {column_names}"
+                f"`Committed column` ({options['settings']['committed_column']}) "
+                f"must come before `Done column` ({options['settings']['done_column']}) "
+                f"in `Workflow`: {column_names}"
             )
 
     # Make sure we have workflow

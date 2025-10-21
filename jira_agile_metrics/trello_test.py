@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from .trello import (JiraLikeFields, JiraLikeHistory, JiraLikeHistoryItem,
-                     JiraLikeIssue, TrelloClient)
+from .trello import (
+    JiraLikeFields,
+    JiraLikeHistory,
+    JiraLikeHistoryItem,
+    JiraLikeIssue,
+    TrelloClient,
+)
 
 member = "chrisyoung277"
 key = "key"

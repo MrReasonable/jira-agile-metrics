@@ -265,10 +265,11 @@ class BurnupForecastCalculator(Calculator):
             throughput_data = td
         else:
             print(
-                f"[ERROR] No completed items in the throughput window using {freq_label} frequency. "
-                "Cannot run forecast.\n"
-                "Try increasing the 'Burnup forecast chart throughput window' in your config "
-                "or changing the 'Burnup forecast chart throughput frequency'."
+                f"[ERROR] No completed items in the throughput window using "
+                f"{freq_label} frequency. Cannot run forecast.\n"
+                "Try increasing the 'Burnup forecast chart throughput window' "
+                "in your config or changing the 'Burnup forecast chart "
+                "throughput frequency'."
             )
             return None
 
@@ -654,7 +655,8 @@ class BurnupForecastCalculator(Calculator):
         # Annotate trustworthiness metrics
         if trust_metrics is not None:
             trust_text = (
-                f"{trust_metrics['total_time_periods']} {trust_metrics['throughput_frequency']} periods\n"
+                f"{trust_metrics['total_time_periods']} "
+                f"{trust_metrics['throughput_frequency']} periods\n"
                 f"Actual completed items: {trust_metrics['actual_completed_items']}\n"
                 f"Non-zero periods: {trust_metrics['non_zero_periods']}\n"
                 f"Throughput mean: {trust_metrics['throughput_mean']:.2f}\n"
