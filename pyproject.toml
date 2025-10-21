@@ -1,5 +1,5 @@
 [tool.black]
-line-length = 79
+line-length = 88
 include = '\.pyi?$'
 exclude = '''
 /(
@@ -18,7 +18,7 @@ exclude = '''
 '''
 
 [tool.ruff]
-line-length = 100
+line-length = 88
 exclude = [".venv", "venv", "env", "build", "dist", "__pycache__"]
 target-version = "py311"
 

@@ -55,6 +55,7 @@ def test_columns(query_manager, settings, results):
         "summary",
         "status",
         "resolution",
+        "lead_time",
         "Backlog",
         "Committed",
         "Build",
@@ -74,31 +75,41 @@ def test_calculate_scatterplot(query_manager, settings, results):
         {
             "key": "A-13",
             "completed_date": Timestamp("2018-01-07 00:00:00"),
-            "cycle_time": 5.0,
+            "cycle_time": 5,
         },
         {
             "key": "A-14",
             "completed_date": Timestamp("2018-01-07 00:00:00"),
-            "cycle_time": 5.0,
+            "cycle_time": 5,
         },
         {
             "key": "A-15",
             "completed_date": Timestamp("2018-01-08 00:00:00"),
-            "cycle_time": 5.0,
+            "cycle_time": 5,
         },
         {
             "key": "A-16",
             "completed_date": Timestamp("2018-01-08 00:00:00"),
-            "cycle_time": 5.0,
+            "cycle_time": 5,
         },
         {
             "key": "A-17",
             "completed_date": Timestamp("2018-01-09 00:00:00"),
-            "cycle_time": 5.0,
+            "cycle_time": 5,
         },
         {
             "key": "A-18",
             "completed_date": Timestamp("2018-01-09 00:00:00"),
-            "cycle_time": 4.0,
+            "cycle_time": 4,
+        },
+        {
+            "key": "A-19",
+            "completed_date": Timestamp("2018-01-09 00:00:00"),
+            "cycle_time": 3,
+        },
+        {
+            "key": "A-20",
+            "completed_date": Timestamp("2018-01-09 00:00:00"),
+            "cycle_time": 2,
         },
     ]

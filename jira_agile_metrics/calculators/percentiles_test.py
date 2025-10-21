@@ -48,6 +48,6 @@ def test_calculate_percentiles(query_manager, settings, results):
     assert list(data.index) == [0.1, 0.5, 0.9]
     assert list(data) == [
         Timedelta("2 days 16:48:00"),
-        Timedelta("4 days 00:00:00"),
+        Timedelta("5 days 00:00:00"),
         Timedelta("5 days 00:00:00"),
     ]

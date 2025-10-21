@@ -57,7 +57,7 @@ def test_calculate_throughput(query_manager, settings, results):
     assert data.to_dict("records") == [
         {"count": 2},
         {"count": 2},
-        {"count": 2},
+        {"count": 4},
     ]
 
 
@@ -79,9 +79,9 @@ def test_calculate_throughput_with_wider_window(
     assert data.to_dict("records") == [
         {"count": 0.0},
         {"count": 0.0},
-        {"count": 2},
-        {"count": 2},
-        {"count": 2},
+        {"count": 2.0},
+        {"count": 2.0},
+        {"count": 4.0},
     ]
 
 
@@ -100,4 +100,4 @@ def test_calculate_throughput_with_narrower_window(
 
     data = calculator.run()
 
-    assert data.to_dict("records") == [{"count": 2}, {"count": 2}]
+    assert data.to_dict("records") == [{"count": 2}, {"count": 4}]

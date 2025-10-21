@@ -1,5 +1,6 @@
 """Forecast calculation and burnup chart generation for Jira Agile Metrics."""
 
+import calendar
 import datetime
 import logging
 import warnings
@@ -148,7 +149,12 @@ class BurnupForecastCalculator(Calculator):
                             month = 12
                             year -= 1
                     window_start_from_end = datetime.date(
-                        year, month, sampling_window_end.day
+                        year,
+                        month,
+                        min(
+                            sampling_window_end.day,
+                            calendar.monthrange(year, month)[1],
+                        ),
                     )
                 else:
                     # Fallback to daily
@@ -306,30 +312,8 @@ class BurnupForecastCalculator(Calculator):
             backlog_growth_window_start,
             backlog_growth_window_end,
         )
-        # Debug: print last 60 days of backlog growth data
-        # print(
-        #     "[DEBUG] Backlog growth data (last 60 days):\n",
-        #     backlog_growth_data.tail(60)
-        # )
-        # print(
-        #     "[DEBUG] Backlog growth data index (last 5):\n",
-        #     backlog_growth_data.index[-5:],
-        # )
-
-        # Debug: print last 60 days of backlog column from burnup_data
-        # print(
-        #     "[DEBUG] burnup_data[backlog_column] (last 60 days):\n",
-        #     burnup_data[backlog_column].tail(60),
-        # )
-        # print(
-        #     "[DEBUG] burnup_data[backlog_column] index (last 5):\n",
-        #     burnup_data[backlog_column].index[-5:],
-        # )
 
         # --- Throughput sampling window ---
-        # print(f"[DEBUG] Throughput window: {throughput_window_start} to {sampling_window_end}")
-        # print(f"[DEBUG] Throughput samples found: {len(throughput_data)}")
-        # print(f"[DEBUG] Throughput samples: {throughput_data}")
         if len(throughput_data) == 0:
             warnings.warn(
                 "No throughput samples available, aborting forecast simulations",
@@ -470,7 +454,7 @@ class BurnupForecastCalculator(Calculator):
             logger.error("Backlog column %s does not exist", done_column)
             return None
 
-        if cycle_data[done_column].max() is pd.NaT:
+        if pd.isna(cycle_data[done_column].max()):
             logger.warning(
                 (
                     "Unable to draw burnup forecast chart with zero completed items."

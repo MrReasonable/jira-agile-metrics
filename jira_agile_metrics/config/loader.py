@@ -158,7 +158,7 @@ def config_to_options(data, cwd=None, extended=False):
     }
 
     # Recursively parse an `extends` file but only if a base path is given,
-    # otherwise we can plausible leak files in server mode.
+    # otherwise we can possibly leak files in server mode.
     if "extends" in config:
         if cwd is None:
             raise ConfigError("`extends` is not supported here.")

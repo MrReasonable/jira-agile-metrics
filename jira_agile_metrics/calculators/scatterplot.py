@@ -76,7 +76,7 @@ class ScatterplotCalculator(Calculator):
             ].max().normalize() - pd.Timedelta(window, "D")
             chart_data = chart_data[chart_data.completed_date >= start]
 
-            if len(data.index) < 2:
+            if len(chart_data.index) < 2:
                 logger.warning(
                     "Need at least 2 completed items to draw scatterplot"
                 )

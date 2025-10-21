@@ -2,7 +2,7 @@ import yaml
 from pydicti import odicti
 
 
-def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=odicti):
+def ordered_load(stream, Loader=yaml.SafeLoader, object_pairs_hook=odicti):
     """
     Load YAML mappings as ordered dictionaries.
     """

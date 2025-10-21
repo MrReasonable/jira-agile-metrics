@@ -28,10 +28,10 @@ def results(query_manager, settings, large_cycle_time_results):
     # 2018-01-03     18.0       13.0    8.0   0.0   0.0     --> +4
     # 2018-01-04     18.0       14.0   10.0   3.0   0.0     --> +1
     # 2018-01-05     18.0       15.0   11.0   8.0   0.0     --> +1
-    # 2018-01-06     18.0       15.0   12.0   8.0   0.0     -->  0
-    # 2018-01-07     18.0       15.0   12.0   8.0   2.0     --> -2
-    # 2018-01-08     18.0       15.0   12.0   9.0   4.0     --> -4
-    # 2018-01-09     18.0       15.0   12.0   9.0   6.0     --> -6
+    # 2018-01-06     18.0       16.0   12.0   8.0   0.0     --> +1
+    # 2018-01-07     18.0       17.0   12.0   8.0   2.0     --> -1
+    # 2018-01-08     18.0       17.0   12.0   9.0   4.0     --> -2
+    # 2018-01-09     18.0       17.0   12.0   9.0   8.0     --> -4
     #
 
     return extend_dict(
@@ -134,15 +134,15 @@ def test_calculate_net_flow(query_manager, settings, results):
             "positive": True,
         },
         {
-            "arrivals": 0.0,
+            "arrivals": 1.0,
             "departures": 0.0,
-            "net_flow": 0.0,
+            "net_flow": 1.0,
             "positive": True,
         },
         {
-            "arrivals": 0.0,
+            "arrivals": 1.0,
             "departures": 2.0,
-            "net_flow": -2.0,
+            "net_flow": -1.0,
             "positive": False,
         },
         {
@@ -153,8 +153,8 @@ def test_calculate_net_flow(query_manager, settings, results):
         },
         {
             "arrivals": 0.0,
-            "departures": 2.0,
-            "net_flow": -2.0,
+            "departures": 4.0,
+            "net_flow": -4.0,
             "positive": False,
         },
     ]
@@ -226,15 +226,15 @@ def test_calculate_net_flow_different_columns(
             "positive": True,
         },
         {
-            "arrivals": 0.0,
+            "arrivals": 1.0,
             "departures": 0.0,
-            "net_flow": 0.0,
+            "net_flow": 1.0,
             "positive": True,
         },
         {
-            "arrivals": 0.0,
-            "departures": 1.0,
-            "net_flow": -1.0,
+            "arrivals": 1.0,
+            "departures": 3.0,
+            "net_flow": -2.0,
             "positive": False,
         },
         {

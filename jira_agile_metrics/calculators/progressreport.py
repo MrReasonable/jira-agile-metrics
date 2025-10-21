@@ -631,7 +631,7 @@ def update_team_sampler(
             )
         else:
             team.sampler = throughput_sampler(
-                throughput, 0, 10
+                throughput, 10
             )  # we have to hardcode the buffer size
 
     # Use min/max if set and query either wasn't set, or returned nothing
