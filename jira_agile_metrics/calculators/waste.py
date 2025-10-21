@@ -22,14 +22,18 @@ class WasteCalculator(Calculator):
     def run(self):
         query = self.settings["waste_query"]
         if not query:
-            logger.debug("Not calculating waste chart data as no query specified")
+            logger.debug(
+                "Not calculating waste chart data as no query specified"
+            )
             return None
 
         cycle_names = [s["name"] for s in self.settings["cycle"]]
         committed_column = self.settings["committed_column"]
         done_column = self.settings["done_column"]
         active_columns = cycle_names[
-            cycle_names.index(committed_column) : cycle_names.index(done_column)
+            cycle_names.index(committed_column) : cycle_names.index(
+                done_column
+            )
         ]
 
         cycle_lookup = {}
@@ -54,7 +58,9 @@ class WasteCalculator(Calculator):
                 continue
 
             last_status = None
-            status_changes = list(self.query_manager.iter_changes(issue, ["status"]))
+            status_changes = list(
+                self.query_manager.iter_changes(issue, ["status"])
+            )
             if len(status_changes) > 0:
                 last_status = status_changes[-1].from_string
 
@@ -105,7 +111,9 @@ class WasteCalculator(Calculator):
         committed_column = self.settings["committed_column"]
         done_column = self.settings["done_column"]
         active_columns = cycle_names[
-            cycle_names.index(committed_column) : cycle_names.index(done_column)
+            cycle_names.index(committed_column) : cycle_names.index(
+                done_column
+            )
         ]
 
         breakdown = (

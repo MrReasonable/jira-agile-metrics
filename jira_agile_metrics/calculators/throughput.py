@@ -1,8 +1,9 @@
 import logging
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-import statsmodels.formula.api as sm
+from scipy import stats
 
 from ..calculator import Calculator
 from ..utils import get_extension, set_chart_style
@@ -56,7 +57,9 @@ class ThroughputCalculator(Calculator):
         chart_data = data.copy()
 
         if len(chart_data.index) == 0:
-            logger.warning("Cannot draw throughput chart with no completed items")
+            logger.warning(
+                "Cannot draw throughput chart with no completed items"
+            )
             return
 
         fig, ax = plt.subplots()
@@ -68,11 +71,13 @@ class ThroughputCalculator(Calculator):
         day_zero = chart_data.index[0]
         chart_data["day"] = (chart_data.index - day_zero).days
 
-        # Fit a linear regression
+        # Fit a linear regression using scipy.stats.linregress
         # (http://stackoverflow.com/questions/29960917/
         # timeseries-fitted-values-from-trend-python)
-        fit = sm.ols(formula="count ~ day", data=chart_data).fit()
-        chart_data["fitted"] = fit.predict(chart_data)
+        slope, intercept, r_value, p_value, std_err = stats.linregress(
+            chart_data["day"], chart_data["count"]
+        )
+        chart_data["fitted"] = slope * chart_data["day"] + intercept
 
         # Plot
 
@@ -82,7 +87,10 @@ class ThroughputCalculator(Calculator):
         ax.plot(chart_data.index, chart_data["count"], marker="o")
         plt.xticks(
             chart_data.index,
-            [d.date().strftime(self.settings["date_format"]) for d in chart_data.index],
+            [
+                d.date().strftime(self.settings["date_format"])
+                for d in chart_data.index
+            ],
             rotation=70,
             size="small",
         )
@@ -130,7 +138,9 @@ def calculate_throughput(cycle_data, frequency, window=None):
     window_end = throughput.index.max()
 
     if window:
-        window_start = window_end - (pd.tseries.frequencies.to_offset(frequency) * (window - 1))
+        window_start = window_end - (
+            pd.tseries.frequencies.to_offset(frequency) * (window - 1)
+        )
 
     if window_start is pd.NaT or window_end is pd.NaT:
         return pd.DataFrame([], columns=["count"], index=[])

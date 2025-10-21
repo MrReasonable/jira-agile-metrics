@@ -65,15 +65,21 @@ class HistogramCalculator(Calculator):
 
         # Lead time histogram outputs
         if self.settings.get("lead_time_histogram_data"):
-            self.write_lead_time_file(data, self.settings["lead_time_histogram_data"])
+            self.write_lead_time_file(
+                data, self.settings["lead_time_histogram_data"]
+            )
         else:
-            logger.debug("No output file specified for lead time histogram data")
+            logger.debug(
+                "No output file specified for lead time histogram data"
+            )
 
         if self.settings.get("lead_time_histogram_chart"):
             for output_file in self.settings["lead_time_histogram_chart"]:
                 self.write_lead_time_chart(data, output_file)
         else:
-            logger.debug("No output file specified for lead time histogram chart")
+            logger.debug(
+                "No output file specified for lead time histogram chart"
+            )
 
     def write_file(self, data, output_files):
         file_data = self.get_result()
@@ -85,13 +91,17 @@ class HistogramCalculator(Calculator):
             if output_extension == ".json":
                 file_data.to_json(output_file, date_format="iso")
             elif output_extension == ".xlsx":
-                file_data.to_frame(name="histogram").to_excel(output_file, "Histogram", header=True)
+                file_data.to_frame(name="histogram").to_excel(
+                    output_file, "Histogram", header=True
+                )
             else:
                 file_data.to_csv(output_file, header=True)
 
     def write_chart(self, data, output_file):
         cycle_data = self.get_result(CycleTimeCalculator)
-        chart_data = cycle_data[["cycle_time", "completed_timestamp"]].dropna(subset=["cycle_time"])
+        chart_data = cycle_data[["cycle_time", "completed_timestamp"]].dropna(
+            subset=["cycle_time"]
+        )
 
         # The `window` calculation and the chart output will fail if we don't
         # have at least two valid data points.
@@ -103,13 +113,17 @@ class HistogramCalculator(Calculator):
         # Slice off items before the window
         window = self.settings["histogram_window"]
         if window:
-            start = chart_data["completed_timestamp"].max().normalize() - pd.Timedelta(window, "D")
+            start = chart_data[
+                "completed_timestamp"
+            ].max().normalize() - pd.Timedelta(window, "D")
             chart_data = chart_data[chart_data.completed_timestamp >= start]
 
             # Re-check that we have enough data
             ct_days = chart_data["cycle_time"].dt.days
             if len(ct_days.index) < 2:
-                logger.warning("Need at least 2 completed items to draw histogram")
+                logger.warning(
+                    "Need at least 2 completed items to draw histogram"
+                )
                 return
 
         quantiles = self.settings["quantiles"]
@@ -134,14 +148,21 @@ class HistogramCalculator(Calculator):
         bottom, top = ax.get_ylim()
         quantile_labels = []
         for quantile, value in ct_days.quantile(quantiles).items():
-            ax.vlines(value, bottom, top - 0.001, linestyles="--", linewidths=1)
+            ax.vlines(
+                value, bottom, top - 0.001, linestyles="--", linewidths=1
+            )
             label = "%.0f%% (%.0f days)" % ((quantile * 100), value)
             quantile_labels.append(label)
 
         # Add quantile labels as a block of text below the chart
         if quantile_labels:
             fig.text(
-                0.5, -0.03, " | ".join(quantile_labels), ha="center", va="top", fontsize="small"
+                0.5,
+                -0.03,
+                " | ".join(quantile_labels),
+                ha="center",
+                va="top",
+                fontsize="small",
             )
 
         ax.set_ylabel("Frequency")
@@ -180,18 +201,26 @@ class HistogramCalculator(Calculator):
 
     def write_lead_time_chart(self, data, output_file):
         cycle_data = self.get_result(CycleTimeCalculator)
-        chart_data = cycle_data[["lead_time", "completed_timestamp"]].dropna(subset=["lead_time"])
+        chart_data = cycle_data[["lead_time", "completed_timestamp"]].dropna(
+            subset=["lead_time"]
+        )
         lt_days = chart_data["lead_time"].dt.days
         if len(lt_days.index) < 2:
-            logger.warning("Need at least 2 completed items to draw lead time histogram")
+            logger.warning(
+                "Need at least 2 completed items to draw lead time histogram"
+            )
             return
         window = self.settings.get("histogram_window")
         if window:
-            start = chart_data["completed_timestamp"].max().normalize() - pd.Timedelta(window, "D")
+            start = chart_data[
+                "completed_timestamp"
+            ].max().normalize() - pd.Timedelta(window, "D")
             chart_data = chart_data[chart_data.completed_timestamp >= start]
             lt_days = chart_data["lead_time"].dt.days
             if len(lt_days.index) < 2:
-                logger.warning("Need at least 2 completed items to draw lead time histogram")
+                logger.warning(
+                    "Need at least 2 completed items to draw lead time histogram"
+                )
                 return
         quantiles = self.settings["quantiles"]
         logger.debug(
@@ -209,12 +238,19 @@ class HistogramCalculator(Calculator):
         bottom, top = ax.get_ylim()
         quantile_labels = []
         for quantile, value in lt_days.quantile(quantiles).items():
-            ax.vlines(value, bottom, top - 0.001, linestyles="--", linewidths=1)
+            ax.vlines(
+                value, bottom, top - 0.001, linestyles="--", linewidths=1
+            )
             label = "%.0f%% (%.0f days)" % ((quantile * 100), value)
             quantile_labels.append(label)
         if quantile_labels:
             fig.text(
-                0.5, -0.03, " | ".join(quantile_labels), ha="center", va="top", fontsize="small"
+                0.5,
+                -0.03,
+                " | ".join(quantile_labels),
+                ha="center",
+                va="top",
+                fontsize="small",
             )
         ax.set_ylabel("Frequency")
         set_chart_style()

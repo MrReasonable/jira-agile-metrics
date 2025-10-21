@@ -34,13 +34,17 @@ class DebtCalculator(Calculator):
 
         # This calculation is expensive. Only run it if we have a query.
         if not query:
-            logger.debug("Not calculating debt chart data as no query specified")
+            logger.debug(
+                "Not calculating debt chart data as no query specified"
+            )
             return None
 
         # Resolve field name to field id for later lookup
         priority_field = self.settings["debt_priority_field"]
         priority_field_id = priority_field_id = (
-            self.query_manager.field_name_to_id(priority_field) if priority_field else None
+            self.query_manager.field_name_to_id(priority_field)
+            if priority_field
+            else None
         )
 
         # Build data frame
@@ -63,7 +67,9 @@ class DebtCalculator(Calculator):
 
             series["key"]["data"].append(issue.key)
             series["priority"]["data"].append(
-                self.query_manager.resolve_field_value(issue, priority_field_id)
+                self.query_manager.resolve_field_value(
+                    issue, priority_field_id
+                )
                 if priority_field
                 else None
             )
@@ -104,7 +110,9 @@ class DebtCalculator(Calculator):
             self.write_debt_chart(chart_data, self.settings["debt_chart"])
 
         if self.settings["debt_age_chart"]:
-            self.write_debt_age_chart(chart_data, self.settings["debt_age_chart"])
+            self.write_debt_age_chart(
+                chart_data, self.settings["debt_age_chart"]
+            )
 
     def write_debt_chart(self, chart_data, output_file):
         window = self.settings["debt_window"]
@@ -165,7 +173,9 @@ class DebtCalculator(Calculator):
 
         bin_labels = list(map(generate_bin_label, bins + [bins[-1] + 1]))
         breakdown = (
-            chart_data.pivot_table(index="age", columns="priority", values="key", aggfunc="count")
+            chart_data.pivot_table(
+                index="age", columns="priority", values="key", aggfunc="count"
+            )
             .groupby(day_grouper)
             .sum()
             .reindex(bin_labels)

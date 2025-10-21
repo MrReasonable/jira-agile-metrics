@@ -70,7 +70,9 @@ class CycleTimeCalculator(Calculator):
         cycle_names = [s["name"] for s in self.settings["cycle"]]
         attribute_names = sorted(self.settings["attributes"].keys())
         query_attribute_names = (
-            [self.settings["query_attribute"]] if self.settings["query_attribute"] else []
+            [self.settings["query_attribute"]]
+            if self.settings["query_attribute"]
+            else []
         )
 
         header = (
@@ -96,7 +98,8 @@ class CycleTimeCalculator(Calculator):
 
             if output_extension == ".json":
                 values = [header] + [
-                    list(map(to_json_string, row)) for row in cycle_data[columns].values.tolist()
+                    list(map(to_json_string, row))
+                    for row in cycle_data[columns].values.tolist()
                 ]
                 with open(output_file, "w") as out:
                     out.write(json.dumps(values))
@@ -192,7 +195,11 @@ def calculate_cycle_times(
                 "issue_type": issue.fields.issuetype.name,
                 "summary": issue.fields.summary,
                 "status": issue.fields.status.name,
-                "resolution": issue.fields.resolution.name if issue.fields.resolution else None,
+                "resolution": (
+                    issue.fields.resolution.name
+                    if issue.fields.resolution
+                    else None
+                ),
                 "cycle_time": None,
                 "lead_time": None,
                 "completed_timestamp": None,
@@ -215,9 +222,13 @@ def calculate_cycle_times(
             impediment_start = None
 
             # Record date of status and impediments flag changes
-            for snapshot in query_manager.iter_changes(issue, ["status", "Flagged"]):
+            for snapshot in query_manager.iter_changes(
+                issue, ["status", "Flagged"]
+            ):
                 if snapshot.change == "status":
-                    snapshot_cycle_step = cycle_lookup.get(snapshot.to_string.lower(), None)
+                    snapshot_cycle_step = cycle_lookup.get(
+                        snapshot.to_string.lower(), None
+                    )
                     if snapshot_cycle_step is None:
                         logger.info(
                             "Issue %s transitioned to unknown JIRA status %s",
@@ -227,7 +238,9 @@ def calculate_cycle_times(
                         unmapped_statuses.add(snapshot.to_string)
                         continue
 
-                    last_status = snapshot_cycle_step_name = snapshot_cycle_step["name"]
+                    last_status = snapshot_cycle_step_name = (
+                        snapshot_cycle_step["name"]
+                    )
 
                     # Keep the first time we entered a step
                     if item[snapshot_cycle_step_name] is None:
@@ -238,10 +251,16 @@ def calculate_cycle_times(
                     if reset_on_backwards:
                         found_cycle_name = False
                         for cycle_name in cycle_names:
-                            if not found_cycle_name and cycle_name == snapshot_cycle_step_name:
+                            if (
+                                not found_cycle_name
+                                and cycle_name == snapshot_cycle_step_name
+                            ):
                                 found_cycle_name = True
                                 continue
-                            elif found_cycle_name and item[cycle_name] is not None:
+                            elif (
+                                found_cycle_name
+                                and item[cycle_name] is not None
+                            ):
                                 logger.info(
                                     (
                                         "Issue %s moved backwards to %s "
@@ -259,11 +278,16 @@ def calculate_cycle_times(
                     if snapshot.from_string == snapshot.to_string is None:
                         # Initial state from None -> None
                         continue
-                    elif snapshot.to_string is not None and snapshot.to_string != "":
+                    elif (
+                        snapshot.to_string is not None
+                        and snapshot.to_string != ""
+                    ):
                         impediment_flag = snapshot.to_string
                         impediment_start = snapshot.date.date()
                         impediment_start_status = last_status
-                    elif snapshot.to_string is None or snapshot.to_string == "":
+                    elif (
+                        snapshot.to_string is None or snapshot.to_string == ""
+                    ):
                         if impediment_start is None:
                             logger.warning(
                                 (
@@ -276,7 +300,9 @@ def calculate_cycle_times(
                             continue
 
                         if impediment_start_status in active_columns:
-                            item["blocked_days"] += (snapshot.date.date() - impediment_start).days
+                            item["blocked_days"] += (
+                                snapshot.date.date() - impediment_start
+                            ).days
                         item["impediments"].append(
                             {
                                 "start": impediment_start,
@@ -297,9 +323,13 @@ def calculate_cycle_times(
             # else as still open until today.
             if impediment_start is not None:
                 if issue.fields.resolutiondate:
-                    resolution_date = dateutil.parser.parse(issue.fields.resolutiondate).date()
+                    resolution_date = dateutil.parser.parse(
+                        issue.fields.resolutiondate
+                    ).date()
                     if impediment_start_status in active_columns:
-                        item["blocked_days"] += (resolution_date - impediment_start).days
+                        item["blocked_days"] += (
+                            resolution_date - impediment_start
+                        ).days
                     item["impediments"].append(
                         {
                             "start": impediment_start,
@@ -310,7 +340,9 @@ def calculate_cycle_times(
                     )
                 else:
                     if impediment_start_status in active_columns:
-                        item["blocked_days"] += (now.date() - impediment_start).days
+                        item["blocked_days"] += (
+                            now.date() - impediment_start
+                        ).days
                     item["impediments"].append(
                         {
                             "start": impediment_start,
@@ -349,7 +381,10 @@ def calculate_cycle_times(
             else:
                 item["cycle_time"] = None
 
-            if lead_time_start_timestamp is not None and done_timestamp is not None:
+            if (
+                lead_time_start_timestamp is not None
+                and done_timestamp is not None
+            ):
                 item["lead_time"] = done_timestamp - lead_time_start_timestamp
             else:
                 item["lead_time"] = None
@@ -376,7 +411,13 @@ def calculate_cycle_times(
         columns=["key", "url", "issue_type", "summary", "status", "resolution"]
         + sorted(attributes.keys())
         + ([query_attribute] if query_attribute else [])
-        + ["cycle_time", "lead_time", "completed_timestamp", "blocked_days", "impediments"]
+        + [
+            "cycle_time",
+            "lead_time",
+            "completed_timestamp",
+            "blocked_days",
+            "impediments",
+        ]
         + cycle_names,
     )
 
@@ -388,7 +429,9 @@ def calculate_column_durations(cycle_data, cycle_names):
     for _, row in cycle_data.iterrows():
         times = [row.get(col) for col in cycle_names]
         # Convert to pandas Timestamp if not already
-        times = [pd.Timestamp(t) if not pd.isnull(t) else pd.NaT for t in times]
+        times = [
+            pd.Timestamp(t) if not pd.isnull(t) else pd.NaT for t in times
+        ]
         durations_row = []
         for i in range(len(times) - 1):
             if pd.isnull(times[i]) or pd.isnull(times[i + 1]):
@@ -396,8 +439,13 @@ def calculate_column_durations(cycle_data, cycle_names):
             else:
                 durations_row.append((times[i + 1] - times[i]).days)
         durations.append(durations_row)
-    duration_cols = [f"{cycle_names[i]}→{cycle_names[i + 1]}" for i in range(len(cycle_names) - 1)]
-    return pd.DataFrame(durations, columns=duration_cols, index=cycle_data["key"])
+    duration_cols = [
+        f"{cycle_names[i]}→{cycle_names[i + 1]}"
+        for i in range(len(cycle_names) - 1)
+    ]
+    return pd.DataFrame(
+        durations, columns=duration_cols, index=cycle_data["key"]
+    )
 
 
 def calculate_column_durations_per_column(
@@ -408,7 +456,9 @@ def calculate_column_durations_per_column(
     durations = []
     for _, row in cycle_data.iterrows():
         times = [row.get(col) for col in cycle_names]
-        times = [pd.Timestamp(t) if not pd.isnull(t) else pd.NaT for t in times]
+        times = [
+            pd.Timestamp(t) if not pd.isnull(t) else pd.NaT for t in times
+        ]
         durations_row = []
         for i in range(len(times) - 1):
             if pd.isnull(times[i]) or pd.isnull(times[i + 1]):
@@ -425,7 +475,9 @@ def calculate_column_durations_per_column(
                 durations_row.append(val)
         durations.append(durations_row)
     # Use column names (except last)
-    return pd.DataFrame(durations, columns=cycle_names[:-1], index=cycle_data["key"])
+    return pd.DataFrame(
+        durations, columns=cycle_names[:-1], index=cycle_data["key"]
+    )
 
 
 class BottleneckChartsCalculator(Calculator):
@@ -437,7 +489,9 @@ class BottleneckChartsCalculator(Calculator):
     def run(self):
         cycle_data = self.get_result(CycleTimeCalculator)
         cycle_names = [s["name"] for s in self.settings["cycle"]]
-        negative_duration_handling = self.settings.get("negative_duration_handling", "zero")
+        negative_duration_handling = self.settings.get(
+            "negative_duration_handling", "zero"
+        )
         # Return both transition durations and per-column durations
         return {
             "transitions": calculate_column_durations(cycle_data, cycle_names),
@@ -462,11 +516,16 @@ class BottleneckChartsCalculator(Calculator):
             "bottleneck_boxplot_chart",
             "bottleneck_violin_chart",
         ]:
-            logger.debug("[BottleneckChartsCalculator] %s: %s", key, output_settings.get(key))
+            logger.debug(
+                "[BottleneckChartsCalculator] %s: %s",
+                key,
+                output_settings.get(key),
+            )
         # 1. Stacked bar per issue (now uses per-column durations)
         if output_settings.get("bottleneck_stacked_per_issue_chart"):
             self.write_stacked_per_issue(
-                durations_columns, output_settings["bottleneck_stacked_per_issue_chart"]
+                durations_columns,
+                output_settings["bottleneck_stacked_per_issue_chart"],
             )
         # 2. Aggregated stacked bar (mean, by column)
         if output_settings.get("bottleneck_stacked_aggregate_mean_chart"):
@@ -484,22 +543,30 @@ class BottleneckChartsCalculator(Calculator):
             )
         # 4. Boxplot (by column)
         if output_settings.get("bottleneck_boxplot_chart"):
-            self.write_boxplot(durations_columns, output_settings["bottleneck_boxplot_chart"])
+            self.write_boxplot(
+                durations_columns, output_settings["bottleneck_boxplot_chart"]
+            )
         # 5. Violin plot (by column)
         if output_settings.get("bottleneck_violin_chart"):
-            self.write_violin(durations_columns, output_settings["bottleneck_violin_chart"])
+            self.write_violin(
+                durations_columns, output_settings["bottleneck_violin_chart"]
+            )
 
     def write_stacked_per_issue(self, durations, output_file):
         logger = logging.getLogger(__name__)
         try:
-            logger.info(f"Writing bottleneck stacked per issue chart to {output_file}")
+            logger.info(
+                f"Writing bottleneck stacked per issue chart to {output_file}"
+            )
             N = 30
             plot_data = durations.dropna(how="all").iloc[:N]
             fig, ax = plt.subplots(figsize=(12, 6))
             plot_data.plot(kind="bar", stacked=True, ax=ax)
             ax.set_xlabel("Issue key")
             ax.set_ylabel("Days in column")
-            ax.set_title(f"Time spent in each column (per issue, first {N} issues)")
+            ax.set_title(
+                f"Time spent in each column (per issue, first {N} issues)"
+            )
             plt.xticks(rotation=90)
             plt.tight_layout()
             fig.savefig(output_file, bbox_inches="tight", dpi=300)
@@ -514,7 +581,9 @@ class BottleneckChartsCalculator(Calculator):
     def write_stacked_aggregate(self, durations, output_file, aggfunc="mean"):
         logger = logging.getLogger(__name__)
         try:
-            logger.info(f"Writing bottleneck stacked aggregate chart to {output_file}")
+            logger.info(
+                f"Writing bottleneck stacked aggregate chart to {output_file}"
+            )
             if aggfunc == "mean":
                 agg = durations.mean(skipna=True)
                 title = "Average time spent in each column (all issues)"
@@ -522,7 +591,12 @@ class BottleneckChartsCalculator(Calculator):
                 agg = durations.median(skipna=True)
                 title = "Median time spent in each column (all issues)"
             fig, ax = plt.subplots(figsize=(10, 5))
-            agg.plot(kind="bar", stacked=False, ax=ax, color=sns.color_palette("tab10"))
+            agg.plot(
+                kind="bar",
+                stacked=False,
+                ax=ax,
+                color=sns.color_palette("tab10"),
+            )
             ax.set_xlabel("Column")
             ax.set_ylabel("Days")
             ax.set_title(title)
@@ -565,7 +639,9 @@ class BottleneckChartsCalculator(Calculator):
             sns.violinplot(data=durations, ax=ax, cut=0)
             ax.set_xlabel("Column")
             ax.set_ylabel("Days")
-            ax.set_title("Distribution of time spent in each column (violin plot)")
+            ax.set_title(
+                "Distribution of time spent in each column (violin plot)"
+            )
             plt.xticks(rotation=45)
             plt.tight_layout()
             fig.savefig(output_file, bbox_inches="tight", dpi=300)

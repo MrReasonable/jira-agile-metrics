@@ -3,6 +3,7 @@
 import datetime
 import logging
 import warnings
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -18,6 +19,14 @@ logger = logging.getLogger(__name__)
 class BurnupForecastCalculator(Calculator):
     """Draw a burn-up chart with a forecast run to completion, now sampling backlog growth."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._trust_metrics = None
+        self._backlog_trials = None
+        self._done_trials = None
+        self._forecast_horizon_end = None
+        self._target = None
+
     def run(self):
         burnup_data = self.get_result(BurnupCalculator)
         cycle_data = self.get_result(CycleTimeCalculator)
@@ -28,55 +37,250 @@ class BurnupForecastCalculator(Calculator):
         # This calculation is expensive.
         # Only run it if we intend to write a file.
         if not self.settings["burnup_forecast_chart"]:
-            logger.debug(("Not calculating burnup forecast chart data as no output file specified"))
+            logger.debug(
+                (
+                    "Not calculating burnup forecast chart data as no output file specified"
+                )
+            )
             return None
 
-        backlog_column = self.settings["backlog_column"]
-        done_column = self.settings["done_column"]
-
-        if backlog_column not in burnup_data.columns:
-            logger.error("Backlog column %s does not exist", backlog_column)
-            return None
-        if done_column not in burnup_data.columns:
-            logger.error("Backlog column %s does not exist", done_column)
+        # Validate data and get column names
+        validation_result = self._validate_data(burnup_data, cycle_data)
+        if validation_result is None:
             return None
 
-        if cycle_data[done_column].max() is pd.NaT:
-            logger.warning(("Unable to draw burnup forecast chart with zero completed items."))
-            return None
+        backlog_column, done_column = validation_result
 
         # Determine the last date in the data
         last_data_date = burnup_data.index.max().date()
         # Use the configured window end, but not beyond the last data date for
         # sampling
-        configured_window_end = self.settings["burnup_forecast_chart_throughput_window_end"]
+        configured_window_end = self.settings[
+            "burnup_forecast_chart_throughput_window_end"
+        ]
         if configured_window_end:
-            configured_window_end = pd.to_datetime(configured_window_end).date()
+            configured_window_end = pd.to_datetime(
+                configured_window_end
+            ).date()
             sampling_window_end = min(configured_window_end, last_data_date)
         else:
             sampling_window_end = last_data_date
         # Determine forecast horizon (end date)
-        forecast_horizon_end = self.settings["burnup_forecast_chart_throughput_window_end"]
+        forecast_horizon_end = self.settings[
+            "burnup_forecast_chart_throughput_window_end"
+        ]
         if forecast_horizon_end:
             forecast_horizon_end = pd.to_datetime(forecast_horizon_end).date()
         else:
             forecast_horizon_end = last_data_date
 
-        throughput_window = self.settings["burnup_forecast_chart_throughput_window"]
-        throughput_window_start = sampling_window_end - datetime.timedelta(days=throughput_window)
-        logger.info(
-            "Sampling throughput between %s and %s",
-            throughput_window_start.isoformat(),
-            sampling_window_end.isoformat(),
+            # Use configurable frequency instead of trying all frequencies
+        throughput_frequency = self.settings.get(
+            "burnup_forecast_chart_throughput_frequency", "daily"
         )
+        logger.info(
+            "Throughput frequency setting: %s (type: %s)",
+            throughput_frequency,
+            type(throughput_frequency),
+        )
+        freq_mapping = {
+            "daily": ("daily", "D"),
+            "weekly": ("weekly", "W-MON"),
+            "monthly": ("monthly", "M"),
+        }
+
+        if throughput_frequency not in freq_mapping:
+            logger.warning(
+                "Invalid throughput frequency '%s', using daily",
+                throughput_frequency,
+            )
+            throughput_frequency = "daily"
+
+        freq_label, freq = freq_mapping[throughput_frequency]
+        logger.info(
+            "Using throughput frequency: %s (%s)",
+            throughput_frequency,
+            freq,
+        )
+
+        # Smart window logic: start from first delivery if enabled
+        smart_window = self.settings.get(
+            "burnup_forecast_chart_smart_window", False
+        )
+        logger.info(
+            "Smart window setting: %s (type: %s)",
+            smart_window,
+            type(smart_window),
+        )
+        if smart_window:
+            # Find the first date when something was actually delivered
+            first_delivery_date = cycle_data[done_column].min()
+            logger.info(
+                "Smart window enabled. First delivery date: %s (pd.NaT: %s)",
+                first_delivery_date,
+                pd.isna(first_delivery_date),
+            )
+            if pd.notna(first_delivery_date):
+                # Smart window: start from first delivery, but respect the throughput window setting
+                # Calculate the window start based on the throughput window setting and frequency
+                throughput_window_periods = self.settings[
+                    "burnup_forecast_chart_throughput_window"
+                ]
+
+                # Calculate window start based on frequency
+                if freq == "D":  # daily
+                    window_start_from_end = (
+                        sampling_window_end
+                        - datetime.timedelta(days=throughput_window_periods)
+                    )
+                elif freq == "W-MON":  # weekly
+                    window_start_from_end = (
+                        sampling_window_end
+                        - datetime.timedelta(weeks=throughput_window_periods)
+                    )
+                elif freq == "M":  # monthly
+                    # For monthly, we need to calculate months back
+                    year = sampling_window_end.year
+                    month = sampling_window_end.month
+                    for _ in range(throughput_window_periods):
+                        month -= 1
+                        if month < 1:
+                            month = 12
+                            year -= 1
+                    window_start_from_end = datetime.date(
+                        year, month, sampling_window_end.day
+                    )
+                else:
+                    # Fallback to daily
+                    window_start_from_end = (
+                        sampling_window_end
+                        - datetime.timedelta(days=throughput_window_periods)
+                    )
+
+                # But don't start before the first delivery
+                throughput_window_start = max(
+                    first_delivery_date.date(), window_start_from_end
+                )
+                logger.info(
+                    "Using smart window: from %s (max of first delivery %s and %s %s ago) to %s",
+                    throughput_window_start.isoformat(),
+                    first_delivery_date.date().isoformat(),
+                    throughput_window_periods,
+                    freq_label,
+                    sampling_window_end.isoformat(),
+                )
+            else:
+                # Fall back to fixed window if no deliveries
+                fixed_window_days = self.settings[
+                    "burnup_forecast_chart_throughput_window"
+                ]
+                throughput_window_start = (
+                    sampling_window_end
+                    - datetime.timedelta(days=fixed_window_days)
+                )
+                logger.info(
+                    "No deliveries found, using fixed window: %s days",
+                    fixed_window_days,
+                )
+        else:
+            # Use fixed window as before
+            throughput_window = self.settings[
+                "burnup_forecast_chart_throughput_window"
+            ]
+            throughput_window_start = sampling_window_end - datetime.timedelta(
+                days=throughput_window
+            )
+            logger.info(
+                "Using fixed window: %s days from %s to %s",
+                throughput_window,
+                throughput_window_start.isoformat(),
+                sampling_window_end.isoformat(),
+            )
+
+        # Calculate throughput using the specified frequency
+        # For smart window, we need to filter the data to the window range
+        # For fixed window, calculate_throughput will handle the window internally
+        if smart_window and pd.notna(cycle_data[done_column].min()):
+            # Filter cycle data to the smart window range
+            filtered_cycle_data = cycle_data[
+                (
+                    cycle_data[done_column]
+                    >= pd.Timestamp(throughput_window_start)
+                )
+                & (
+                    cycle_data[done_column]
+                    <= pd.Timestamp(sampling_window_end)
+                )
+            ]
+            logger.info(
+                "Smart window: filtered cycle data from %s to %s, %d items",
+                throughput_window_start.isoformat(),
+                sampling_window_end.isoformat(),
+                len(filtered_cycle_data),
+            )
+            td = calculate_throughput(
+                filtered_cycle_data,
+                freq,
+                window=None,  # Use all data in the filtered range
+            )
+        else:
+            # Use fixed window - calculate_throughput will handle the window
+            # Calculate window size in terms of the frequency being used
+            if freq == "D":  # daily
+                window_size = (
+                    sampling_window_end - throughput_window_start
+                ).days
+            elif freq == "W-MON":  # weekly
+                window_size = (
+                    sampling_window_end - throughput_window_start
+                ).days // 7
+            elif freq == "M":  # monthly
+                window_size = (
+                    (sampling_window_end.year - throughput_window_start.year)
+                    * 12
+                    + sampling_window_end.month
+                    - throughput_window_start.month
+                )
+            else:
+                # Fallback to daily calculation
+                window_size = (
+                    sampling_window_end - throughput_window_start
+                ).days
+
+            td = calculate_throughput(
+                cycle_data,
+                freq,
+                window=window_size,
+            )
+        mean_throughput = td["count"].mean() if len(td) > 0 else 0
+
+        logger.info(
+            "Throughput calculation result: %d periods, mean=%.2f, total=%d",
+            len(td),
+            mean_throughput,
+            td["count"].sum() if len(td) > 0 else 0,
+        )
+
+        if mean_throughput > 0:
+            throughput_data = td
+        else:
+            print(
+                f"[ERROR] No completed items in the throughput window using {freq_label} frequency. "
+                "Cannot run forecast.\n"
+                "Try increasing the 'Burnup forecast chart throughput window' in your config "
+                "or changing the 'Burnup forecast chart throughput frequency'."
+            )
+            return None
 
         # Backlog growth window (optional, defaults to throughput window)
         backlog_growth_window = self.settings.get(
-            "burnup_forecast_chart_backlog_growth_window", throughput_window
+            "burnup_forecast_chart_backlog_growth_window",
+            (sampling_window_end - throughput_window_start).days,
         )
         backlog_growth_window_end = sampling_window_end
-        backlog_growth_window_start = backlog_growth_window_end - datetime.timedelta(
-            days=backlog_growth_window
+        backlog_growth_window_start = (
+            backlog_growth_window_end
+            - datetime.timedelta(days=backlog_growth_window)
         )
 
         # Determine if a target number is set
@@ -87,36 +291,13 @@ class BurnupForecastCalculator(Calculator):
             # If no target is set, use the current backlog as the target
             target = int(burnup_data[backlog_column].iloc[-1])
             # Optionally, log this behavior
-            logger.info(f"No target specified; using current backlog ({target}) as target.")
-
-        # Set up simulation parameters
+            logger.info(
+                "No target specified; using current backlog (%d) as target.",
+                target,
+            )
         start_value = burnup_data[done_column].max()
         start_backlog = burnup_data[backlog_column].max()
         trials = self.settings["burnup_forecast_chart_trials"]
-
-        # Try daily, then weekly, then monthly throughput until we get nonzero
-        # mean
-        for freq_label, freq in [
-            ("daily", "D"),
-            ("weekly", "W-MON"),
-            ("monthly", "M"),
-        ]:
-            td = calculate_throughput(
-                cycle_data,
-                freq,
-                window=(sampling_window_end - throughput_window_start).days,
-            )
-            mean_throughput = td["count"].mean() if len(td) > 0 else 0
-            if mean_throughput > 0:
-                throughput_data = td
-                break
-        else:
-            print(
-                "[ERROR] No completed items in the throughput window at any frequency. "
-                "Cannot run forecast.\n"
-                "Try increasing the 'Burnup forecast chart throughput window' in your config."
-            )
-            return None
 
         backlog_growth_data = calculate_daily_backlog_growth(
             burnup_data,
@@ -125,8 +306,14 @@ class BurnupForecastCalculator(Calculator):
             backlog_growth_window_end,
         )
         # Debug: print last 60 days of backlog growth data
-        # print("[DEBUG] Backlog growth data (last 60 days):\n", backlog_growth_data.tail(60))
-        # print("[DEBUG] Backlog growth data index (last 5):\n", backlog_growth_data.index[-5:])
+        # print(
+        #     "[DEBUG] Backlog growth data (last 60 days):\n",
+        #     backlog_growth_data.tail(60)
+        # )
+        # print(
+        #     "[DEBUG] Backlog growth data index (last 5):\n",
+        #     backlog_growth_data.index[-5:],
+        # )
 
         # Debug: print last 60 days of backlog column from burnup_data
         # print(
@@ -156,11 +343,16 @@ class BurnupForecastCalculator(Calculator):
                 return 0
 
         else:
-            backlog_growth_sampler_fn = backlog_growth_sampler(backlog_growth_data)
+            backlog_growth_sampler_fn = backlog_growth_sampler(
+                backlog_growth_data
+            )
 
         mean_throughput = throughput_data["count"].mean()
         std_throughput = throughput_data["count"].std()
-        throughput_sample_count = len(throughput_data)
+        # Calculate meaningful statistics
+        total_time_periods = len(throughput_data)
+        actual_completed_items = throughput_data["count"].sum()
+        non_zero_periods = (throughput_data["count"] > 0).sum()
         if mean_throughput == 0:
             print(
                 "[ERROR] No completed items in the throughput window. Cannot run forecast.\n"
@@ -170,21 +362,30 @@ class BurnupForecastCalculator(Calculator):
 
         # Compute sample buffer size for throughput sampler
         if target is not None:
-            sample_buffer_size = int(2 * (target - start_value) / mean_throughput)
+            sample_buffer_size = int(
+                2 * (target - start_value) / mean_throughput
+            )
             if sample_buffer_size < 10:
                 sample_buffer_size = 10
         else:
             sample_buffer_size = max(
-                2 * (forecast_horizon_end - burnup_data.index.max().date()).days, 100
+                2
+                * (forecast_horizon_end - burnup_data.index.max().date()).days,
+                100,
             )
 
         # Calculate number of days to simulate
         sim_days = (forecast_horizon_end - burnup_data.index.max().date()).days
         if sim_days < 1:
-            logger.warning("Forecast horizon is not after last data point; nothing to simulate.")
+            logger.warning(
+                "Forecast horizon is not after last data point; nothing to simulate."
+            )
             return None
 
         # Monte Carlo simulation: always run for sim_days
+        max_iterations = self.settings.get(
+            "burnup_forecast_chart_max_iterations", 9999
+        )
         mc_trials, backlog_trials = burnup_monte_carlo_horizon(
             start_value=start_value,
             start_backlog=start_backlog,
@@ -192,11 +393,12 @@ class BurnupForecastCalculator(Calculator):
             days=sim_days,
             frequency=throughput_data.index.freq,
             draw_sample=throughput_sampler(
-                throughput_data, start_value, start_backlog, sample_buffer_size
+                throughput_data, sample_buffer_size
             ),
             draw_backlog_growth=backlog_growth_sampler_fn,
             trials=trials,
             target=target,
+            max_iterations=max_iterations,
         )
         # Trustworthiness metrics
         if mc_trials is not None and len(mc_trials) > 0:
@@ -205,16 +407,23 @@ class BurnupForecastCalculator(Calculator):
         else:
             forecast_std = float("nan")
             forecast_var = float("nan")
-        # Traffic light logic
-        rel_std = std_throughput / mean_throughput if mean_throughput else float("inf")
-        if throughput_sample_count >= 30 and rel_std < 0.5:
+        # Traffic light logic - use actual completed items and non-zero periods
+        rel_std = (
+            std_throughput / mean_throughput
+            if mean_throughput
+            else float("inf")
+        )
+        if actual_completed_items >= 30 and rel_std < 0.5:
             trust_level = "green"
-        elif throughput_sample_count >= 10 and rel_std < 1.0:
+        elif actual_completed_items >= 10 and rel_std < 1.0:
             trust_level = "yellow"
         else:
             trust_level = "red"
         self._trust_metrics = {
-            "throughput_sample_count": throughput_sample_count,
+            "total_time_periods": total_time_periods,
+            "throughput_frequency": throughput_frequency,
+            "actual_completed_items": actual_completed_items,
+            "non_zero_periods": non_zero_periods,
             "throughput_mean": mean_throughput,
             "throughput_std": std_throughput,
             "forecast_std": forecast_std,
@@ -227,6 +436,48 @@ class BurnupForecastCalculator(Calculator):
         self._forecast_horizon_end = forecast_horizon_end
         self._target = target
         return mc_trials
+
+    def _validate_data(self, burnup_data, cycle_data):
+        """Validate input data and required columns."""
+        backlog_column = self.settings["backlog_column"]
+        done_column = self.settings["done_column"]
+
+        # Debug: Log cycle data info
+        logger.info(
+            "Cycle data shape: %s, columns: %s, done_column: %s",
+            cycle_data.shape,
+            list(cycle_data.columns),
+            done_column,
+        )
+        if done_column in cycle_data.columns:
+            logger.info(
+                "Done column stats: min=%s, max=%s, count=%s",
+                cycle_data[done_column].min(),
+                cycle_data[done_column].max(),
+                cycle_data[done_column].count(),
+            )
+        else:
+            logger.error(
+                "Done column '%s' not found in cycle data", done_column
+            )
+            return None
+
+        if backlog_column not in burnup_data.columns:
+            logger.error("Backlog column %s does not exist", backlog_column)
+            return None
+        if done_column not in burnup_data.columns:
+            logger.error("Backlog column %s does not exist", done_column)
+            return None
+
+        if cycle_data[done_column].max() is pd.NaT:
+            logger.warning(
+                (
+                    "Unable to draw burnup forecast chart with zero completed items."
+                )
+            )
+            return None
+
+        return backlog_column, done_column
 
     def write(self):
         output_file = self.settings["burnup_forecast_chart"]
@@ -245,7 +496,9 @@ class BurnupForecastCalculator(Calculator):
             burnup_data = burnup_data[start:]
 
             if len(burnup_data.index) == 0:
-                logger.warning("Cannot draw burnup forecast chart with zero items")
+                logger.warning(
+                    "Cannot draw burnup forecast chart with zero items"
+                )
                 return
 
         mc_trials = self._done_trials
@@ -271,9 +524,13 @@ class BurnupForecastCalculator(Calculator):
         )
         # Plot backlog fan
         if backlog_trials is not None:
-            backlog_quantiles = backlog_trials.quantile([0.1, 0.5, 0.9], axis=1).transpose()
+            backlog_quantiles = backlog_trials.quantile(
+                [0.1, 0.5, 0.9], axis=1
+            ).transpose()
             backlog_quantiles = backlog_quantiles.reindex(forecast_dates)
-            backlog_quantiles = backlog_quantiles.interpolate(method="index").ffill()
+            backlog_quantiles = backlog_quantiles.interpolate(
+                method="index"
+            ).ffill()
             ax.fill_between(
                 backlog_quantiles.index,
                 backlog_quantiles[0.1],
@@ -298,7 +555,9 @@ class BurnupForecastCalculator(Calculator):
             )
         # Plot done fan
         if mc_trials is not None:
-            done_quantiles = mc_trials.quantile([0.1, 0.5, 0.9], axis=1).transpose()
+            done_quantiles = mc_trials.quantile(
+                [0.1, 0.5, 0.9], axis=1
+            ).transpose()
             done_quantiles = done_quantiles.reindex(forecast_dates)
             done_quantiles = done_quantiles.interpolate(method="index").ffill()
             ax.fill_between(
@@ -348,8 +607,12 @@ class BurnupForecastCalculator(Calculator):
                 quantile_handles = []
                 quantile_labels = []
                 for q, value in zip(quantiles, finish_date_quantiles):
-                    vline = ax.axvline(value, linestyle="--", color="#444444", linewidth=1)
-                    date_str = pd.to_datetime(value).strftime(self.settings["date_format"])
+                    vline = ax.axvline(
+                        value, linestyle="--", color="#444444", linewidth=1
+                    )
+                    date_str = pd.to_datetime(value).strftime(
+                        self.settings["date_format"]
+                    )
                     label = f"{int(q * 100)}% ({date_str})"
                     quantile_handles.append(vline)
                     quantile_labels.append(label)
@@ -367,7 +630,11 @@ class BurnupForecastCalculator(Calculator):
         )
         if target is not None:
             keep_labels.add(f"Target: {target}")
-        filtered = [(h, label) for h, label in zip(handles, labels) if label in keep_labels]
+        filtered = [
+            (h, label)
+            for h, label in zip(handles, labels)
+            if label in keep_labels
+        ]
         if filtered:
             handles, labels = zip(*filtered)
         # Add quantile completion date lines to legend
@@ -385,9 +652,11 @@ class BurnupForecastCalculator(Calculator):
         # Ensure x-axis covers the full forecast period
         ax.set_xlim([burnup_data.index.min(), forecast_horizon_end])
         # Annotate trustworthiness metrics
-        if trust_metrics:
+        if trust_metrics is not None:
             trust_text = (
-                f"Throughput samples: {trust_metrics['throughput_sample_count']}\n"
+                f"{trust_metrics['total_time_periods']} {trust_metrics['throughput_frequency']} periods\n"
+                f"Actual completed items: {trust_metrics['actual_completed_items']}\n"
+                f"Non-zero periods: {trust_metrics['non_zero_periods']}\n"
                 f"Throughput mean: {trust_metrics['throughput_mean']:.2f}\n"
                 f"Throughput std: {trust_metrics['throughput_std']:.2f}\n"
                 f"Forecast std: {trust_metrics['forecast_std']:.2f}\n"
@@ -418,7 +687,10 @@ class BurnupForecastCalculator(Calculator):
         plt.close(fig)
 
 
-def calculate_daily_throughput(cycle_data, done_column, window_start, window_end):
+def calculate_daily_throughput(
+    cycle_data, done_column, window_start, window_end
+):
+    """Calculate daily throughput from cycle data within a specified window."""
     return (
         cycle_data[[done_column, "key"]]
         .rename(columns={"key": "count", done_column: "completed_timestamp"})
@@ -426,12 +698,14 @@ def calculate_daily_throughput(cycle_data, done_column, window_start, window_end
         .count()
         .resample("1D")
         .sum()
-        .reindex(index=pd.date_range(start=window_start, end=window_end, freq="D"))
+        .reindex(
+            index=pd.date_range(start=window_start, end=window_end, freq="D")
+        )
         .fillna(0)
     )
 
 
-def throughput_sampler(throughput_data, start_value, target, sample_buffer_size=100):
+def throughput_sampler(throughput_data, sample_buffer_size=100):
     """Return a function that can efficiently
     draw samples from `throughput_data`"""
     sample_buffer = dict(idx=0, buffer=None)
@@ -451,7 +725,10 @@ def throughput_sampler(throughput_data, start_value, target, sample_buffer_size=
     return get_throughput_sample
 
 
-def calculate_daily_backlog_growth(burnup_data, backlog_column, window_start, window_end):
+def calculate_daily_backlog_growth(
+    burnup_data, backlog_column, window_start, window_end
+):
+    """Calculate daily backlog growth from burnup data within a specified window."""
     # Calculate the daily change in backlog (new items added)
     backlog_series = (
         burnup_data[backlog_column]
@@ -466,11 +743,16 @@ def calculate_daily_backlog_growth(burnup_data, backlog_column, window_start, wi
 
 
 def backlog_growth_sampler(backlog_growth_data, sample_buffer_size=100):
+    """Return a function that efficiently draws samples from backlog growth data."""
     sample_buffer = dict(idx=0, buffer=None)
 
     def get_backlog_growth_sample():
-        if sample_buffer["buffer"] is None or sample_buffer["idx"] >= len(sample_buffer["buffer"]):
-            sample_buffer["buffer"] = backlog_growth_data.sample(sample_buffer_size, replace=True)
+        if sample_buffer["buffer"] is None or sample_buffer["idx"] >= len(
+            sample_buffer["buffer"]
+        ):
+            sample_buffer["buffer"] = backlog_growth_data.sample(
+                sample_buffer_size, replace=True
+            )
             sample_buffer["idx"] = 0
         sample_buffer["idx"] += 1
         return sample_buffer["buffer"].iloc[sample_buffer["idx"] - 1]
@@ -490,6 +772,7 @@ def burnup_monte_carlo_horizon(
     target=None,
     max_iterations=9999,
 ):
+    """Run Monte Carlo simulation for burnup forecast with specified parameters."""
     series = {}
     backlog_series = {}
     for t in range(trials):
@@ -499,7 +782,7 @@ def burnup_monte_carlo_horizon(
         dates = [current_date]
         done_steps = [current_value]
         backlog_steps = [current_backlog]
-        for i in range(days):
+        for _ in range(min(days, max_iterations)):
             current_date += frequency
             current_value += draw_sample()
             if draw_backlog_growth is not None:
@@ -516,6 +799,10 @@ def burnup_monte_carlo_horizon(
             dates.append(dates[-1] + frequency)
             done_steps.append(done_steps[-1])
             backlog_steps.append(backlog_steps[-1])
-        series[f"Trial {t}"] = pd.Series(done_steps, index=dates, name=f"Trial {t}")
-        backlog_series[f"Trial {t}"] = pd.Series(backlog_steps, index=dates, name=f"Trial {t}")
+        series[f"Trial {t}"] = pd.Series(
+            done_steps, index=dates, name=f"Trial {t}"
+        )
+        backlog_series[f"Trial {t}"] = pd.Series(
+            backlog_steps, index=dates, name=f"Trial {t}"
+        )
     return pd.DataFrame(series), pd.DataFrame(backlog_series)

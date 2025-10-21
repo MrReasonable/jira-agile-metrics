@@ -27,7 +27,9 @@ class AgeingWIPChartCalculator(Calculator):
         done_column = self.settings["done_column"]
         last_active_column = cycle_names[cycle_names.index(done_column) - 1]
 
-        today = pd.Timestamp.now().date() if today is None else today  # to allow testing
+        today = (
+            pd.Timestamp.now().date() if today is None else today
+        )  # to allow testing
 
         # remove items that are done
         ageing_wip_data = cycle_data[pd.isnull(cycle_data[done_column])].copy()
@@ -47,11 +49,15 @@ class AgeingWIPChartCalculator(Calculator):
                 return np.nan
             return (today - started.date()).days
 
-        ageing_wip_data["status"] = ageing_wip_data.apply(extract_status, axis=1)
+        ageing_wip_data["status"] = ageing_wip_data.apply(
+            extract_status, axis=1
+        )
         ageing_wip_data["age"] = ageing_wip_data.apply(extract_age, axis=1)
 
         # remove blank rows
-        ageing_wip_data.dropna(how="any", inplace=True, subset=["status", "age"])
+        ageing_wip_data.dropna(
+            how="any", inplace=True, subset=["status", "age"]
+        )
 
         # reorder columns so we get key, summary, status,
         # age, and then all the cycle stages
@@ -74,7 +80,9 @@ class AgeingWIPChartCalculator(Calculator):
         chart_data = self.get_result()
 
         if len(chart_data.index) == 0:
-            logger.warning("Unable to draw ageing WIP chart with zero completed items")
+            logger.warning(
+                "Unable to draw ageing WIP chart with zero completed items"
+            )
             return
 
         fig, ax = plt.subplots()
