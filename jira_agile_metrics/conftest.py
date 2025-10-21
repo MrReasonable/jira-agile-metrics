@@ -253,7 +253,11 @@ def _issues(issues):
                     else (
                         "Build"
                         if i["Build"] is not NaT
-                        else "Committed" if i["Committed"] is not NaT else "Backlog"
+                        else (
+                            "Committed"
+                            if i["Committed"] is not NaT
+                            else "Backlog"
+                        )
                     )
                 )
             ),
@@ -568,7 +572,9 @@ def mock_trello_api(mocker):
 
     mock_api = Mock(spec=trello.TrelloApi)
     mock_members = Mock(spec=trello.members)
-    mock_members.get_board = Mock(return_value=[{"name": "my_board", "id": "my_id"}])
+    mock_members.get_board = Mock(
+        return_value=[{"name": "my_board", "id": "my_id"}]
+    )
     mock_api.members = mock_members
 
     mock_cards = Mock(spec=trello.cards)

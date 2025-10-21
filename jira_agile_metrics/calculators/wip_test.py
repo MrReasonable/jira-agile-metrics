@@ -36,7 +36,11 @@ def results(query_manager, settings, large_cycle_time_results):
 
     return extend_dict(
         large_cycle_time_results,
-        {CFDCalculator: CFDCalculator(query_manager, settings, large_cycle_time_results).run()},
+        {
+            CFDCalculator: CFDCalculator(
+                query_manager, settings, large_cycle_time_results
+            ).run()
+        },
     )
 
 
@@ -45,7 +49,9 @@ def test_empty(query_manager, settings, minimal_cycle_time_columns):
         CFDCalculator: DataFrame(
             [],
             columns=["Backlog", "Committed", "Build", "Test", "Done"],
-            index=date_range(start=datetime.date(2018, 1, 1), periods=0, freq="D"),
+            index=date_range(
+                start=datetime.date(2018, 1, 1), periods=0, freq="D"
+            ),
         )
     }
 

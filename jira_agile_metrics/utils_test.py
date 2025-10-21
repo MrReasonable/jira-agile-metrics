@@ -3,15 +3,9 @@ import datetime
 import numpy as np
 import pandas as pd
 
-from .utils import (
-    breakdown_by_month,
-    breakdown_by_month_sum_days,
-    extend_dict,
-    get_extension,
-    to_bin,
-    to_days_since_epoch,
-    to_json_string,
-)
+from .utils import (breakdown_by_month, breakdown_by_month_sum_days,
+                    extend_dict, get_extension, to_bin, to_days_since_epoch,
+                    to_json_string)
 
 
 def test_extend_dict():
@@ -83,7 +77,9 @@ def test_breakdown_by_month():
         columns=["key", "priority", "start", "end"],
     )
 
-    breakdown = breakdown_by_month(df, "start", "end", "key", "priority", ["low", "med", "high"])
+    breakdown = breakdown_by_month(
+        df, "start", "end", "key", "priority", ["low", "med", "high"]
+    )
     assert list(breakdown.columns) == ["med", "high"]
 
     assert list(breakdown.index) == [
@@ -141,7 +137,9 @@ def test_breakdown_by_month_open_ended():
         columns=["key", "priority", "start", "end"],
     )
 
-    breakdown = breakdown_by_month(df, "start", "end", "key", "priority", ["low", "med", "high"])
+    breakdown = breakdown_by_month(
+        df, "start", "end", "key", "priority", ["low", "med", "high"]
+    )
     assert list(breakdown.columns) == ["med", "high"]
 
     # Note: We will get columns until the current month; assume this test is
@@ -312,7 +310,9 @@ def test_breakdown_by_month_sum_days():
         columns=["key", "priority", "start", "end"],
     )
 
-    breakdown = breakdown_by_month_sum_days(df, "start", "end", "priority", ["low", "med", "high"])
+    breakdown = breakdown_by_month_sum_days(
+        df, "start", "end", "priority", ["low", "med", "high"]
+    )
     assert list(breakdown.columns) == ["med", "high"]
 
     assert list(breakdown.index) == [
@@ -418,7 +418,9 @@ def test_breakdown_by_month_sum_day_open_ended():
         columns=["key", "priority", "start", "end"],
     )
 
-    breakdown = breakdown_by_month_sum_days(df, "start", "end", "priority", ["low", "med", "high"])
+    breakdown = breakdown_by_month_sum_days(
+        df, "start", "end", "priority", ["low", "med", "high"]
+    )
     assert list(breakdown.columns) == ["med", "high"]
 
     # Note: We will get columns until the current month; assume this test is

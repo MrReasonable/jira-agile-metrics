@@ -110,7 +110,9 @@ def test_resolve_attribute_value(jira, settings):
 
     assert qm.resolve_attribute_value(issues[0], "Team") == "Team 1"
     assert qm.resolve_attribute_value(issues[0], "Estimate") == 30
-    assert qm.resolve_attribute_value(issues[0], "Release") == "R3"  # due to known_value
+    assert (
+        qm.resolve_attribute_value(issues[0], "Release") == "R3"
+    )  # due to known_value
 
 
 def test_resolve_field_value(jira, settings):
@@ -119,7 +121,9 @@ def test_resolve_field_value(jira, settings):
 
     assert qm.resolve_field_value(issues[0], "customfield_001") == "Team 1"
     assert qm.resolve_field_value(issues[0], "customfield_002") == 30
-    assert qm.resolve_field_value(issues[0], "customfield_003") == "R3"  # due to known_value
+    assert (
+        qm.resolve_field_value(issues[0], "customfield_003") == "R3"
+    )  # due to known_value
 
 
 def test_iter_changes(jira, settings):

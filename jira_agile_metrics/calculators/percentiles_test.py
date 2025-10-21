@@ -24,7 +24,11 @@ def results(large_cycle_time_results):
 
 
 def test_empty(query_manager, settings, minimal_cycle_time_columns):
-    results = {CycleTimeCalculator: DataFrame([], columns=minimal_cycle_time_columns, index=[])}
+    results = {
+        CycleTimeCalculator: DataFrame(
+            [], columns=minimal_cycle_time_columns, index=[]
+        )
+    }
 
     calculator = PercentilesCalculator(query_manager, settings, results)
 

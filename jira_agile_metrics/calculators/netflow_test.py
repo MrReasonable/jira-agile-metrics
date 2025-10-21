@@ -36,7 +36,11 @@ def results(query_manager, settings, large_cycle_time_results):
 
     return extend_dict(
         large_cycle_time_results,
-        {CFDCalculator: CFDCalculator(query_manager, settings, large_cycle_time_results).run()},
+        {
+            CFDCalculator: CFDCalculator(
+                query_manager, settings, large_cycle_time_results
+            ).run()
+        },
     )
 
 
@@ -45,7 +49,9 @@ def test_empty(query_manager, settings, minimal_cycle_time_columns):
         CFDCalculator: DataFrame(
             [],
             columns=["Backlog", "Committed", "Build", "Test", "Done"],
-            index=date_range(start=datetime.date(2018, 1, 1), periods=0, freq="D"),
+            index=date_range(
+                start=datetime.date(2018, 1, 1), periods=0, freq="D"
+            ),
         )
     }
 
@@ -94,7 +100,9 @@ def test_calculate_net_flow(query_manager, settings, results):
         Timestamp("2018-01-09 00:00:00"),
     ]
 
-    assert data[["arrivals", "departures", "net_flow", "positive"]].to_dict("records") == [
+    assert data[["arrivals", "departures", "net_flow", "positive"]].to_dict(
+        "records"
+    ) == [
         {
             "arrivals": 0.0,
             "departures": 0.0,
@@ -152,7 +160,9 @@ def test_calculate_net_flow(query_manager, settings, results):
     ]
 
 
-def test_calculate_net_flow_different_columns(query_manager, settings, results):
+def test_calculate_net_flow_different_columns(
+    query_manager, settings, results
+):
     settings.update(
         {
             "committed_column": "Build",
@@ -176,7 +186,9 @@ def test_calculate_net_flow_different_columns(query_manager, settings, results):
         Timestamp("2018-01-09 00:00:00"),
     ]
 
-    assert data[["arrivals", "departures", "net_flow", "positive"]].to_dict("records") == [
+    assert data[["arrivals", "departures", "net_flow", "positive"]].to_dict(
+        "records"
+    ) == [
         {
             "arrivals": 0.0,
             "departures": 0.0,

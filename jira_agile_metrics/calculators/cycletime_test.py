@@ -61,7 +61,9 @@ def jira(custom_fields):
                             )
                         ],
                     ),
-                    Change("2018-01-04 10:01:01", [("Flagged", "", "Impediment")]),
+                    Change(
+                        "2018-01-04 10:01:01", [("Flagged", "", "Impediment")]
+                    ),
                     Change(
                         "2018-01-05 08:01:01", [("Flagged", "Impediment", "")]
                     ),  # was blocked 1 day

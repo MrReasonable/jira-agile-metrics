@@ -37,8 +37,16 @@ def query_manager(minimal_query_manager):
 @pytest.fixture
 def results(query_manager, settings, large_cycle_time_results):
     results = large_cycle_time_results.copy()
-    results.update({CFDCalculator: CFDCalculator(query_manager, settings, results).run()})
-    results.update({BurnupCalculator: BurnupCalculator(query_manager, settings, results).run()})
+    results.update(
+        {CFDCalculator: CFDCalculator(query_manager, settings, results).run()}
+    )
+    results.update(
+        {
+            BurnupCalculator: BurnupCalculator(
+                query_manager, settings, results
+            ).run()
+        }
+    )
     return results
 
 
@@ -48,7 +56,9 @@ def test_empty(query_manager, settings, minimal_cycle_time_columns):
         BurnupCalculator: DataFrame(
             [],
             columns=["Backlog", "Committed", "Build", "Test", "Done"],
-            index=date_range(start=datetime.date(2018, 1, 1), periods=0, freq="D"),
+            index=date_range(
+                start=datetime.date(2018, 1, 1), periods=0, freq="D"
+            ),
         ),
     }
 
@@ -106,7 +116,9 @@ def test_calculate_forecast_settings(query_manager, settings, results):
         {
             "backlog_column": "Committed",
             "done_column": "Test",
-            "burnup_forecast_chart_throughput_window_end": datetime.date(2018, 1, 6),
+            "burnup_forecast_chart_throughput_window_end": datetime.date(
+                2018, 1, 6
+            ),
             "burnup_forecast_chart_throughput_window": 4,
             "burnup_forecast_chart_target": None,
             "burnup_forecast_chart_trials": 10,
@@ -115,8 +127,16 @@ def test_calculate_forecast_settings(query_manager, settings, results):
             "quantiles": [0.1, 0.3, 0.5],
         }
     )
-    results.update({CFDCalculator: CFDCalculator(query_manager, settings, results).run()})
-    results.update({BurnupCalculator: BurnupCalculator(query_manager, settings, results).run()})
+    results.update(
+        {CFDCalculator: CFDCalculator(query_manager, settings, results).run()}
+    )
+    results.update(
+        {
+            BurnupCalculator: BurnupCalculator(
+                query_manager, settings, results
+            ).run()
+        }
+    )
     calculator = BurnupForecastCalculator(query_manager, settings, results)
     data = calculator.run()
     if data is None:

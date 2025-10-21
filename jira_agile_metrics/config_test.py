@@ -290,7 +290,9 @@ ABC AND type = Outcome AND resolution IS EMPTY"
         "burnup_forecast_chart_deadline_confidence": 0.85,
         "burnup_forecast_chart_target": 100,
         "burnup_forecast_chart_throughput_window": 30,
-        "burnup_forecast_chart_throughput_window_end": datetime.date(2018, 3, 1),
+        "burnup_forecast_chart_throughput_window_end": datetime.date(
+            2018, 3, 1
+        ),
         "burnup_forecast_chart_title": "Burn-up forecast",
         "burnup_forecast_chart_trials": 50,
         "cfd_window": 30,
@@ -352,7 +354,9 @@ ABC AND type = Outcome AND resolution IS EMPTY"
         "debt_age_chart": "tech-debt-age.png",
         "debt_age_chart_title": "Technical debt age",
         "debt_age_chart_bins": [10, 20, 30],
-        "waste_query": ("issueType = Story AND resolution IN (Withdrawn, Invalid)"),
+        "waste_query": (
+            "issueType = Story AND resolution IN (Withdrawn, Invalid)"
+        ),
         "waste_window": 3,
         "waste_frequency": "2W-WED",
         "waste_chart": "waste.png",
@@ -447,7 +451,9 @@ ABC AND type = Outcome AND resolution IS EMPTY"
         "burnup_forecast_chart_deadline_confidence": 0.85,
         "burnup_forecast_chart_target": 100,
         "burnup_forecast_chart_throughput_window": 30,
-        "burnup_forecast_chart_throughput_window_end": datetime.date(2018, 3, 1),
+        "burnup_forecast_chart_throughput_window_end": datetime.date(
+            2018, 3, 1
+        ),
         "burnup_forecast_chart_title": "Burn-up forecast",
         "burnup_forecast_chart_trials": 50,
         "cfd_window": 30,
@@ -509,7 +515,9 @@ ABC AND type = Outcome AND resolution IS EMPTY"
         "debt_age_chart": "tech-debt-age.png",
         "debt_age_chart_title": "Technical debt age",
         "debt_age_chart_bins": [10, 20, 30],
-        "waste_query": ("issueType = Story AND resolution IN (Withdrawn, Invalid)"),
+        "waste_query": (
+            "issueType = Story AND resolution IN (Withdrawn, Invalid)"
+        ),
         "waste_window": 3,
         "waste_frequency": "2W-WED",
         "waste_chart": "waste.png",
@@ -602,7 +610,9 @@ Output:
     assert options["settings"]["cycle_time_data"] == ["cycletime.csv"]
     assert options["settings"]["ageing_wip_chart"] == "ageing-wip.png"
     assert options["settings"]["burnup_chart"] == "burnup.png"
-    assert options["settings"]["burnup_forecast_chart"] == "burnup-forecast.png"
+    assert (
+        options["settings"]["burnup_forecast_chart"] == "burnup-forecast.png"
+    )
     assert options["settings"]["cfd_chart"] == "cfd.png"
     assert options["settings"]["histogram_chart"] == "histogram.png"
     assert options["settings"]["histogram_data"] == ["histogram.csv"]

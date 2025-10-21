@@ -23,7 +23,11 @@ def results(large_cycle_time_results):
 
 
 def test_empty(query_manager, settings, minimal_cycle_time_columns):
-    results = {CycleTimeCalculator: DataFrame([], columns=minimal_cycle_time_columns, index=[])}
+    results = {
+        CycleTimeCalculator: DataFrame(
+            [], columns=minimal_cycle_time_columns, index=[]
+        )
+    }
 
     calculator = ScatterplotCalculator(query_manager, settings, results)
 
@@ -64,7 +68,9 @@ def test_calculate_scatterplot(query_manager, settings, results):
 
     data = calculator.run()
 
-    assert data[["key", "completed_date", "cycle_time"]].to_dict("records") == [
+    assert data[["key", "completed_date", "cycle_time"]].to_dict(
+        "records"
+    ) == [
         {
             "key": "A-13",
             "completed_date": Timestamp("2018-01-07 00:00:00"),
