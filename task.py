@@ -4,9 +4,8 @@ Python task runner for Jira Agile Metrics
 Alternative to Makefile using Python's invoke library pattern
 """
 
-import sys
 import subprocess
-import os
+import sys
 from pathlib import Path
 
 # Colors for output
@@ -26,14 +25,28 @@ RUFF = VENV_BIN / 'ruff'
 PYLINT = VENV_BIN / 'pylint'
 
 
-def run_command(cmd, check=True, capture_output=False):
-    """Run a command and return the result."""
-    print(f"{GREEN}Running: {cmd}{NC}")
+def run_command(cmd, check=True, capture_output=False, shell=False):
+    """Run a command and return the result.
+
+    Args:
+        cmd: Command to run. Should be a list of args when shell=False (default),
+             or a string when shell=True.
+        check: Whether to raise CalledProcessError on non-zero exit code.
+        capture_output: Whether to capture stdout and stderr.
+        shell: Whether to run command through the shell. Defaults to False for security.
+               Only set to True for actual shell features like pipes or redirection.
+
+    Returns:
+        subprocess.CompletedProcess: The result of the command.
+    """
+    # Convert Path objects to strings for display
+    if isinstance(cmd, list):
+        display_cmd = " ".join(str(item) for item in cmd)
+    else:
+        display_cmd = str(cmd) if hasattr(cmd, "__str__") else cmd
+    print(f"{GREEN}Running: {display_cmd}{NC}")
     result = subprocess.run(
-        cmd,
-        shell=True,
-        check=check,
-        capture_output=capture_output
+        cmd, shell=shell, check=check, capture_output=capture_output
     )
     return result
 
@@ -88,9 +101,9 @@ def task_dev():
     """Full development setup."""
     print(f"{GREEN}Setting up development environment...{NC}")
     check_venv()
-    run_command(f"{PIP} install --upgrade pip")
-    run_command(f"{PIP} install -r requirements.txt")
-    run_command(f"{PIP} install -r requirements-dev.txt")
+    run_command([PIP, "install", "--upgrade", "pip"])
+    run_command([PIP, "install", "-r", "requirements.txt"])
+    run_command([PIP, "install", "-r", "requirements-dev.txt"])
     print(f"\n{GREEN}Development environment ready!{NC}")
 
 
@@ -98,15 +111,15 @@ def task_install():
     """Install production dependencies."""
     check_venv()
     print(f"{GREEN}Installing production dependencies...{NC}")
-    run_command(f"{PIP} install --upgrade pip")
-    run_command(f"{PIP} install -r requirements.txt")
+    run_command([PIP, "install", "--upgrade", "pip"])
+    run_command([PIP, "install", "-r", "requirements.txt"])
 
 
 def task_install_dev():
     """Install development dependencies."""
     task_install()
     print(f"{GREEN}Installing development dependencies...{NC}")
-    run_command(f"{PIP} install -r requirements-dev.txt")
+    run_command([PIP, "install", "-r", "requirements-dev.txt"])
 
 
 def task_clean():
@@ -143,43 +156,47 @@ def task_clean_venv():
 def task_test():
     """Run tests."""
     print(f"{GREEN}Running tests...{NC}")
-    run_command(f"{PYTEST} -v")
+    run_command([PYTEST, "-v"])
 
 
 def task_test_coverage():
     """Run tests with coverage."""
     print(f"{GREEN}Running tests with coverage...{NC}")
-    run_command(f"{PYTEST} --cov=jira_agile_metrics --cov-report=html --cov-report=term")
+    run_command(
+        [PYTEST, "--cov=jira_agile_metrics", "--cov-report=html", "--cov-report=term"]
+    )
 
 
 def task_test_verbose():
     """Run tests with verbose output."""
     print(f"{GREEN}Running tests with verbose output...{NC}")
-    run_command(f"{PYTEST} -vv")
+    run_command([PYTEST, "-vv"])
 
 
 def task_lint():
     """Run linters."""
     print(f"{GREEN}Running ruff...{NC}")
-    run_command(f"{RUFF} check .")
+    run_command([RUFF, "check", "."])
+    print(f"{GREEN}Running pylint...{NC}")
+    run_command([PYLINT, "jira_agile_metrics/"])
 
 
 def task_lint_fix():
     """Run ruff with auto-fix."""
     print(f"{GREEN}Running ruff with auto-fix...{NC}")
-    run_command(f"{RUFF} check . --fix")
+    run_command([RUFF, "check", ".", "--fix"])
 
 
 def task_format():
     """Format code."""
     print(f"{GREEN}Formatting code...{NC}")
-    run_command(f"{BLACK} .")
+    run_command([BLACK, "."])
 
 
 def task_format_check():
     """Check code formatting."""
     print(f"{GREEN}Checking code formatting...{NC}")
-    run_command(f"{BLACK} . --check")
+    run_command([BLACK, ".", "--check"])
 
 
 def task_check():
@@ -195,31 +212,33 @@ def task_run():
         print(f"{RED}Error: config.yml not found{NC}")
         sys.exit(1)
     print(f"{GREEN}Running jira-agile-metrics...{NC}")
-    run_command(f"{PYTHON} -m jira_agile_metrics.cli -vv config.yml")
+    run_command([PYTHON, "-m", "jira_agile_metrics.cli", "-vv", "config.yml"])
 
 
 def task_webapp():
     """Start the web application."""
     print(f"{GREEN}Starting web application...{NC}")
-    run_command(f"{PYTHON} -m jira_agile_metrics.webapp.app")
+    run_command([PYTHON, "-m", "jira_agile_metrics.webapp.app"])
 
 
 def task_info():
     """Show environment information."""
     python_version = subprocess.run(
-        [sys.executable, '--version'],
-        capture_output=True,
-        text=True
+        [sys.executable, "--version"], capture_output=True, text=True, check=True
     ).stdout.strip()
-    
+
     print(f"{GREEN}Environment Information:{NC}")
     print(f"  Python: {python_version}")
     print(f"  Virtual env: {VENV}")
     print(f"  Venv exists: {'Yes' if VENV.exists() else 'No'}")
-    
-    req_count = sum(1 for _ in Path('requirements.txt').open()) if Path('requirements.txt').exists() else 0
+
+    req_count = (
+        sum(1 for _ in Path("requirements.txt").open(encoding="utf-8"))
+        if Path("requirements.txt").exists()
+        else 0
+    )
     print(f"  Requirements: {req_count} lines")
-    
+
     py_files = len(list(Path('jira_agile_metrics').rglob('*.py')))
     print(f"  Source files: {py_files} files")
 
@@ -228,7 +247,7 @@ def task_version():
     """Show version information."""
     print(f"{GREEN}Version Information:{NC}")
     if Path('setup.py').exists():
-        with Path('setup.py').open() as f:
+        with Path("setup.py").open(encoding="utf-8") as f:
             for line in f:
                 if 'version' in line and '=' in line:
                     print(f"  {line.strip()}")
@@ -250,9 +269,9 @@ def main():
     if len(sys.argv) < 2:
         task_help()
         return
-    
+
     task_name = sys.argv[1].replace('-', '_')
-    
+
     # Map task names to functions
     tasks = {
         'help': task_help,
@@ -275,7 +294,7 @@ def main():
         'version': task_version,
         'reset': task_reset,
     }
-    
+
     if task_name in tasks:
         try:
             tasks[task_name]()

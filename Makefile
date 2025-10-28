@@ -9,6 +9,7 @@ VENV = .venv
 VENV_BIN = $(VENV)/bin
 PIP = $(VENV_BIN)/pip
 PYTEST = $(VENV_BIN)/pytest
+PTW = $(VENV_BIN)/ptw
 BLACK = $(VENV_BIN)/black
 RUFF = $(VENV_BIN)/ruff
 PYLINT = $(VENV_BIN)/pylint
@@ -94,15 +95,17 @@ test-verbose: ## Run tests with verbose output
 	@echo "$(GREEN)Running tests with verbose output...$(NC)"
 	$(PYTEST) -vv
 
-test-watch: ## Run tests in watch mode
+test-watch: ## Run tests in watch mode (requires pytest-watch)
 	@echo "$(GREEN)Running tests in watch mode...$(NC)"
-	$(PYTEST) --watchers
+	$(PTW)
 
 ## Linting and formatting targets
 
-lint: ## Run all linters (ruff)
+lint: ## Run all linters (ruff and pylint)
 	@echo "$(GREEN)Running ruff linter...$(NC)"
 	$(RUFF) check .
+	@echo "$(GREEN)Running pylint...$(NC)"
+	$(PYLINT) jira_agile_metrics/
 
 lint-fix: ## Run ruff with auto-fix
 	@echo "$(GREEN)Running ruff with auto-fix...$(NC)"
