@@ -23,6 +23,73 @@ directory. You can test it using:
 
 ... which should print a help message.
 
+## Development
+
+For developers working on this project, we provide two task runners to simplify
+common development tasks:
+
+### Using Make
+
+The project includes a comprehensive `Makefile` with common tasks:
+
+```bash
+# Show all available tasks
+make help
+
+# Set up development environment
+make dev
+
+# Install dependencies
+make install-dev
+
+# Format code
+make format
+
+# Run linters
+make lint
+
+# Run tests
+make test
+
+# Run the CLI
+make run
+
+# Start web application
+make webapp
+
+# Build Docker images
+make docker-build
+```
+
+### Using Python Task Runner
+
+Alternatively, you can use the Python-based task runner:
+
+```bash
+# Show all available tasks
+python task.py help
+
+# Set up development environment
+python task.py dev
+
+# Install dependencies
+python task.py install-dev
+
+# Format code
+python task.py format
+
+# Run linters
+python task.py lint
+
+# Run tests
+python task.py test
+
+# Run the CLI
+python task.py run
+```
+
+Both task runners provide the same functionality - choose whichever you prefer.
+
 ### Using Docker
 
 If you prefer, you can use [Docker](http://docker.com) to install and run
