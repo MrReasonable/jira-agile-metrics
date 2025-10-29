@@ -28,7 +28,12 @@
 <form method="POST" action="/set_query" class="mb-4">
     <div class="form-group">
         <label for="user_query">Custom JQL Query</label>
-        <input type="text" class="form-control" id="user_query" name="user_query" placeholder="Enter JQL query" value="{{ session.user_query or '' }}">
+        <input type="text" class="form-control" id="user_query" name="user_query" 
+               placeholder="Enter JQL query" value="{{ session.user_query or '' }}"
+               maxlength="1000" pattern="[^<>]*" title="JQL query cannot contain HTML tags">
+        <small class="form-text text-muted">
+            Maximum 1000 characters. Only JQL syntax is allowed.
+        </small>
     </div>
     <button type="submit" class="btn btn-primary">Set Query</button>
     {% if session.user_query %}

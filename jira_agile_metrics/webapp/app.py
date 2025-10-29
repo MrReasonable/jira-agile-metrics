@@ -1,7 +1,14 @@
+"""Web application for Jira Agile Metrics.
+
+This module provides a Flask-based web interface for viewing and generating
+agile metrics from JIRA data.
+"""
+
 import contextlib
 import logging
 import os
 import os.path
+import secrets
 import shutil
 import tempfile
 import threading
@@ -21,12 +28,26 @@ from flask import (
     session,
     url_for,
 )
-from jira import JIRA
 from jira.exceptions import JIRAError
 
 from ..calculator import run_calculators
+from ..calculators.ageingwip import AgeingWIPChartCalculator
+from ..calculators.burnup import BurnupCalculator
+from ..calculators.cfd import CFDCalculator
+from ..calculators.cycletime import CycleTimeCalculator
+from ..calculators.debt import DebtCalculator
+from ..calculators.defects import DefectsCalculator
+from ..calculators.forecast import BurnupForecastCalculator
+from ..calculators.histogram import HistogramCalculator
+from ..calculators.impediments import ImpedimentsCalculator
+from ..calculators.netflow import NetFlowChartCalculator
+from ..calculators.percentiles import PercentilesCalculator
+from ..calculators.progressreport import ProgressReportCalculator
+from ..calculators.scatterplot import ScatterplotCalculator
+from ..calculators.waste import WasteCalculator
 from ..config import ConfigError, config_to_options
 from ..config_main import CALCULATORS
+from ..jira_client import create_jira_client
 from ..querymanager import QueryManager
 
 load_dotenv()
@@ -40,9 +61,21 @@ app = Flask(
     static_folder=static_folder,
 )
 
-app.jinja_loader = jinja2.PackageLoader(
-    "jira_agile_metrics.webapp", "templates"
-)
+
+# Add security headers
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses."""
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = (
+        "max-age=31536000; includeSubDomains"
+    )
+    return response
+
+
+app.jinja_loader = jinja2.PackageLoader("jira_agile_metrics.webapp", "templates")
 
 logger = logging.getLogger(__name__)
 
@@ -50,13 +83,21 @@ logger = logging.getLogger(__name__)
 results_cache = {}
 results_cache_lock = threading.Lock()
 
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "supersecretkey")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+if not app.secret_key:
+    logger.warning(
+        "FLASK_SECRET_KEY environment variable not set. "
+        "Using a random key for this session only. "
+        "Set FLASK_SECRET_KEY for production use."
+    )
+    app.secret_key = secrets.token_hex(32)
 
 
 # Helper to load config, create QueryManager, and run calculators
 def get_real_results():
+    """Load configuration and generate real results from JIRA data."""
     config_path = os.path.join(os.path.dirname(__file__), "../../config.yml")
-    with open(config_path) as f:
+    with open(config_path, encoding="utf-8") as f:
         config_data = f.read()
     options = config_to_options(config_data)
     # Only use credentials from config.yml, do not use env vars or prompt
@@ -79,9 +120,7 @@ def get_real_results():
             options["connection"]["Query"] = user_query
         options["settings"]["queries"] = [{"jql": user_query}]
     # Use a cache key based on connection, settings, and user_query
-    cache_key = (
-        str(options["connection"]) + str(options["settings"]) + str(user_query)
-    )
+    cache_key = str(options["connection"]) + str(options["settings"]) + str(user_query)
     now = time.time()
     with results_cache_lock:
         if cache_key in results_cache:
@@ -98,21 +137,20 @@ def get_real_results():
 
 @app.route("/")
 def index():
+    """Display the main index page."""
     return render_template("index.html")
 
 
 @app.route("/burnup-forecast")
 def burnup_forecast():
+    """Generate burnup forecast chart."""
     try:
         results = get_real_results()
-        from ..calculators.forecast import BurnupForecastCalculator
-
         chart_data = results[BurnupForecastCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Burnup Forecast Chart.", "warning")
             return render_template("burnup_forecast.html", script="", div="")
-        from bokeh.embed import components
-        from bokeh.plotting import figure
+        # Use already imported components and figure
 
         p = figure(
             title="Burnup Forecast Chart",
@@ -132,26 +170,24 @@ def burnup_forecast():
         p.yaxis.axis_label = "Items"
         script, div = components(p)
         return render_template("burnup_forecast.html", script=script, div=div)
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating burnup forecast: %s", e)
         flash(str(e), "danger")
         return render_template("burnup_forecast.html", script="", div="")
 
 
 @app.route("/burnup")
 def burnup_chart():
+    """Generate burnup chart."""
     try:
         results = get_real_results()
-        from ..calculators.burnup import BurnupCalculator
-
         chart_data = results[BurnupCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Burnup Chart.", "warning")
             return render_template(
                 "bokeh_chart.html", title="Burnup Chart", script="", div=""
             )
-        p = figure(
-            title="Burnup Chart", x_axis_type="datetime", width=800, height=400
-        )
+        p = figure(title="Burnup Chart", x_axis_type="datetime", width=800, height=400)
         for col in chart_data.columns:
             p.line(
                 chart_data.index,
@@ -166,7 +202,8 @@ def burnup_chart():
         return render_template(
             "bokeh_chart.html", title="Burnup Chart", script=script, div=div
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating burnup chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html", title="Burnup Chart", script="", div=""
@@ -175,10 +212,9 @@ def burnup_chart():
 
 @app.route("/cfd")
 def cfd_chart():
+    """Generate CFD (Cumulative Flow Diagram) chart."""
     try:
         results = get_real_results()
-        from ..calculators.cfd import CFDCalculator
-
         chart_data = results[CFDCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for CFD Chart.", "warning")
@@ -211,7 +247,8 @@ def cfd_chart():
             script=script,
             div=div,
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating CFD chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html",
@@ -223,10 +260,9 @@ def cfd_chart():
 
 @app.route("/histogram")
 def histogram_chart():
+    """Generate histogram chart."""
     try:
         results = get_real_results()
-        from ..calculators.histogram import HistogramCalculator
-
         chart_data = results[HistogramCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Cycle Time Histogram.", "warning")
@@ -242,9 +278,7 @@ def histogram_chart():
             width=800,
             height=400,
         )
-        p.vbar(
-            x=list(chart_data.index), top=list(chart_data.values), width=0.9
-        )
+        p.vbar(x=list(chart_data.index), top=list(chart_data.values), width=0.9)
         p.xaxis.axis_label = "Cycle Time Bin"
         p.yaxis.axis_label = "Items"
         script, div = components(p)
@@ -254,7 +288,8 @@ def histogram_chart():
             script=script,
             div=div,
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating histogram chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html", title="Cycle Time Histogram", script="", div=""
@@ -263,10 +298,9 @@ def histogram_chart():
 
 @app.route("/scatterplot")
 def scatterplot_chart():
+    """Generate scatterplot chart."""
     try:
         results = get_real_results()
-        from ..calculators.scatterplot import ScatterplotCalculator
-
         chart_data = results[ScatterplotCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Cycle Time Scatterplot.", "warning")
@@ -277,9 +311,7 @@ def scatterplot_chart():
                 div="",
             )
         p = figure(title="Cycle Time Scatterplot", width=800, height=400)
-        p.circle(
-            chart_data["x"], chart_data["y"], size=8, color="navy", alpha=0.5
-        )
+        p.circle(chart_data["x"], chart_data["y"], size=8, color="navy", alpha=0.5)
         p.xaxis.axis_label = "X"
         p.yaxis.axis_label = "Y"
         script, div = components(p)
@@ -289,7 +321,8 @@ def scatterplot_chart():
             script=script,
             div=div,
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating scatterplot chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html",
@@ -301,10 +334,9 @@ def scatterplot_chart():
 
 @app.route("/netflow")
 def netflow_chart():
+    """Generate netflow chart."""
     try:
         results = get_real_results()
-        from ..calculators.netflow import NetFlowChartCalculator
-
         chart_data = results[NetFlowChartCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Net Flow Chart.", "warning")
@@ -331,7 +363,8 @@ def netflow_chart():
         return render_template(
             "bokeh_chart.html", title="Net Flow Chart", script=script, div=div
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating netflow chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html", title="Net Flow Chart", script="", div=""
@@ -340,10 +373,9 @@ def netflow_chart():
 
 @app.route("/ageingwip")
 def ageingwip_chart():
+    """Generate ageing WIP chart."""
     try:
         results = get_real_results()
-        from ..calculators.ageingwip import AgeingWIPChartCalculator
-
         chart_data = results[AgeingWIPChartCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Ageing WIP Chart.", "warning")
@@ -370,7 +402,8 @@ def ageingwip_chart():
             script=script,
             div=div,
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating ageing WIP chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html", title="Ageing WIP Chart", script="", div=""
@@ -379,10 +412,9 @@ def ageingwip_chart():
 
 @app.route("/debt")
 def debt_chart():
+    """Generate debt chart."""
     try:
         results = get_real_results()
-        from ..calculators.debt import DebtCalculator
-
         chart_data = results[DebtCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Technical Debt Chart.", "warning")
@@ -413,7 +445,8 @@ def debt_chart():
             script=script,
             div=div,
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating debt chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html", title="Technical Debt Chart", script="", div=""
@@ -422,10 +455,9 @@ def debt_chart():
 
 @app.route("/debt-age")
 def debt_age_chart():
+    """Generate debt age chart."""
     try:
         results = get_real_results()
-        from ..calculators.debt import DebtCalculator
-
         chart_data = results[DebtCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Debt Age Chart.", "warning")
@@ -449,7 +481,8 @@ def debt_age_chart():
         return render_template(
             "bokeh_chart.html", title="Debt Age Chart", script=script, div=div
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating debt age chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html", title="Debt Age Chart", script="", div=""
@@ -458,10 +491,9 @@ def debt_age_chart():
 
 @app.route("/defects-priority")
 def defects_priority_chart():
+    """Generate defects priority chart."""
     try:
         results = get_real_results()
-        from ..calculators.defects import DefectsCalculator
-
         chart_data = results[DefectsCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Defects by Priority.", "warning")
@@ -491,7 +523,8 @@ def defects_priority_chart():
             script=script,
             div=div,
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating defects priority chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html", title="Defects by Priority", script="", div=""
@@ -500,10 +533,9 @@ def defects_priority_chart():
 
 @app.route("/defects-type")
 def defects_type_chart():
+    """Generate defects type chart."""
     try:
         results = get_real_results()
-        from ..calculators.defects import DefectsCalculator
-
         chart_data = results[DefectsCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Defects by Type.", "warning")
@@ -527,7 +559,8 @@ def defects_type_chart():
         return render_template(
             "bokeh_chart.html", title="Defects by Type", script=script, div=div
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating defects type chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html", title="Defects by Type", script="", div=""
@@ -536,10 +569,9 @@ def defects_type_chart():
 
 @app.route("/defects-environment")
 def defects_environment_chart():
+    """Generate defects environment chart."""
     try:
         results = get_real_results()
-        from ..calculators.defects import DefectsCalculator
-
         chart_data = results[DefectsCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Defects by Environment.", "warning")
@@ -569,7 +601,8 @@ def defects_environment_chart():
             script=script,
             div=div,
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating defects environment chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html",
@@ -581,10 +614,9 @@ def defects_environment_chart():
 
 @app.route("/impediments")
 def impediments_chart():
+    """Generate impediments chart."""
     try:
         results = get_real_results()
-        from ..calculators.impediments import ImpedimentsCalculator
-
         chart_data = results[ImpedimentsCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Impediments Chart.", "warning")
@@ -614,7 +646,8 @@ def impediments_chart():
             script=script,
             div=div,
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating impediments chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html", title="Impediments Chart", script="", div=""
@@ -623,10 +656,9 @@ def impediments_chart():
 
 @app.route("/waste")
 def waste_chart():
+    """Generate waste chart."""
     try:
         results = get_real_results()
-        from ..calculators.waste import WasteCalculator
-
         chart_data = results[WasteCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Waste Chart.", "warning")
@@ -650,7 +682,8 @@ def waste_chart():
         return render_template(
             "bokeh_chart.html", title="Waste Chart", script=script, div=div
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating waste chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html", title="Waste Chart", script="", div=""
@@ -659,16 +692,11 @@ def waste_chart():
 
 @app.route("/progress")
 def progress_chart():
+    """Generate progress chart."""
     try:
         results = get_real_results()
-        from ..calculators.progressreport import ProgressReportCalculator
-
         chart_data = results[ProgressReportCalculator]
-        if (
-            not chart_data
-            or "teams" not in chart_data
-            or len(chart_data["teams"]) == 0
-        ):
+        if not chart_data or "teams" not in chart_data or len(chart_data["teams"]) == 0:
             flash("No data available for Progress Report Chart.", "warning")
             return render_template(
                 "bokeh_chart.html",
@@ -691,7 +719,8 @@ def progress_chart():
             script=script,
             div=div,
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating progress chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html",
@@ -703,10 +732,9 @@ def progress_chart():
 
 @app.route("/percentiles")
 def percentiles_chart():
+    """Generate percentiles chart."""
     try:
         results = get_real_results()
-        from ..calculators.percentiles import PercentilesCalculator
-
         chart_data = results[PercentilesCalculator]
         if chart_data is None or len(chart_data) == 0:
             flash("No data available for Percentiles Chart.", "warning")
@@ -736,7 +764,8 @@ def percentiles_chart():
             script=script,
             div=div,
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating percentiles chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html", title="Percentiles Chart", script="", div=""
@@ -745,10 +774,9 @@ def percentiles_chart():
 
 @app.route("/cycletime")
 def cycletime_chart():
+    """Generate cycle time chart."""
     try:
         results = get_real_results()
-        from ..calculators.cycletime import CycleTimeCalculator
-
         chart_data = results[CycleTimeCalculator]
         if chart_data is None or len(chart_data.index) == 0:
             flash("No data available for Cycle Time Chart.", "warning")
@@ -775,7 +803,8 @@ def cycletime_chart():
             script=script,
             div=div,
         )
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError, ImportError) as e:
+        logger.error("Error generating cycle time chart: %s", e)
         flash(str(e), "danger")
         return render_template(
             "bokeh_chart.html", title="Cycle Time Chart", script="", div=""
@@ -784,7 +813,17 @@ def cycletime_chart():
 
 @app.route("/set_query", methods=["POST"])
 def set_query():
+    """Set custom JIRA query from user input."""
     user_query = request.form.get("user_query", "").strip()
+
+    # Validate input length to prevent potential issues
+    if len(user_query) > 1000:
+        flash("JQL query is too long. Maximum length is 1000 characters.", "danger")
+        return redirect(url_for("index"))
+
+    # Store the user query in session
+    # Note: XSS protection is handled by Flask/Jinja2 auto-escaping and the fact that
+    # the query is only used server-side to construct JQL API calls to JIRA.
     if user_query:
         session["user_query"] = user_query
         flash("Custom JQL query set!", "success")
@@ -835,26 +874,8 @@ def override_options(options, form):
 
 def get_jira_client(connection):
     """Create a JIRA client with the given connection options"""
-
-    url = connection["domain"] or os.environ.get("JIRA_URL")
-    username = connection["username"]
-    if not username:
-        username = os.environ.get("JIRA_USERNAME")
-    password = connection["password"]
-    if not password:
-        password = os.environ.get("JIRA_PASSWORD")
-    jira_client_options = connection["jira_client_options"]
-    jira_server_version_check = connection["jira_server_version_check"]
-
-    jira_options = {"server": url, "rest_api_version": 3}
-    jira_options.update(jira_client_options)
-
     try:
-        return JIRA(
-            jira_options,
-            basic_auth=(username, password),
-            get_server_info=jira_server_version_check,
-        )
+        return create_jira_client(connection)
     except JIRAError as e:
         if e.status_code == 401:
             raise ConfigError(
@@ -863,9 +884,8 @@ def get_jira_client(connection):
                     "Check URL and credentials, "
                     "and ensure the account is not locked."
                 )
-            )
-        else:
-            raise
+            ) from e
+        raise
 
 
 def get_archive(calculators, query_manager, settings):
@@ -883,7 +903,7 @@ def get_archive(calculators, query_manager, settings):
         run_calculators(calculators, query_manager, settings)
 
         with zipfile.ZipFile("metrics.zip", "w", zipfile.ZIP_STORED) as z:
-            for root, dirs, files in os.walk(temp_path):
+            for root, _dirs, files in os.walk(temp_path):
                 for file_name in files:
                     if file_name != "metrics.zip":
                         z.write(
