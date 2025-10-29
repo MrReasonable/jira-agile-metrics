@@ -1,9 +1,15 @@
+"""Base calculator class for Jira Agile Metrics.
+
+This module provides the base Calculator class and utilities for running
+calculators in sequence.
+"""
+
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class Calculator(object):
+class Calculator:
     """Base class for calculators."""
 
     def __init__(self, query_manager, settings, results):
@@ -55,7 +61,7 @@ def run_calculators(calculators, query_manager, settings):
         logger.info("Writing file for %s...", c.__class__.__name__)
         try:
             c.write()
-        except Exception:
+        except (IOError, OSError, ValueError, TypeError):
             logger.exception(
                 (
                     "Writing file for %s failed with a fatal error. "
