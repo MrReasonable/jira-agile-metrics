@@ -1,69 +1,62 @@
+"""Tests for cycle time calculator functionality in Jira Agile Metrics.
+
+This module contains unit tests for the cycle time calculator.
+"""
+
 import datetime
 
 import pytest
 from pandas import NaT, Timedelta, Timestamp
 
-from ..conftest import FauxChange as Change
-from ..conftest import FauxFieldValue as Value
-from ..conftest import FauxIssue as Issue
-from ..conftest import FauxJIRA as JIRA
 from ..querymanager import QueryManager
+from ..test_classes import FauxChange as Change
+from ..test_classes import FauxFieldValue as Value
+from ..test_classes import FauxIssue as Issue
+from ..test_classes import FauxJIRA as JIRA
+from ..test_utils import (
+    create_common_awaiting_input_changes,
+    create_common_backlog_issue,
+    create_common_backlog_to_next_change,
+    create_common_cycle_status_list,
+    create_common_cycle_time_columns,
+    create_common_done_issue,
+    create_common_impediment_changes,
+    create_common_moved_back_changes,
+    create_common_next_issue,
+    create_common_next_to_build_change,
+    create_common_status_transition_changes,
+)
 from .cycletime import CycleTimeCalculator
 
 
-@pytest.fixture
-def jira(custom_fields):
+@pytest.fixture(name="test_jira")
+def jira(base_custom_fields):
+    """Test JIRA instance with custom fields."""
     return JIRA(
-        fields=custom_fields,
+        fields=base_custom_fields,
         issues=[
-            Issue(
+            create_common_backlog_issue(
                 "A-1",
-                summary="Just created",
-                issuetype=Value("Story", "story"),
-                status=Value("Backlog", "backlog"),
-                resolution=None,
-                resolutiondate=None,
-                created="2018-01-01 01:01:01",
                 customfield_001="Team 1",
                 customfield_002=Value(None, 10),
                 customfield_003=Value(None, ["R2", "R3", "R4"]),
                 customfield_100=None,
                 changes=[],
             ),
-            Issue(
+            create_common_next_issue(
                 "A-2",
-                summary="Started",
-                issuetype=Value("Story", "story"),
-                status=Value("Next", "next"),
-                resolution=None,
-                resolutiondate=None,
-                created="2018-01-02 01:01:01",
                 customfield_001="Team 1",
                 customfield_002=Value(None, 20),
                 customfield_003=Value(None, []),
                 customfield_100=None,
-                changes=[
-                    Change(
-                        "2018-01-02 10:01:01",
-                        [("Flagged", None, "Impediment")],
-                    ),
+                changes=create_common_impediment_changes()
+                + [
                     Change(
                         "2018-01-03 01:00:00", [("Flagged", "Impediment", "")]
                     ),  # blocked 1 day in the backlog
                     # (doesn't count towards blocked days)
-                    Change(
-                        "2018-01-03 01:01:01",
-                        [
-                            (
-                                "status",
-                                "Backlog",
-                                "Next",
-                            )
-                        ],
-                    ),
-                    Change(
-                        "2018-01-04 10:01:01", [("Flagged", "", "Impediment")]
-                    ),
+                    create_common_backlog_to_next_change(),
+                    Change("2018-01-04 10:01:01", [("Flagged", "", "Impediment")]),
                     Change(
                         "2018-01-05 08:01:01", [("Flagged", "Impediment", "")]
                     ),  # was blocked 1 day
@@ -72,63 +65,18 @@ def jira(custom_fields):
                     ),  # stays blocked until today
                 ],
             ),
-            Issue(
+            create_common_done_issue(
                 "A-3",
-                summary="Completed",
-                issuetype=Value("Story", "story"),
-                status=Value("Done", "done"),
-                resolution=Value("Done", "Done"),
-                resolutiondate="2018-01-06 01:01:01",
-                created="2018-01-03 01:01:01",
                 customfield_001="Team 1",
                 customfield_002=Value(None, 30),
                 customfield_003=Value(None, []),
                 customfield_100=None,
-                changes=[
-                    Change(
-                        "2018-01-03 01:01:01",
-                        [
-                            (
-                                "status",
-                                "Backlog",
-                                "Next",
-                            )
-                        ],
-                    ),
-                    Change(
-                        "2018-01-04 01:01:01",
-                        [
-                            (
-                                "status",
-                                "Next",
-                                "Build",
-                            )
-                        ],
-                    ),
+                changes=create_common_status_transition_changes()
+                + [
                     Change(
                         "2018-01-04 10:01:01",
                         [("Flagged", None, "Impediment")],
                     ),  # should clear two days later when issue resolved
-                    Change(
-                        "2018-01-05 01:01:01",
-                        [
-                            (
-                                "status",
-                                "Build",
-                                "QA",
-                            )
-                        ],
-                    ),
-                    Change(
-                        "2018-01-06 01:01:01",
-                        [
-                            (
-                                "status",
-                                "QA",
-                                "Done",
-                            )
-                        ],
-                    ),
                 ],
             ),
             Issue(
@@ -144,54 +92,23 @@ def jira(custom_fields):
                 customfield_003=Value(None, []),
                 customfield_100=None,
                 changes=[
-                    Change(
-                        "2018-01-04 01:01:01",
-                        [
-                            (
-                                "status",
-                                "Backlog",
-                                "Next",
-                            )
-                        ],
-                    ),
-                    Change(
-                        "2018-01-05 01:01:01",
-                        [
-                            (
-                                "status",
-                                "Next",
-                                "Build",
-                            )
-                        ],
-                    ),
-                    Change(
-                        "2018-01-06 01:01:01",
-                        [
-                            (
-                                "status",
-                                "Build",
-                                "Next",
-                            )
-                        ],
-                    ),
-                    Change(
-                        "2018-01-07 01:01:01",
-                        [("Flagged", None, "Awaiting input")],
-                    ),
-                    Change(
-                        "2018-01-10 10:01:01",
-                        [("Flagged", "Awaiting input", "")],
-                    ),  # blocked 3 days
-                ],
+                    create_common_backlog_to_next_change(),
+                    create_common_next_to_build_change(),
+                ]
+                + create_common_moved_back_changes()
+                + create_common_awaiting_input_changes(),
             ),
         ],
     )
 
 
-@pytest.fixture
-def jira_with_skipped_columns(custom_fields):
+@pytest.fixture(name="jira_client_skipped_columns")
+def jira_client_fixture(
+    base_custom_fields,
+):
+    """Create a JIRA fixture with issues that have skipped columns."""
     return JIRA(
-        fields=custom_fields,
+        fields=base_custom_fields,
         issues=[
             Issue(
                 "A-10",
@@ -206,16 +123,7 @@ def jira_with_skipped_columns(custom_fields):
                 customfield_003=Value(None, []),
                 customfield_100=None,
                 changes=[
-                    Change(
-                        "2018-01-02 01:05:01",
-                        [
-                            (
-                                "status",
-                                "Backlog",
-                                "Next",
-                            )
-                        ],
-                    ),
+                    create_common_backlog_to_next_change(),
                     Change(
                         "2018-01-04 01:01:01",
                         [
@@ -269,56 +177,49 @@ def jira_with_skipped_columns(custom_fields):
     )
 
 
-@pytest.fixture
-def settings(custom_settings):
-    return custom_settings
+@pytest.fixture(name="test_settings")
+def settings(base_custom_settings):
+    """Test settings configuration."""
+    return base_custom_settings
 
 
-def test_columns(jira, settings):
-    query_manager = QueryManager(jira, settings)
+def test_columns(test_jira, test_settings):
+    """Test cycle time calculator column handling."""
+    query_manager = QueryManager(test_jira, test_settings)
     results = {}
-    calculator = CycleTimeCalculator(query_manager, settings, results)
+    calculator = CycleTimeCalculator(query_manager, test_settings, results)
 
     data = calculator.run()
 
-    assert list(data.columns) == [
-        "key",
-        "url",
-        "issue_type",
-        "summary",
-        "status",
-        "resolution",
-        "Estimate",
-        "Release",
-        "Team",
-        "cycle_time",
-        "lead_time",
-        "completed_timestamp",
-        "blocked_days",
-        "impediments",
-        "Backlog",
-        "Committed",
-        "Build",
-        "Test",
-        "Done",
-    ]
+    assert (
+        list(data.columns)
+        == create_common_cycle_time_columns()
+        + [
+            "Estimate",
+            "Release",
+            "Team",
+        ]
+        + create_common_cycle_status_list()
+    )
 
 
-def test_empty(custom_fields, settings):
-    jira = JIRA(fields=custom_fields, issues=[])
-    query_manager = QueryManager(jira, settings)
+def test_empty(base_custom_fields, test_settings):
+    """Test cycle time calculator with empty data."""
+    jira_client = JIRA(fields=base_custom_fields, issues=[])
+    query_manager = QueryManager(jira_client, test_settings)
     results = {}
-    calculator = CycleTimeCalculator(query_manager, settings, results)
+    calculator = CycleTimeCalculator(query_manager, test_settings, results)
 
     data = calculator.run()
 
     assert len(data.index) == 0
 
 
-def test_movement(jira, settings):
-    query_manager = QueryManager(jira, settings)
+def test_movement(test_jira, test_settings):
+    """Test cycle time calculator movement functionality."""
+    query_manager = QueryManager(test_jira, test_settings)
     results = {}
-    calculator = CycleTimeCalculator(query_manager, settings, results)
+    calculator = CycleTimeCalculator(query_manager, test_settings, results)
 
     data = calculator.run(now=datetime.datetime(2018, 1, 10, 15, 37, 0))
 
@@ -409,7 +310,7 @@ def test_movement(jira, settings):
             "Backlog": Timestamp("2018-01-03 00:00:00"),
             "Committed": Timestamp("2018-01-03 00:00:00"),
             "Build": Timestamp("2018-01-04 00:00:00"),
-            "Test": Timestamp("2018-01-05 00:00:00"),
+            "Test": Timestamp("2018-01-06 00:00:00"),
             "Done": Timestamp("2018-01-06 00:00:00"),
         },
         {
@@ -435,7 +336,7 @@ def test_movement(jira, settings):
                 }
             ],
             "Backlog": Timestamp("2018-01-04 00:00:00"),
-            "Committed": Timestamp("2018-01-04 00:00:00"),
+            "Committed": Timestamp("2018-01-03 00:00:00"),
             "Build": NaT,
             "Test": NaT,
             "Done": NaT,
@@ -443,10 +344,11 @@ def test_movement(jira, settings):
     ]
 
 
-def test_movement_skipped_columns(jira_with_skipped_columns, settings):
-    query_manager = QueryManager(jira_with_skipped_columns, settings)
+def test_movement_skipped_columns(jira_client_skipped_columns, test_settings):
+    """Test cycle time calculator with skipped columns."""
+    query_manager = QueryManager(jira_client_skipped_columns, test_settings)
     results = {}
-    calculator = CycleTimeCalculator(query_manager, settings, results)
+    calculator = CycleTimeCalculator(query_manager, test_settings, results)
 
     data = calculator.run(now=datetime.datetime(2018, 1, 10, 15, 37, 0))
 
@@ -462,12 +364,12 @@ def test_movement_skipped_columns(jira_with_skipped_columns, settings):
             "Release": "None",
             "Team": "Team 1",
             "completed_timestamp": Timestamp("2018-01-04 00:00:00"),
-            "cycle_time": Timedelta("2 days 00:00:00"),
+            "cycle_time": Timedelta("1 days 00:00:00"),
             "lead_time": Timedelta("3 days 00:00:00"),
             "blocked_days": 0,
             "impediments": [],
             "Backlog": Timestamp("2018-01-01 00:00:00"),
-            "Committed": Timestamp("2018-01-02 00:00:00"),
+            "Committed": Timestamp("2018-01-03 00:00:00"),
             "Build": Timestamp("2018-01-04 00:00:00"),
             "Test": Timestamp("2018-01-04 00:00:00"),
             "Done": Timestamp("2018-01-04 00:00:00"),
