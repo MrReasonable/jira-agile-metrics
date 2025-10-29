@@ -1,12 +1,16 @@
+"""Configuration module for Jira Agile Metrics.
+
+This module handles loading and processing configuration files for the metrics
+calculations.
+"""
+
 import logging
 
 from .calculators.ageingwip import AgeingWIPChartCalculator
+from .calculators.bottleneck_charts_calculator import BottleneckChartsCalculator
 from .calculators.burnup import BurnupCalculator
 from .calculators.cfd import CFDCalculator
-from .calculators.cycletime import (
-    BottleneckChartsCalculator,
-    CycleTimeCalculator,
-)
+from .calculators.cycletime import CycleTimeCalculator
 from .calculators.debt import DebtCalculator
 from .calculators.defects import DefectsCalculator
 from .calculators.forecast import BurnupForecastCalculator

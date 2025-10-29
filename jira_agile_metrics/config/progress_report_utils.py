@@ -1,3 +1,8 @@
+"""Progress report utilities for Jira Agile Metrics.
+
+This module provides utilities for processing progress report configuration data.
+"""
+
 from typing import Any, Dict, List
 
 from .type_utils import expand_key, force_date, force_int
@@ -9,9 +14,7 @@ def to_progress_report_teams_list(value: Any) -> List[Dict]:
     """
     return [
         {
-            "name": (
-                val[expand_key("name")] if expand_key("name") in val else None
-            ),
+            "name": (val[expand_key("name")] if expand_key("name") in val else None),
             "wip": (
                 force_int("wip", val[expand_key("wip")])
                 if expand_key("wip") in val
@@ -51,12 +54,8 @@ def to_progress_report_outcomes_list(value: Any) -> List[Dict]:
     """
     return [
         {
-            "name": (
-                val[expand_key("name")] if expand_key("name") in val else None
-            ),
-            "key": (
-                val[expand_key("key")] if expand_key("key") in val else None
-            ),
+            "name": (val[expand_key("name")] if expand_key("name") in val else None),
+            "key": (val[expand_key("key")] if expand_key("key") in val else None),
             "deadline": (
                 force_date("deadline", val[expand_key("deadline")])
                 if expand_key("deadline") in val
