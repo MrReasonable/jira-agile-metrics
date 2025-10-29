@@ -1,3 +1,9 @@
+"""Tests for utility functions in Jira Agile Metrics.
+
+This module contains unit tests for the utility functions used across the metrics
+calculations.
+"""
+
 import datetime
 
 import numpy as np
@@ -15,10 +21,12 @@ from .utils import (
 
 
 def test_extend_dict():
+    """Test extend_dict function."""
     assert extend_dict({"one": 1}, {"two": 2}) == {"one": 1, "two": 2}
 
 
 def test_get_extension():
+    """Test get_extension function."""
     assert get_extension("foo.csv") == ".csv"
     assert get_extension("/path/to/foo.csv") == ".csv"
     assert get_extension("\\path\\to\\foo.csv") == ".csv"
@@ -27,6 +35,7 @@ def test_get_extension():
 
 
 def test_to_json_string():
+    """Test to_json_string functionality."""
     assert to_json_string(1) == "1"
     assert to_json_string("foo") == "foo"
     assert to_json_string(None) == ""
@@ -36,11 +45,13 @@ def test_to_json_string():
 
 
 def test_to_days_since_epoch():
+    """Test to_days_since_epoch functionality."""
     assert to_days_since_epoch(datetime.date(1970, 1, 1)) == 0
     assert to_days_since_epoch(datetime.date(1970, 1, 15)) == 14
 
 
 def test_breakdown_by_month():
+    """Test breakdown_by_month functionality."""
     df = pd.DataFrame(
         [
             {
@@ -84,7 +95,14 @@ def test_breakdown_by_month():
     )
 
     breakdown = breakdown_by_month(
-        df, "start", "end", "key", "priority", ["low", "med", "high"]
+        df,
+        {
+            "start_column": "start",
+            "end_column": "end",
+            "key_column": "key",
+            "value_column": "priority",
+            "output_columns": ["low", "med", "high"],
+        },
     )
     assert list(breakdown.columns) == ["med", "high"]
 
@@ -101,6 +119,7 @@ def test_breakdown_by_month():
 
 
 def test_breakdown_by_month_open_ended():
+    """Test breakdown_by_month with open-ended data."""
     df = pd.DataFrame(
         [
             {
@@ -144,7 +163,14 @@ def test_breakdown_by_month_open_ended():
     )
 
     breakdown = breakdown_by_month(
-        df, "start", "end", "key", "priority", ["low", "med", "high"]
+        df,
+        {
+            "start_column": "start",
+            "end_column": "end",
+            "key_column": "key",
+            "value_column": "priority",
+            "output_columns": ["low", "med", "high"],
+        },
     )
     assert list(breakdown.columns) == ["med", "high"]
 
@@ -168,6 +194,7 @@ def test_breakdown_by_month_open_ended():
 
 
 def test_breakdown_by_month_no_column_spec():
+    """Test breakdown_by_month without column specification."""
     df = pd.DataFrame(
         [
             {
@@ -210,7 +237,15 @@ def test_breakdown_by_month_no_column_spec():
         columns=["key", "priority", "start", "end"],
     )
 
-    breakdown = breakdown_by_month(df, "start", "end", "key", "priority")
+    breakdown = breakdown_by_month(
+        df,
+        {
+            "start_column": "start",
+            "end_column": "end",
+            "key_column": "key",
+            "value_column": "priority",
+        },
+    )
     assert list(breakdown.columns) == ["high", "med"]  # alphabetical
 
     assert list(breakdown.index) == [
@@ -226,6 +261,7 @@ def test_breakdown_by_month_no_column_spec():
 
 
 def test_breakdown_by_month_none_values():
+    """Test breakdown_by_month with None values."""
     df = pd.DataFrame(
         [
             {
@@ -268,7 +304,15 @@ def test_breakdown_by_month_none_values():
         columns=["key", "priority", "start", "end"],
     )
 
-    breakdown = breakdown_by_month(df, "start", "end", "key", "priority")
+    breakdown = breakdown_by_month(
+        df,
+        {
+            "start_column": "start",
+            "end_column": "end",
+            "key_column": "key",
+            "value_column": "priority",
+        },
+    )
     assert list(breakdown.columns) == [None]
 
     assert list(breakdown.index) == [
@@ -280,6 +324,7 @@ def test_breakdown_by_month_none_values():
 
 
 def test_breakdown_by_month_sum_days():
+    """Test breakdown_by_month_sum_days functionality."""
     df = pd.DataFrame(
         [
             {
@@ -317,7 +362,13 @@ def test_breakdown_by_month_sum_days():
     )
 
     breakdown = breakdown_by_month_sum_days(
-        df, "start", "end", "priority", ["low", "med", "high"]
+        df,
+        {
+            "start_column": "start",
+            "end_column": "end",
+            "value_column": "priority",
+            "output_columns": ["low", "med", "high"],
+        },
     )
     assert list(breakdown.columns) == ["med", "high"]
 
@@ -335,6 +386,7 @@ def test_breakdown_by_month_sum_days():
 
 
 def test_breakdown_by_month_sum_days_no_column_spec():
+    """Test breakdown_by_month_sum_days without column specification."""
     df = pd.DataFrame(
         [
             {
@@ -371,7 +423,9 @@ def test_breakdown_by_month_sum_days_no_column_spec():
         columns=["key", "priority", "start", "end"],
     )
 
-    breakdown = breakdown_by_month_sum_days(df, "start", "end", "priority")
+    breakdown = breakdown_by_month_sum_days(
+        df, {"start_column": "start", "end_column": "end", "value_column": "priority"}
+    )
     assert list(breakdown.columns) == ["high", "med"]  # alphabetical
 
     assert list(breakdown.index) == [
@@ -388,6 +442,7 @@ def test_breakdown_by_month_sum_days_no_column_spec():
 
 
 def test_breakdown_by_month_sum_day_open_ended():
+    """Test breakdown_by_month_sum_days with open-ended data."""
     df = pd.DataFrame(
         [
             {
@@ -425,7 +480,13 @@ def test_breakdown_by_month_sum_day_open_ended():
     )
 
     breakdown = breakdown_by_month_sum_days(
-        df, "start", "end", "priority", ["low", "med", "high"]
+        df,
+        {
+            "start_column": "start",
+            "end_column": "end",
+            "value_column": "priority",
+            "output_columns": ["low", "med", "high"],
+        },
     )
     assert list(breakdown.columns) == ["med", "high"]
 
@@ -449,6 +510,7 @@ def test_breakdown_by_month_sum_day_open_ended():
 
 
 def test_breakdown_by_month_sum_days_none_values():
+    """Test breakdown_by_month_sum_days with None values."""
     df = pd.DataFrame(
         [
             {
@@ -485,7 +547,9 @@ def test_breakdown_by_month_sum_days_none_values():
         columns=["key", "priority", "start", "end"],
     )
 
-    breakdown = breakdown_by_month_sum_days(df, "start", "end", "priority")
+    breakdown = breakdown_by_month_sum_days(
+        df, {"start_column": "start", "end_column": "end", "value_column": "priority"}
+    )
     assert set(breakdown.columns) == set([None, "med"])
 
     assert list(breakdown.index) == [
@@ -502,6 +566,7 @@ def test_breakdown_by_month_sum_days_none_values():
 
 
 def test_to_bin():
+    """Test to_bin functionality."""
     assert to_bin(0, [10, 20, 30]) == (0, 10)
     assert to_bin(9, [10, 20, 30]) == (0, 10)
     assert to_bin(10, [10, 20, 30]) == (0, 10)
