@@ -1,33 +1,41 @@
+"""Tests for scatterplot calculator functionality in Jira Agile Metrics.
+
+This module contains unit tests for the scatterplot calculator.
+"""
+
 import pandas as pd
 import pytest
-from pandas import DataFrame, Timestamp
+from pandas import Timestamp
 
+from ..test_utils import (
+    create_empty_test_results,
+    create_scatterplot_expected_columns,
+)
 from ..utils import extend_dict
-from .cycletime import CycleTimeCalculator
 from .scatterplot import ScatterplotCalculator
 
 
-@pytest.fixture
-def settings(minimal_settings):
-    return extend_dict(minimal_settings, {})
+@pytest.fixture(name="settings")
+def fixture_settings(base_minimal_settings):
+    """Provide settings fixture for scatterplot tests."""
+    return extend_dict(base_minimal_settings, {})
 
 
-@pytest.fixture
-def query_manager(minimal_query_manager):
-    return minimal_query_manager
+@pytest.fixture(name="query_manager")
+def fixture_query_manager(custom_query_manager):
+    """Provide query manager fixture for scatterplot tests."""
+    return custom_query_manager
 
 
-@pytest.fixture
-def results(large_cycle_time_results):
-    return extend_dict(large_cycle_time_results, {})
+@pytest.fixture(name="results")
+def fixture_results(large_cycle_time_results):
+    """Provide results fixture for scatterplot tests."""
+    return large_cycle_time_results
 
 
-def test_empty(query_manager, settings, minimal_cycle_time_columns):
-    results = {
-        CycleTimeCalculator: DataFrame(
-            [], columns=minimal_cycle_time_columns, index=[]
-        )
-    }
+def test_empty(query_manager, settings, base_minimal_cycle_time_columns):
+    """Test scatterplot calculator with empty data."""
+    results = create_empty_test_results(base_minimal_cycle_time_columns)
 
     calculator = ScatterplotCalculator(query_manager, settings, results)
 
@@ -41,75 +49,29 @@ def test_empty(query_manager, settings, minimal_cycle_time_columns):
 
 
 def test_columns(query_manager, settings, results):
+    """Test scatterplot calculator column structure."""
     calculator = ScatterplotCalculator(query_manager, settings, results)
 
     data = calculator.run()
 
-    assert list(data.columns) == [
-        "completed_date",
-        "cycle_time",
-        "blocked_days",
-        "key",
-        "url",
-        "issue_type",
-        "summary",
-        "status",
-        "resolution",
-        "lead_time",
-        "Backlog",
-        "Committed",
-        "Build",
-        "Test",
-        "Done",
-    ]
+    assert list(data.columns) == create_scatterplot_expected_columns()
 
 
 def test_calculate_scatterplot(query_manager, settings, results):
+    """Test scatterplot calculation functionality."""
     calculator = ScatterplotCalculator(query_manager, settings, results)
 
     data = calculator.run()
 
-    assert data[["key", "completed_date", "cycle_time"]].to_dict(
-        "records"
-    ) == [
+    assert data[["key", "completed_date", "cycle_time"]].to_dict("records") == [
         {
-            "key": "A-13",
-            "completed_date": Timestamp("2018-01-07 00:00:00"),
-            "cycle_time": 5,
-        },
-        {
-            "key": "A-14",
-            "completed_date": Timestamp("2018-01-07 00:00:00"),
-            "cycle_time": 5,
-        },
-        {
-            "key": "A-15",
-            "completed_date": Timestamp("2018-01-08 00:00:00"),
-            "cycle_time": 5,
-        },
-        {
-            "key": "A-16",
-            "completed_date": Timestamp("2018-01-08 00:00:00"),
-            "cycle_time": 5,
-        },
-        {
-            "key": "A-17",
-            "completed_date": Timestamp("2018-01-09 00:00:00"),
-            "cycle_time": 5,
-        },
-        {
-            "key": "A-18",
-            "completed_date": Timestamp("2018-01-09 00:00:00"),
-            "cycle_time": 4,
-        },
-        {
-            "key": "A-19",
-            "completed_date": Timestamp("2018-01-09 00:00:00"),
+            "key": "A-3",
+            "completed_date": Timestamp("2018-01-06 00:00:00"),
             "cycle_time": 3,
         },
         {
-            "key": "A-20",
-            "completed_date": Timestamp("2018-01-09 00:00:00"),
-            "cycle_time": 2,
+            "key": "A-5",
+            "completed_date": Timestamp("2018-01-08 00:00:00"),
+            "cycle_time": 3,
         },
     ]

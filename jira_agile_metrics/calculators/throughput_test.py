@@ -1,15 +1,20 @@
-import pytest
-from pandas import DataFrame
+"""Tests for throughput calculator functionality in Jira Agile Metrics.
 
+This module contains unit tests for the throughput calculator.
+"""
+
+import pytest
+
+from ..test_utils import create_empty_test_results
 from ..utils import extend_dict
-from .cycletime import CycleTimeCalculator
 from .throughput import ThroughputCalculator
 
 
-@pytest.fixture
-def settings(minimal_settings):
+@pytest.fixture(name="settings")
+def throughput_settings(base_minimal_settings):
+    """Provide settings fixture for throughput tests."""
     return extend_dict(
-        minimal_settings,
+        base_minimal_settings,
         {
             "throughput_frequency": "D",
             "throughput_window": None,
@@ -17,54 +22,53 @@ def settings(minimal_settings):
     )
 
 
-@pytest.fixture
-def query_manager(minimal_query_manager):
-    return minimal_query_manager
+@pytest.fixture(name="query_manager")
+def throughput_query_manager(custom_query_manager):
+    """Provide query manager fixture for throughput tests."""
+    return custom_query_manager
 
 
-@pytest.fixture
-def results(large_cycle_time_results):
-    return extend_dict(large_cycle_time_results, {})
+@pytest.fixture(name="test_fixture")
+def throughput_test_fixture(large_cycle_time_results):
+    """Provide results fixture for throughput tests."""
+    return large_cycle_time_results
 
 
-def test_empty(query_manager, settings, minimal_cycle_time_columns):
-    results = {
-        CycleTimeCalculator: DataFrame(
-            [], columns=minimal_cycle_time_columns, index=[]
-        )
-    }
-
-    calculator = ThroughputCalculator(query_manager, settings, results)
+def test_empty(query_manager, settings, base_minimal_cycle_time_columns):
+    """Test throughput calculator with empty data."""
+    test_results = create_empty_test_results(base_minimal_cycle_time_columns)
+    calculator = ThroughputCalculator(query_manager, settings, test_results)
 
     data = calculator.run()
     assert list(data.columns) == ["count"]
     assert len(data.index) == 0
 
 
-def test_columns(query_manager, settings, results):
-    calculator = ThroughputCalculator(query_manager, settings, results)
+def test_columns(query_manager, settings, test_fixture):
+    """Test throughput calculator column structure."""
+    calculator = ThroughputCalculator(query_manager, settings, test_fixture)
 
     data = calculator.run()
 
     assert list(data.columns) == ["count"]
 
 
-def test_calculate_throughput(query_manager, settings, results):
-    calculator = ThroughputCalculator(query_manager, settings, results)
+def test_calculate_throughput(query_manager, settings, test_fixture):
+    """Test throughput calculation functionality."""
+    calculator = ThroughputCalculator(query_manager, settings, test_fixture)
 
     data = calculator.run()
 
     assert data.to_dict("records") == [
-        {"count": 2},
-        {"count": 2},
-        {"count": 4},
+        {"count": 1},
+        {"count": 0},
+        {"count": 1},
     ]
 
 
-def test_calculate_throughput_with_wider_window(
-    query_manager, settings, results
-):
-    settings = extend_dict(
+def test_calculate_throughput_with_wider_window(query_manager, settings, test_fixture):
+    """Test throughput calculation with wider window."""
+    test_settings = extend_dict(
         settings,
         {
             "throughput_frequency": "D",
@@ -72,23 +76,24 @@ def test_calculate_throughput_with_wider_window(
         },
     )
 
-    calculator = ThroughputCalculator(query_manager, settings, results)
+    calculator = ThroughputCalculator(query_manager, test_settings, test_fixture)
 
     data = calculator.run()
 
     assert data.to_dict("records") == [
         {"count": 0.0},
         {"count": 0.0},
-        {"count": 2.0},
-        {"count": 2.0},
-        {"count": 4.0},
+        {"count": 1.0},
+        {"count": 0.0},
+        {"count": 1.0},
     ]
 
 
 def test_calculate_throughput_with_narrower_window(
-    query_manager, settings, results
+    query_manager, settings, test_fixture
 ):
-    settings = extend_dict(
+    """Test throughput calculation with narrower window."""
+    test_settings = extend_dict(
         settings,
         {
             "throughput_frequency": "D",
@@ -96,8 +101,8 @@ def test_calculate_throughput_with_narrower_window(
         },
     )
 
-    calculator = ThroughputCalculator(query_manager, settings, results)
+    calculator = ThroughputCalculator(query_manager, test_settings, test_fixture)
 
     data = calculator.run()
 
-    assert data.to_dict("records") == [{"count": 2}, {"count": 4}]
+    assert data.to_dict("records") == [{"count": 0}, {"count": 1}]

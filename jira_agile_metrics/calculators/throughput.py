@@ -1,3 +1,8 @@
+"""Throughput calculator for Jira Agile Metrics.
+
+This module provides functionality to calculate throughput metrics from JIRA data.
+"""
+
 import logging
 
 import matplotlib.pyplot as plt
@@ -5,7 +10,8 @@ import pandas as pd
 from scipy import stats
 
 from ..calculator import Calculator
-from ..utils import get_extension, set_chart_style
+from ..chart_styling_utils import set_chart_style
+from ..utils import get_extension
 from .cycletime import CycleTimeCalculator
 
 logger = logging.getLogger(__name__)
@@ -41,6 +47,7 @@ class ThroughputCalculator(Calculator):
             logger.debug("No output file specified for throughput chart")
 
     def write_file(self, data, output_files):
+        """Write throughput data to output files."""
         for output_file in output_files:
             output_extension = get_extension(output_file)
 
@@ -53,12 +60,11 @@ class ThroughputCalculator(Calculator):
                 data.to_csv(output_file, header=True)
 
     def write_chart(self, data, output_file):
+        """Write throughput chart to output file."""
         chart_data = data.copy()
 
         if len(chart_data.index) == 0:
-            logger.warning(
-                "Cannot draw throughput chart with no completed items"
-            )
+            logger.warning("Cannot draw throughput chart with no completed items")
             return
 
         fig, ax = plt.subplots()
@@ -73,7 +79,7 @@ class ThroughputCalculator(Calculator):
         # Fit a linear regression using scipy.stats.linregress
         # (http://stackoverflow.com/questions/29960917/
         # timeseries-fitted-values-from-trend-python)
-        slope, intercept, r_value, p_value, std_err = stats.linregress(
+        slope, intercept, _, _, _ = stats.linregress(
             chart_data["day"], chart_data["count"]
         )
         chart_data["fitted"] = slope * chart_data["day"] + intercept
@@ -86,10 +92,7 @@ class ThroughputCalculator(Calculator):
         ax.plot(chart_data.index, chart_data["count"], marker="o")
         plt.xticks(
             chart_data.index,
-            [
-                d.date().strftime(self.settings["date_format"])
-                for d in chart_data.index
-            ],
+            [d.date().strftime(self.settings["date_format"]) for d in chart_data.index],
             rotation=70,
             size="small",
         )
@@ -101,7 +104,7 @@ class ThroughputCalculator(Calculator):
             if y == 0:
                 continue
             ax.annotate(
-                "%.0f" % y,
+                f"{y:.0f}",
                 xy=(x, y + 0.2),
                 ha="center",
                 va="bottom",
@@ -119,12 +122,23 @@ class ThroughputCalculator(Calculator):
 
 
 def calculate_throughput(cycle_data, frequency, window=None):
+    """Calculate throughput from cycle data."""
     if len(cycle_data.index) == 0:
         return pd.DataFrame([], columns=["count"], index=[])
 
+    # Check if completed_timestamp column exists and has datetime data
+    if "completed_timestamp" not in cycle_data.columns:
+        return pd.DataFrame([], columns=["count"], index=[])
+
+    completed_data = cycle_data[["completed_timestamp", "key"]].dropna(
+        subset=["completed_timestamp"]
+    )
+
+    if len(completed_data.index) == 0:
+        return pd.DataFrame([], columns=["count"], index=[])
+
     throughput = (
-        cycle_data[["completed_timestamp", "key"]]
-        .rename(columns={"key": "count"})
+        completed_data.rename(columns={"key": "count"})
         .groupby("completed_timestamp")
         .count()
         .resample(frequency)
