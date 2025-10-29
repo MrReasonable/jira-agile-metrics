@@ -1,21 +1,26 @@
+"""Impediments calculator for Jira Agile Metrics.
+
+This module provides functionality to calculate impediments metrics from JIRA data.
+"""
+
 import logging
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from ..calculator import Calculator
+from ..chart_styling_utils import set_chart_style
 from ..utils import (
     breakdown_by_month,
     breakdown_by_month_sum_days,
     get_extension,
-    set_chart_style,
 )
+from .base_calculator import BaseCalculator
 from .cycletime import CycleTimeCalculator
 
 logger = logging.getLogger(__name__)
 
 
-class ImpedimentsCalculator(Calculator):
+class ImpedimentsCalculator(BaseCalculator):
     """Calculate impediments, charted by month and workflow status,
     either as a count of tickets that were blocked in that month,
     or as a sum of the total number of days of blockage for all
@@ -44,23 +49,14 @@ class ImpedimentsCalculator(Calculator):
             return None
 
         cycle_data = self.get_result(CycleTimeCalculator)
-        cycle_data = cycle_data[cycle_data.blocked_days > 0][
-            ["key", "impediments"]
-        ]
+        cycle_data = cycle_data[cycle_data.blocked_days > 0][["key", "impediments"]]
 
         data = []
 
-        cycle_names = [s["name"] for s in self.settings["cycle"]]
-        committed_column = self.settings["committed_column"]
-        done_column = self.settings["done_column"]
-        active_columns = cycle_names[
-            cycle_names.index(committed_column) : cycle_names.index(
-                done_column
-            )
-        ]
+        active_columns = self.get_active_cycle_columns()
 
         for row in cycle_data.itertuples():
-            for idx, event in enumerate(row.impediments):
+            for _, event in enumerate(row.impediments):
                 # Ignore things that were impeded whilst
                 # in the backlog and/or done column
                 # (these are mostly nonsensical,
@@ -74,17 +70,11 @@ class ImpedimentsCalculator(Calculator):
                         "status": event["status"],
                         "flag": event["flag"],
                         "start": pd.Timestamp(event["start"]),
-                        "end": (
-                            pd.Timestamp(event["end"])
-                            if event["end"]
-                            else pd.NaT
-                        ),
+                        "end": (pd.Timestamp(event["end"]) if event["end"] else pd.NaT),
                     }
                 )
 
-        return pd.DataFrame(
-            data, columns=["key", "status", "flag", "start", "end"]
-        )
+        return pd.DataFrame(data, columns=["key", "status", "flag", "start", "end"])
 
     def write(self):
         data = self.get_result()
@@ -95,9 +85,7 @@ class ImpedimentsCalculator(Calculator):
             self.write_data(data, self.settings["impediments_data"])
 
         if self.settings["impediments_chart"]:
-            self.write_impediments_chart(
-                data, self.settings["impediments_chart"]
-            )
+            self.write_impediments_chart(data, self.settings["impediments_chart"])
 
         if self.settings["impediments_days_chart"]:
             self.write_impediments_days_chart(
@@ -115,6 +103,7 @@ class ImpedimentsCalculator(Calculator):
             )
 
     def write_data(self, data, output_files):
+        """Write impediments data to output files."""
         for output_file in output_files:
             output_extension = get_extension(output_file)
 
@@ -132,13 +121,20 @@ class ImpedimentsCalculator(Calculator):
                 )
 
     def write_impediments_chart(self, chart_data, output_file):
+        """Write impediments chart showing impediment trends over time."""
         if len(chart_data.index) == 0:
             logger.warning("Cannot draw impediments chart with zero items")
             return
 
         window = self.settings["impediments_window"]
         breakdown = breakdown_by_month(
-            chart_data, "start", "end", "key", "flag"
+            chart_data,
+            {
+                "start_column": "start",
+                "end_column": "end",
+                "key_column": "key",
+                "value_column": "flag",
+            },
         )
 
         if window:
@@ -170,15 +166,15 @@ class ImpedimentsCalculator(Calculator):
         plt.close(fig)
 
     def write_impediments_days_chart(self, chart_data, output_file):
+        """Write impediments days chart to output file."""
         if len(chart_data.index) == 0:
-            logger.warning(
-                "Cannot draw impediments days chart with zero items"
-            )
+            logger.warning("Cannot draw impediments days chart with zero items")
             return
 
         window = self.settings["impediments_window"]
         breakdown = breakdown_by_month_sum_days(
-            chart_data, "start", "end", "flag"
+            chart_data,
+            {"start_column": "start", "end_column": "end", "value_column": "flag"},
         )
 
         if window:
@@ -210,26 +206,30 @@ class ImpedimentsCalculator(Calculator):
         plt.close(fig)
 
     def write_impediments_status_chart(self, chart_data, output_file):
+        """Write impediments status chart to output file."""
         if len(chart_data.index) == 0:
-            logger.warning(
-                "Cannot draw impediments status chart with zero items"
-            )
+            logger.warning("Cannot draw impediments status chart with zero items")
             return
 
         window = self.settings["impediments_window"]
         cycle_names = [s["name"] for s in self.settings["cycle"]]
 
         breakdown = breakdown_by_month(
-            chart_data, "start", "end", "key", "status", cycle_names
+            chart_data,
+            {
+                "start_column": "start",
+                "end_column": "end",
+                "key_column": "key",
+                "value_column": "status",
+                "output_columns": cycle_names,
+            },
         )
 
         if window:
             breakdown = breakdown[-window:]
 
         if len(breakdown.index) == 0:
-            logger.warning(
-                "Cannot draw impediments status chart with zero items"
-            )
+            logger.warning("Cannot draw impediments status chart with zero items")
             return
 
         fig, ax = plt.subplots()
@@ -254,26 +254,29 @@ class ImpedimentsCalculator(Calculator):
         plt.close(fig)
 
     def write_impediments_status_days_chart(self, chart_data, output_file):
+        """Write impediments status days chart to output file."""
         if len(chart_data.index) == 0:
-            logger.warning(
-                "Cannot draw impediments status days chart with zero items"
-            )
+            logger.warning("Cannot draw impediments status days chart with zero items")
             return
 
         window = self.settings["impediments_window"]
         cycle_names = [s["name"] for s in self.settings["cycle"]]
 
         breakdown = breakdown_by_month_sum_days(
-            chart_data, "start", "end", "status", cycle_names
+            chart_data,
+            {
+                "start_column": "start",
+                "end_column": "end",
+                "value_column": "status",
+                "output_columns": cycle_names,
+            },
         )
 
         if window:
             breakdown = breakdown[-window:]
 
         if len(breakdown.index) == 0:
-            logger.warning(
-                "Cannot draw impediments status days chart with zero items"
-            )
+            logger.warning("Cannot draw impediments status days chart with zero items")
             return
 
         fig, ax = plt.subplots()
