@@ -1271,6 +1271,8 @@ These options affect multiple charts and files.
 - `Final column: <name>` – Name of the final 'work' column. Defaults to the
    penultimate column.
 - `Done column: <name>` – Name of the 'done' column. Defaults to the last column.
+ - `Bottleneck max issues: <number>` – Maximum number of issues to include in the
+   per-issue bottleneck stacked chart. Must be a positive integer. Defaults to 30.
 
 ### Data files
 
