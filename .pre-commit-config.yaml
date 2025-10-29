@@ -1,9 +1,19 @@
 repos:
-  - repo: https://github.com/psf/black
-    rev: stable
+  # Ruff - fast Python linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.2
     hooks:
-      - id: black
-  - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.7.9
+      - id: ruff
+        args: ['--select=E,F,W,I']
+      - id: ruff-format
+
+  # Pytest - run tests
+  - repo: local
     hooks:
-    - id: flake8
+      - id: pytest
+        name: pytest
+        entry: pytest
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true

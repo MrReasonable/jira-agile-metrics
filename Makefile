@@ -26,6 +26,9 @@ DOCKER_IMAGE_DEV = jira-agile-metrics-dev
 DOCKER_IMAGE_PROD = jira-agile-metrics
 DOCKER_IMAGE_WEBAPP = jira-agile-metrics-webapp
 
+# Container name (configurable via environment variable)
+CONTAINER_NAME ?= jira_metrics
+
 # Default target
 .DEFAULT_GOAL := help
 
@@ -146,11 +149,11 @@ webapp: ## Start the web application
 
 webapp-docker: ## Start the web application with Docker
 	@echo "$(GREEN)Starting web application with Docker...$(NC)"
-	docker run -d --rm -p 8080:80 --name jira_metrics $(DOCKER_IMAGE_WEBAPP):latest
+	docker run -d --rm -p 8080:80 --name $(CONTAINER_NAME) $(DOCKER_IMAGE_WEBAPP):latest
 
 webapp-stop: ## Stop the web application Docker container
 	@echo "$(YELLOW)Stopping web application...$(NC)"
-	docker stop jira_metrics || true
+	docker stop $(CONTAINER_NAME) || true
 	@echo "$(GREEN)Web application stopped$(NC)"
 
 ## Docker targets
@@ -205,7 +208,7 @@ docs: ## Generate documentation (if applicable)
 
 build: clean ## Build distribution packages
 	@echo "$(GREEN)Building distribution packages...$(NC)"
-	$(VENV_BIN)/python setup.py sdist bdist_wheel
+	$(VENV_BIN)/python -m build
 
 publish: build ## Publish to PyPI (requires credentials)
 	@echo "$(GREEN)Publishing to PyPI...$(NC)"
