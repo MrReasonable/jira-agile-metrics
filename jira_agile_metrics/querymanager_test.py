@@ -1,19 +1,31 @@
+"""Tests for query manager functionality in Jira Agile Metrics.
+
+This module contains unit tests for the QueryManager class and related functionality.
+"""
+
 import datetime
 
 import pytest
 
-from .conftest import FauxChange as Change
-from .conftest import FauxFieldValue as Value
-from .conftest import FauxIssue as Issue
-from .conftest import FauxJIRA as JIRA
 from .querymanager import IssueSnapshot, QueryManager
+from .test_classes import (
+    FauxChange as Change,
+)
+from .test_classes import (
+    FauxFieldValue as Value,
+)
+from .test_classes import (
+    FauxIssue as Issue,
+)
+from .test_classes import FauxJIRA as JIRA
 from .utils import extend_dict
 
 
-@pytest.fixture
-def jira(custom_fields):
+@pytest.fixture(name="test_jira")
+def jira(base_custom_fields):
+    """Test JIRA instance with custom fields."""
     return JIRA(
-        fields=custom_fields,
+        fields=base_custom_fields,
         issues=[
             Issue(
                 "A-1",
@@ -87,13 +99,15 @@ def jira(custom_fields):
     )
 
 
-@pytest.fixture
-def settings(custom_settings):
-    return extend_dict(custom_settings, {})
+@pytest.fixture(name="test_settings")
+def settings(base_custom_settings):
+    """Test settings configuration."""
+    return extend_dict(base_custom_settings, {})
 
 
-def test_search(jira, settings):
-    qm = QueryManager(jira, settings)
+def test_search(test_jira, test_settings):
+    """Test search functionality."""
+    qm = QueryManager(test_jira, test_settings)
     assert qm.attributes_to_fields == {
         "Team": "customfield_001",
         "Estimate": "customfield_002",
@@ -101,11 +115,12 @@ def test_search(jira, settings):
     }
 
     issues = qm.find_issues("(filter=123)")
-    assert issues == jira._issues
+    assert issues == test_jira.search_issues("(filter=123)")
 
 
-def test_resolve_attribute_value(jira, settings):
-    qm = QueryManager(jira, settings)
+def test_resolve_attribute_value(test_jira, test_settings):
+    """Test resolve_attribute_value functionality."""
+    qm = QueryManager(test_jira, test_settings)
     issues = qm.find_issues("(filter=123)")
 
     assert qm.resolve_attribute_value(issues[0], "Team") == "Team 1"
@@ -115,8 +130,9 @@ def test_resolve_attribute_value(jira, settings):
     )  # due to known_value
 
 
-def test_resolve_field_value(jira, settings):
-    qm = QueryManager(jira, settings)
+def test_resolve_field_value(test_jira, test_settings):
+    """Test resolve_field_value functionality."""
+    qm = QueryManager(test_jira, test_settings)
     issues = qm.find_issues("(filter=123)")
 
     assert qm.resolve_field_value(issues[0], "customfield_001") == "Team 1"
@@ -126,52 +142,65 @@ def test_resolve_field_value(jira, settings):
     )  # due to known_value
 
 
-def test_iter_changes(jira, settings):
-    qm = QueryManager(jira, settings)
+def test_iter_changes(test_jira, test_settings):
+    """Test iter_changes functionality."""
+    qm = QueryManager(test_jira, test_settings)
     issues = qm.find_issues("(filter=123)")
     changes = list(qm.iter_changes(issues[0], ["status", "Team"]))
 
     assert changes == [
         IssueSnapshot(
             change="status",
-            key="A-1",
-            date=datetime.datetime(2018, 1, 1, 1, 1, 1),
-            from_string=None,
-            to_string="Backlog",
+            transition_data={
+                "key": "A-1",
+                "date": datetime.datetime(2018, 1, 1, 1, 1, 1),
+                "from_string": None,
+                "to_string": "Backlog",
+            },
         ),
         IssueSnapshot(
             change="Team",
-            key="A-1",
-            date=datetime.datetime(2018, 1, 1, 1, 1, 1),
-            from_string=None,
-            to_string="Team 2",
+            transition_data={
+                "key": "A-1",
+                "date": datetime.datetime(2018, 1, 1, 1, 1, 1),
+                "from_string": None,
+                "to_string": "Team 2",
+            },
         ),
         IssueSnapshot(
             change="status",
-            key="A-1",
-            date=datetime.datetime(2018, 1, 2, 1, 1, 1),
-            from_string="Backlog",
-            to_string="Next",
+            transition_data={
+                "key": "A-1",
+                "date": datetime.datetime(2018, 1, 2, 1, 1, 1),
+                "from_string": "Backlog",
+                "to_string": "Next",
+            },
         ),
         IssueSnapshot(
             change="Team",
-            key="A-1",
-            date=datetime.datetime(2018, 1, 2, 1, 1, 1),
-            from_string="Team 2",
-            to_string="Team 1",
+            transition_data={
+                "key": "A-1",
+                "date": datetime.datetime(2018, 1, 2, 1, 1, 1),
+                "from_string": "Team 2",
+                "to_string": "Team 1",
+            },
         ),
         IssueSnapshot(
             change="status",
-            key="A-1",
-            date=datetime.datetime(2018, 1, 3, 1, 1, 1),
-            from_string="Next",
-            to_string="Done",
+            transition_data={
+                "key": "A-1",
+                "date": datetime.datetime(2018, 1, 3, 1, 1, 1),
+                "from_string": "Next",
+                "to_string": "Done",
+            },
         ),
         IssueSnapshot(
             change="status",
-            key="A-1",
-            date=datetime.datetime(2018, 1, 4, 1, 1, 1),
-            from_string="Done",
-            to_string="QA",
+            transition_data={
+                "key": "A-1",
+                "date": datetime.datetime(2018, 1, 4, 1, 1, 1),
+                "from_string": "Done",
+                "to_string": "QA",
+            },
         ),
     ]

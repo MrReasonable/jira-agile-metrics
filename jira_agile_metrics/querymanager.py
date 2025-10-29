@@ -1,9 +1,16 @@
+"""Query management module for Jira Agile Metrics.
+
+This module handles querying JIRA for issue data and managing field mappings
+and attribute resolution.
+"""
+
 import itertools
 import json
 import logging
 
 import dateutil.parser
 import dateutil.tz
+from jira.exceptions import JIRAError
 
 from .config import ConfigError
 
@@ -11,6 +18,19 @@ logger = logging.getLogger(__name__)
 
 
 def multi_getattr(obj, attr, **kw):
+    """Get nested attribute from object using dot notation.
+
+    Args:
+        obj: The object to get attributes from
+        attr: Dot-separated attribute path (e.g., 'field.subfield')
+        **kw: Keyword arguments, including 'default' for fallback value
+
+    Returns:
+        The attribute value or default if specified
+
+    Raises:
+        AttributeError: If attribute doesn't exist and no default provided
+    """
     attributes = attr.split(".")
     for i in attributes:
         try:
@@ -20,23 +40,28 @@ def multi_getattr(obj, attr, **kw):
         except AttributeError:
             logger.info("Not able to get data")
 
-            if kw.has_key("default"):
+            if "default" in kw:
                 return kw["default"]
-            else:
-                raise
+            raise
     return obj
 
 
-class IssueSnapshot(object):
+class IssueSnapshot:
     """A snapshot of the key fields of an issue
     at a point in its change history"""
 
-    def __init__(self, change, key, date, from_string, to_string):
+    def __init__(self, change, transition_data):
+        """Initialize ChangeItem with change and transition data.
+
+        Args:
+            change: The change object
+            transition_data: Dictionary containing key, date, from_string, to_string
+        """
         self.change = change
-        self.key = key
-        self.date = date
-        self.from_string = from_string
-        self.to_string = to_string
+        self.key = transition_data["key"]
+        self.date = transition_data["date"]
+        self.from_string = transition_data["from_string"]
+        self.to_string = transition_data["to_string"]
 
     def __eq__(self, other):
         return all(
@@ -50,23 +75,21 @@ class IssueSnapshot(object):
         )
 
     def __repr__(self):
-        return "<IssueSnapshot change=%s key=%s date=%s from=%s to=%s>" % (
-            self.change,
-            self.key,
-            self.date.isoformat(),
-            self.from_string,
-            self.to_string,
+        return (
+            f"<IssueSnapshot change={self.change} key={self.key} "
+            f"date={self.date.isoformat()} from={self.from_string} "
+            f"to={self.to_string}>"
         )
 
 
-class QueryManager(object):
+class QueryManager:
     """Manage and execute queries"""
 
-    settings = dict(
-        attributes={},
-        known_values={},
-        max_results=False,
-    )
+    settings = {
+        "attributes": {},
+        "known_values": {},
+        "max_results": False,
+    }
 
     def __init__(self, jira, settings):
         self.jira = jira
@@ -99,10 +122,19 @@ class QueryManager(object):
             self.fields_to_attributes[field_id] = name
 
     def field_name_to_id(self, name):
+        """Convert field name to JIRA field ID.
+
+        Args:
+            name: The field name to convert
+
+        Returns:
+            The JIRA field ID
+
+        Raises:
+            ConfigError: If field name doesn't exist in JIRA
+        """
         arr_name = name.split(".")
-        append_text = (
-            ("." + ".".join(arr_name[1:])) if len(arr_name) > 1 else ""
-        )
+        append_text = ("." + ".".join(arr_name[1:])) if len(arr_name) > 1 else ""
         try:
             return (
                 next(
@@ -115,8 +147,8 @@ class QueryManager(object):
                 + append_text
             )
         except StopIteration:
-            # XXX: we are having problems with
-            # this falsely claiming fields don't exist
+            # Note: Field lookup may fail if JIRA field names don't match exactly
+            # This can happen due to case sensitivity or field name variations
             logger.debug(
                 "Failed to look up %s in JIRA fields: %s",
                 name,
@@ -124,8 +156,8 @@ class QueryManager(object):
             )
 
             raise ConfigError(
-                "JIRA field with name `%s` does not exist"
-                "(did you try to use the field id instead?)" % name
+                f"JIRA field with name `{name}` does not exist"
+                "(did you try to use the field id instead?)"
             ) from None
 
     def resolve_attribute_value(self, issue, attribute_name):
@@ -147,15 +179,11 @@ class QueryManager(object):
             field_value = multi_getattr(issue.fields, field_id)
 
         except AttributeError:
-            field_name = self.jira_fields_to_names.get(
-                field_id, "Unknown name"
-            )
+            field_name = self.jira_fields_to_names.get(field_id, "Unknown name")
             logger.debug(
-                (
-                    "Could not get field value for field {}. "
-                    "Probably this is a wrong workflow "
-                    "field mapping"
-                ).format(field_name)
+                "Could not get field value for field %s. "
+                "Probably this is a wrong workflow field mapping",
+                field_name,
             )
             field_value = None
 
@@ -200,35 +228,34 @@ class QueryManager(object):
         """
 
         for field in fields:
-            initial_value = self.resolve_field_value(
-                issue, self.field_name_to_id(field)
-            )
+            field_id = self.field_name_to_id(field)
+            initial_value = self.resolve_field_value(issue, field_id)
             try:
                 initial_value = next(
                     filter(
-                        lambda h: h.field == field,
+                        lambda h, f=field: h.field == f,
                         itertools.chain.from_iterable(
                             [
                                 c.items
                                 for c in sorted(
                                     issue.changelog.histories,
-                                    key=lambda c: dateutil.parser.parse(
-                                        c.created
-                                    ),
+                                    key=lambda c: dateutil.parser.parse(c.created),
                                 )
                             ]
                         ),
                     )
-                ).fromString
+                ).from_string
             except StopIteration:
                 pass
 
             yield IssueSnapshot(
                 change=field,
-                key=issue.key,
-                date=dateutil.parser.parse(issue.fields.created),
-                from_string=None,
-                to_string=initial_value,
+                transition_data={
+                    "key": issue.key,
+                    "date": dateutil.parser.parse(issue.fields.created),
+                    "from_string": None,
+                    "to_string": initial_value,
+                },
             )
 
         for change in sorted(
@@ -241,28 +268,69 @@ class QueryManager(object):
                 if item.field in fields:
                     yield IssueSnapshot(
                         change=item.field,
-                        key=issue.key,
-                        date=change_date,
-                        from_string=item.fromString,
-                        to_string=item.toString,
+                        transition_data={
+                            "key": issue.key,
+                            "date": change_date,
+                            "from_string": item.from_string,
+                            "to_string": item.to_string,
+                        },
                     )
 
     # Basic queries
 
-    def find_issues(self, jql, expand="changelog"):
-        """Return a list of issues with changelog metadata for the given JQL."""
+    def find_issues(self, jql, expand="changelog", max_results=None):
+        """Return a list of issues with changelog metadata for the given JQL.
 
-        max_results = self.settings["max_results"]
+        Args:
+            jql: JQL query string
+            expand: Fields to expand (default: "changelog")
+            max_results: Optional limit on number of results. If None, uses
+                settings["max_results"]. If False, no limit.
+
+        Returns:
+            List of issues
+        """
+        if max_results is None:
+            max_results = self.settings["max_results"]
 
         logger.info("Fetching issues with query `%s`", jql)
         if max_results:
             logger.info("Limiting to %d results", max_results)
 
+        issues = self.jira.search_issues(jql, expand=expand, maxResults=max_results)
+        logger.info("Fetched %d issues", len(issues))
+        return issues
+
+    def has_issues_for_jql(self, jql):
+        """Check if there are any issues matching the JQL query.
+
+        This is a lightweight check that queries for only one result to
+        determine data availability without mutating global settings.
+
+        Args:
+            jql: JQL query string to check
+
+        Returns:
+            True if at least one issue exists, False otherwise
+
+        Note:
+            Returns False on expected runtime errors (connection, JIRA API errors).
+            Other exceptions (AttributeError, ValueError, TypeError, etc.) will
+            propagate to surface programming bugs during development/testing.
+        """
         try:
-            issues = self.jira.search_issues(
-                jql, expand=expand, maxResults=max_results
+            issues = self.find_issues(jql, expand="", max_results=1)
+            return len(issues) > 0
+        except (ConnectionError, JIRAError) as e:
+            # Return False on expected runtime errors (connection, JIRA API errors)
+            # ConnectionError covers network connectivity issues
+            # JIRAError covers JIRA-specific errors like authentication failures,
+            # invalid queries, and API errors
+            # Note: AttributeError, ValueError, TypeError and other exceptions
+            # are allowed to propagate to surface programming bugs during development
+            logger.debug(
+                "Error checking data availability with JQL '%s': %s",
+                jql,
+                e,
             )
-            logger.info("Fetched %d issues", len(issues))
-            return issues
-        except Exception:
-            raise
+            return False
