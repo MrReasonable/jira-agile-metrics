@@ -1,12 +1,20 @@
+"""Tests for configuration functionality in Jira Agile Metrics.
+
+This module contains unit tests for configuration loading and processing.
+"""
+
 import datetime
 import os.path
 import tempfile
 
 from .config import ConfigError, config_to_options
 from .config.type_utils import expand_key, force_list
+from .test_data import COMMON_CYCLE_CONFIG
+from .test_utils import create_common_defect_test_settings, create_waste_settings
 
 
 def test_force_list():
+    """Test force_list functionality."""
     assert force_list(None) == [None]
     assert force_list("foo") == ["foo"]
     assert force_list(("foo",)) == ["foo"]
@@ -14,6 +22,7 @@ def test_force_list():
 
 
 def test_expand_key():
+    """Test expand_key functionality."""
     assert expand_key("foo") == "foo"
     assert expand_key("foo_bar") == "foo bar"
     assert expand_key("FOO") == "foo"
@@ -21,6 +30,7 @@ def test_expand_key():
 
 
 def test_config_to_options_minimal():
+    """Test config_to_options with minimal configuration."""
     options = config_to_options(
         """\
 Connection:
@@ -49,6 +59,7 @@ Workflow:
 
 
 def test_config_to_options_maximal():
+    """Test config_to_options with maximal configuration."""
     options = config_to_options(
         """\
 Connection:
@@ -172,7 +183,7 @@ Output:
         - Low
         - Medium
         - High
-    Defects type field: Type
+    Defects type field: Issue type
     Defects type values:
         - Config
         - Data
@@ -256,13 +267,7 @@ ABC AND type = Outcome AND resolution IS EMPTY"
     }
 
     assert options["settings"] == {
-        "cycle": [
-            {"name": "Backlog", "statuses": ["Backlog"]},
-            {"name": "Committed", "statuses": ["Next"]},
-            {"name": "Build", "statuses": ["Build"]},
-            {"name": "Test", "statuses": ["Code review", "QA"]},
-            {"name": "Done", "statuses": ["Done"]},
-        ],
+        "cycle": COMMON_CYCLE_CONFIG,
         "attributes": {"Release": "Fix version/s", "Team": "Team"},
         "known_values": {"Release": ["R01", "R02", "R03"]},
         "lead_time_histogram_chart_title": None,
@@ -292,9 +297,7 @@ ABC AND type = Outcome AND resolution IS EMPTY"
         "burnup_forecast_chart_deadline_confidence": 0.85,
         "burnup_forecast_chart_target": 100,
         "burnup_forecast_chart_throughput_window": 30,
-        "burnup_forecast_chart_throughput_window_end": datetime.date(
-            2018, 3, 1
-        ),
+        "burnup_forecast_chart_throughput_window_end": datetime.date(2018, 3, 1),
         "burnup_forecast_chart_title": "Burn-up forecast",
         "burnup_forecast_chart_trials": 50,
         "burnup_forecast_chart_max_iterations": 9999,
@@ -335,20 +338,12 @@ ABC AND type = Outcome AND resolution IS EMPTY"
         "impediments_status_chart_title": "Impediments by status",
         "impediments_status_days_chart": "impediments-status-days.png",
         "impediments_status_days_chart_title": "Total impeded days by status",
+        "impediment_flags": ["Impediment", "Awaiting input"],
         "defects_query": "issueType = Bug",
         "defects_window": 3,
         "defects_priority_field": "Priority",
         "defects_priority_values": ["Low", "Medium", "High"],
-        "defects_type_field": "Type",
-        "defects_type_values": ["Config", "Data", "Code"],
-        "defects_environment_field": "Environment",
-        "defects_environment_values": ["SIT", "UAT", "PROD"],
-        "defects_by_priority_chart": "defects-by-priority.png",
-        "defects_by_priority_chart_title": "Defects by priority",
-        "defects_by_type_chart": "defects-by-type.png",
-        "defects_by_type_chart_title": "Defects by type",
-        "defects_by_environment_chart": "defects-by-environment.png",
-        "defects_by_environment_chart_title": "Defects by environment",
+        **create_common_defect_test_settings(),
         "debt_query": 'issueType = "Tech debt"',
         "debt_window": 3,
         "debt_priority_field": "Priority",
@@ -358,13 +353,7 @@ ABC AND type = Outcome AND resolution IS EMPTY"
         "debt_age_chart": "tech-debt-age.png",
         "debt_age_chart_title": "Technical debt age",
         "debt_age_chart_bins": [10, 20, 30],
-        "waste_query": (
-            "issueType = Story AND resolution IN (Withdrawn, Invalid)"
-        ),
-        "waste_window": 3,
-        "waste_frequency": "2W-WED",
-        "waste_chart": "waste.png",
-        "waste_chart_title": "Waste",
+        **create_waste_settings(),
         "progress_report": "progress.html",
         "progress_report_title": "Test progress report",
         "progress_report_epic_query_template": (
@@ -391,172 +380,8 @@ ABC AND type = Outcome AND resolution IS EMPTY"
                 "max_throughput": None,
                 "min_throughput": None,
                 "throughput_samples": (
-                    'project = ABC AND type = Story AND team = "Team two" AND resolution = "Done"'
-                ),
-                "wip": 2,
-                "throughput_samples_window": 6,
-            },
-        ],
-        "progress_report_outcomes": [
-            {
-                "key": "O1",
-                "name": "Outcome one",
-                "deadline": datetime.date(2019, 6, 1),
-                "epic_query": None,
-            },
-            {
-                "key": None,
-                "name": "Outcome two",
-                "deadline": None,
-                "epic_query": "project = ABS and type = Feature",
-            },
-        ],
-        "progress_report_outcome_deadline_field": "Due date",
-        "progress_report_outcome_query": (
-            "project = ABC AND type = Outcome AND resolution IS EMPTY"
-        ),
-    }
-
-    # Compare only the relevant keys in options['settings'] to the expected
-    # dict, or filter out extra keys with None values before asserting
-    # equality.
-    assert options["settings"] == {
-        "cycle": [
-            {"name": "Backlog", "statuses": ["Backlog"]},
-            {"name": "Committed", "statuses": ["Next"]},
-            {"name": "Build", "statuses": ["Build"]},
-            {"name": "Test", "statuses": ["Code review", "QA"]},
-            {"name": "Done", "statuses": ["Done"]},
-        ],
-        "attributes": {"Release": "Fix version/s", "Team": "Team"},
-        "known_values": {"Release": ["R01", "R02", "R03"]},
-        "lead_time_histogram_chart_title": None,
-        "negative_duration_handling": None,
-        "max_results": None,
-        "verbose": False,
-        "type_mapping": {"Defect": ["Bug"]},
-        "queries": [
-            {"jql": "(filter=123)", "value": "Team 1"},
-            {"jql": "(filter=124)", "value": "Team 2"},
-        ],
-        "query_attribute": "Team",
-        "backlog_column": "Backlog",
-        "committed_column": "Committed",
-        "done_column": "Done",
-        "quantiles": [0.1, 0.2],
-        "date_format": "%d/%m/%Y",
-        "cycle_time_data": ["cycletime.csv"],
-        "ageing_wip_chart": "ageing-wip.png",
-        "ageing_wip_chart_title": "Ageing WIP",
-        "burnup_window": 30,
-        "burnup_chart": "burnup.png",
-        "burnup_chart_title": "Burn-up",
-        "burnup_forecast_window": 30,
-        "burnup_forecast_chart": "burnup-forecast.png",
-        "burnup_forecast_chart_deadline": datetime.date(2018, 6, 1),
-        "burnup_forecast_chart_deadline_confidence": 0.85,
-        "burnup_forecast_chart_target": 100,
-        "burnup_forecast_chart_throughput_window": 30,
-        "burnup_forecast_chart_throughput_window_end": datetime.date(
-            2018, 3, 1
-        ),
-        "burnup_forecast_chart_title": "Burn-up forecast",
-        "burnup_forecast_chart_trials": 50,
-        "burnup_forecast_chart_max_iterations": 9999,
-        "burnup_forecast_chart_backlog_growth_window": None,
-        "cfd_window": 30,
-        "cfd_chart": "cfd.png",
-        "cfd_chart_title": "Cumulative Flow Diagram",
-        "cfd_data": ["cfd.csv"],
-        "histogram_window": 30,
-        "histogram_chart": "histogram.png",
-        "histogram_chart_title": "Cycle time histogram",
-        "histogram_data": ["histogram.csv"],
-        "net_flow_frequency": "5D",
-        "net_flow_window": 3,
-        "net_flow_chart": "net-flow.png",
-        "net_flow_chart_title": "Net flow",
-        "percentiles_data": ["percentiles.csv"],
-        "scatterplot_window": 30,
-        "scatterplot_chart": "scatterplot.png",
-        "scatterplot_chart_title": "Cycle time scatter plot",
-        "scatterplot_data": ["scatterplot.csv"],
-        "throughput_frequency": "1D",
-        "throughput_window": 3,
-        "throughput_chart": "throughput.png",
-        "throughput_chart_title": "Throughput trend",
-        "throughput_data": ["throughput.csv"],
-        "wip_frequency": "3D",
-        "wip_window": 3,
-        "wip_chart": "wip.png",
-        "wip_chart_title": "Work in Progress",
-        "impediments_data": ["impediments.csv"],
-        "impediments_window": 3,
-        "impediments_chart": "impediments.png",
-        "impediments_chart_title": "Impediments",
-        "impediments_days_chart": "impediments-days.png",
-        "impediments_days_chart_title": "Total impeded days",
-        "impediments_status_chart": "impediments-status.png",
-        "impediments_status_chart_title": "Impediments by status",
-        "impediments_status_days_chart": "impediments-status-days.png",
-        "impediments_status_days_chart_title": "Total impeded days by status",
-        "defects_query": "issueType = Bug",
-        "defects_window": 3,
-        "defects_priority_field": "Priority",
-        "defects_priority_values": ["Low", "Medium", "High"],
-        "defects_type_field": "Type",
-        "defects_type_values": ["Config", "Data", "Code"],
-        "defects_environment_field": "Environment",
-        "defects_environment_values": ["SIT", "UAT", "PROD"],
-        "defects_by_priority_chart": "defects-by-priority.png",
-        "defects_by_priority_chart_title": "Defects by priority",
-        "defects_by_type_chart": "defects-by-type.png",
-        "defects_by_type_chart_title": "Defects by type",
-        "defects_by_environment_chart": "defects-by-environment.png",
-        "defects_by_environment_chart_title": "Defects by environment",
-        "debt_query": 'issueType = "Tech debt"',
-        "debt_window": 3,
-        "debt_priority_field": "Priority",
-        "debt_priority_values": ["Low", "Medium", "High"],
-        "debt_chart": "tech-debt.png",
-        "debt_chart_title": "Technical debt",
-        "debt_age_chart": "tech-debt-age.png",
-        "debt_age_chart_title": "Technical debt age",
-        "debt_age_chart_bins": [10, 20, 30],
-        "waste_query": (
-            "issueType = Story AND resolution IN (Withdrawn, Invalid)"
-        ),
-        "waste_window": 3,
-        "waste_frequency": "2W-WED",
-        "waste_chart": "waste.png",
-        "waste_chart_title": "Waste",
-        "progress_report": "progress.html",
-        "progress_report_title": "Test progress report",
-        "progress_report_epic_query_template": (
-            "project = ABC AND type = Epic AND Outcome = {outcome}"
-        ),
-        "progress_report_story_query_template": (
-            'project = ABC AND type = Story AND "Epic link" = {epic}'
-        ),
-        "progress_report_epic_deadline_field": "Due date",
-        "progress_report_epic_min_stories_field": "Min stories",
-        "progress_report_epic_max_stories_field": "Max stories",
-        "progress_report_epic_team_field": "Team",
-        "progress_report_teams": [
-            {
-                "name": "Team one",
-                "max_throughput": 10,
-                "min_throughput": 5,
-                "throughput_samples": None,
-                "throughput_samples_window": None,
-                "wip": 1,
-            },
-            {
-                "name": "Team two",
-                "max_throughput": None,
-                "min_throughput": None,
-                "throughput_samples": (
-                    'project = ABC AND type = Story AND team = "Team two" AND resolution = "Done"'
+                    'project = ABC AND type = Story AND team = "Team two" '
+                    'AND resolution = "Done"'
                 ),
                 "wip": 2,
                 "throughput_samples_window": 6,
@@ -584,6 +409,7 @@ ABC AND type = Outcome AND resolution IS EMPTY"
 
 
 def test_config_to_options_strips_directories():
+    """Test config_to_options strips directory settings."""
     options = config_to_options(
         """\
 Connection:
@@ -618,9 +444,7 @@ Output:
     assert options["settings"]["cycle_time_data"] == ["cycletime.csv"]
     assert options["settings"]["ageing_wip_chart"] == "ageing-wip.png"
     assert options["settings"]["burnup_chart"] == "burnup.png"
-    assert (
-        options["settings"]["burnup_forecast_chart"] == "burnup-forecast.png"
-    )
+    assert options["settings"]["burnup_forecast_chart"] == "burnup-forecast.png"
     assert options["settings"]["cfd_chart"] == "cfd.png"
     assert options["settings"]["histogram_chart"] == "histogram.png"
     assert options["settings"]["histogram_data"] == ["histogram.csv"]
@@ -634,6 +458,7 @@ Output:
 
 
 def test_config_to_options_extends():
+    """Test config_to_options extends functionality."""
     try:
         with tempfile.NamedTemporaryFile(delete=False) as fp:
             # Base file
@@ -667,8 +492,8 @@ Output:
             # Extend the file
 
             options = config_to_options(
-                """
-Extends: %s
+                f"""
+Extends: {fp.name}
 
 Connection:
     Domain: https://bar.com
@@ -686,8 +511,7 @@ Output:
         - 0.7
 
     Cycle time data: cycletime.csv
-"""
-                % fp.name,
+""",
                 cwd=os.path.abspath(fp.name),
             )
     finally:
@@ -716,6 +540,7 @@ Output:
 
 
 def test_config_to_options_extends_blocked_if_no_explicit_working_directory():
+    """Test config_to_options extends blocked without explicit working directory."""
     with tempfile.NamedTemporaryFile() as fp:
         # Base file
         fp.write(
@@ -745,8 +570,8 @@ Output:
 
         try:
             config_to_options(
-                """
-Extends: %s
+                f"""
+Extends: {fp.name}
 
 Connection:
     Domain: https://bar.com
@@ -760,8 +585,7 @@ Output:
         - 0.7
 
     Cycle time data: cycletime.csv
-"""
-                % fp.name,
+""",
                 cwd=None,
             )
 
@@ -772,6 +596,7 @@ Output:
 
 
 def test_config_to_options_jira_server_bypass():
+    """Test config_to_options JIRA server bypass functionality."""
     options = config_to_options(
         """\
 Connection:
