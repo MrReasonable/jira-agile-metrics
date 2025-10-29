@@ -1,0 +1,521 @@
+# Jira Agile Metrics - Cursor Rules
+
+## Project Overview
+
+Jira Agile Metrics is a Python tool for extracting Agile metrics and charts from JIRA projects and Trello boards. It provides comprehensive analytics for agile teams including cycle time analysis, cumulative flow diagrams, burnup charts, throughput metrics, and more.
+
+**Key Features:**
+- Extract metrics from JIRA and Trello
+- Generate multiple chart types (CFD, scatter plots, histograms, burnup charts)
+- Monte Carlo simulation for forecasting
+- Web interface for interactive chart viewing
+- Command-line interface for batch processing
+- Docker support for deployment
+
+## Architecture & Code Organization
+
+### Core Components
+
+**Main Entry Points:**
+- `jira_agile_metrics/cli.py` - Command-line interface
+- `jira_agile_metrics/webapp/app.py` - Flask web application
+- `jira_agile_metrics/calculator.py` - Main calculator orchestrator
+
+**Calculator System:**
+- `jira_agile_metrics/calculators/` - Individual metric calculators
+- `jira_agile_metrics/calculators/base_calculator.py` - Base class with common functionality
+- Each calculator inherits from `Calculator` base class and implements `run()` method
+
+**Configuration System:**
+- `jira_agile_metrics/config/` - Configuration loading and validation
+- `jira_agile_metrics/config/loader.py` - YAML configuration parser
+- `jira_agile_metrics/config/exceptions.py` - Configuration error handling
+
+**Data Sources:**
+- `jira_agile_metrics/jira_client.py` - JIRA API integration
+- `jira_agile_metrics/trello.py` - Trello API integration
+- `jira_agile_metrics/querymanager.py` - Query management and data fetching
+
+### Calculator Types
+
+**Core Metrics Calculators:**
+- `CycleTimeCalculator` - Basic cycle time data extraction
+- `CFDCalculator` - Cumulative Flow Diagram data and charts
+- `BurnupCalculator` - Burn-up charts
+- `BurnupForecastCalculator` - Monte Carlo forecasting
+- `ThroughputCalculator` - Throughput analysis
+- `ScatterplotCalculator` - Cycle time scatter plots
+- `HistogramCalculator` - Cycle time histograms
+
+**Advanced Analytics:**
+- `ProgressReportCalculator` - Comprehensive progress reports with forecasting
+- `DefectsCalculator` - Defect analysis by priority, type, environment
+- `DebtCalculator` - Technical debt tracking
+- `ImpedimentsCalculator` - Impediment analysis
+- `WasteCalculator` - Withdrawn/cancelled work analysis
+- `AgeingWIPChartCalculator` - Work in progress aging
+- `NetFlowChartCalculator` - Net flow analysis
+- `PercentilesCalculator` - Statistical percentiles
+
+## API Reference
+
+### Calculator Base Class
+
+```python
+class Calculator:
+    """Base class for all metric calculators."""
+    
+    def __init__(self, query_manager, settings):
+        """Initialize calculator with query manager and settings."""
+        
+    def run(self, now=None):
+        """Main calculation method. Must be implemented by subclasses."""
+        
+    def write_data_file(self, data, filename):
+        """Write data to CSV/JSON/XLSX file."""
+        
+    def write_chart_file(self, chart_data, filename, title=None):
+        """Write chart to PNG file."""
+```
+
+### Configuration API
+
+```python
+def config_to_options(data, cwd=None, extended=False):
+    """Parse YAML config data and return options dict."""
+    
+class ConfigError(Exception):
+    """Configuration parsing errors."""
+```
+
+### Query Manager API
+
+```python
+class QueryManager:
+    """Manages JIRA/Trello queries and data fetching."""
+    
+    def __init__(self, jira_client, settings):
+        """Initialize with JIRA client and settings."""
+        
+    def get_issues(self):
+        """Fetch issues from JIRA/Trello."""
+        
+    def get_cycle_data(self):
+        """Get cycle time data for calculations."""
+```
+
+### Web Application API
+
+**Flask Routes:**
+- `GET /` - Main dashboard with chart links
+- `GET /burnup` - Interactive burnup chart
+- `GET /burnup-forecast` - Burnup forecast with Monte Carlo
+- `GET /cfd` - Cumulative Flow Diagram
+- `GET /scatterplot` - Cycle time scatter plot
+- `GET /histogram` - Cycle time histogram
+- `GET /throughput` - Throughput chart
+- `GET /wip` - Work in Progress chart
+- `GET /ageingwip` - Ageing WIP chart
+- `GET /netflow` - Net flow chart
+- `GET /debt` - Technical debt chart
+- `GET /defects-priority` - Defects by priority
+- `GET /impediments` - Impediments chart
+- `GET /waste` - Waste chart
+- `GET /progress` - Progress report
+- `POST /set_query` - Set custom JQL query
+
+## Usage Reference
+
+### Command Line Interface
+
+**Basic Usage:**
+```bash
+# Run with configuration file
+jira-agile-metrics config.yml
+
+# Run with limited results (for testing)
+jira-agile-metrics -n 20 config.yml
+
+# Verbose output
+jira-agile-metrics -v config.yml
+
+# Very verbose output
+jira-agile-metrics -vv config.yml
+
+# Specify output directory
+jira-agile-metrics --output-directory /path/to/output config.yml
+```
+
+**Connection Options:**
+```bash
+# Override connection settings
+jira-agile-metrics --domain https://my.jira.com --username user --password pass config.yml
+
+# Use API token instead of password
+jira-agile-metrics --username user@example.com --password API_TOKEN config.yml
+
+# Trello connection
+jira-agile-metrics --username user --key API_KEY --token TOKEN config.yml
+```
+
+**Web Server Mode:**
+```bash
+# Start web server
+jira-agile-metrics --server 5000
+
+# Start on specific host and port
+jira-agile-metrics --server 0.0.0.0:8080
+```
+
+### Configuration File Format
+
+**Basic Structure:**
+```yaml
+# Connection settings
+Connection:
+  Domain: https://my.jira.com
+  Username: user@example.com
+  Password: API_TOKEN  # or use environment variables
+
+# JQL query for issues
+Query: project=ABC AND issueType=Story AND resolution IS NULL
+
+# Workflow mapping
+Workflow:
+  Backlog: Backlog
+  Committed: Committed
+  Build: Build
+  QA:
+    - Code review
+    - Test
+  Done: Done
+
+# Output configuration
+Output:
+  Cycle time data: cycletime.csv
+  CFD chart: cfd.png
+  CFD chart title: Cumulative Flow Diagram
+  Scatterplot chart: scatterplot.png
+  Burnup chart: burnup.png
+```
+
+**Advanced Configuration:**
+```yaml
+# Multiple queries with attributes
+Queries:
+  Attribute: Team
+  Criteria:
+    - Value: Team 1
+      JQL: project=ABC AND team="Team 1"
+    - Value: Team 2
+      JQL: project=ABC AND team="Team 2"
+
+# Additional fields
+Attributes:
+  Priority: Priority
+  Release: Fix version/s
+  Component: Component/s
+
+# Known values for multi-valued fields
+Known values:
+  Release:
+    - "R01"
+    - "R02"
+    - "R03"
+
+# Configuration inheritance
+Extends: common-config.yml
+```
+
+### Docker Usage
+
+**Basic Docker:**
+```bash
+# Run with config file
+docker run -it --rm -v $PWD:/data optilude/jira-agile-metrics:latest config.yml
+
+# Batch mode for multiple configs
+docker run --rm -v /path/to/config:/config -v /path/to/output:/data optilude/jira-agile-metrics:batch-latest
+
+# Web server
+docker run -d --rm -p 8080:80 optilude/jira-agile-metrics:server-latest
+```
+
+### Environment Variables
+
+**JIRA Connection:**
+- `JIRA_URL` - JIRA domain URL
+- `JIRA_USERNAME` - JIRA username
+- `JIRA_PASSWORD` - JIRA password or API token
+
+**Web Application:**
+- `FLASK_SECRET_KEY` - Secret key for Flask sessions
+
+## Development Guidelines
+
+### Code Style
+
+**Python Standards:**
+- Follow PEP 8 with 88 character line length (Black formatting)
+- Use type hints where appropriate
+- Write comprehensive docstrings
+- Use meaningful variable and function names
+
+### Third-Party API Documentation
+
+**Context7 Integration:**
+- ALWAYS use Context7 as the primary reference mechanism for third-party API documentation
+- When working with external APIs (JIRA, Trello, matplotlib, pandas, Flask, etc.), use Context7 to get up-to-date documentation
+- Before implementing new features or fixing issues with third-party libraries, consult Context7 for:
+  - Current API methods and parameters
+  - Best practices and usage patterns
+  - Breaking changes and deprecation warnings
+  - Performance considerations and optimization tips
+- Use Context7 to verify correct usage of:
+  - **JIRA API**: Always reference `pycontribs/jira` project from Context7 for JIRA REST API endpoints, authentication, and Python client usage
+  - **Trello API** methods and data structures Context7 MCP `developer_atlassian_cloud_trello_rest`
+  - **matplotlib** charting functions and styling Context7 MCP `matplotlib/matplotlib`
+  - **pandas** data manipulation methods always reference  Context7 MCP `pandas-dev/pandas`
+  - Flask routing and session management Context7 MCP `flask_palletsprojects-en-stable`
+  - Bokeh interactive charting components Context7 MCP `websites/bokeh_en`
+
+**Testing:**
+- Use pytest for testing framework
+- Mock external dependencies (JIRA/Trello APIs)
+- Test both success and error cases
+- Use fixtures for common test data
+
+**Calculator Development:**
+- Inherit from `Calculator` base class
+- Implement `run()` method
+- Use `write_data_file()` and `write_chart_file()` for output
+- Handle empty data gracefully
+- Log warnings for missing data
+
+### File Organization
+
+**Calculator Files:**
+- `{metric}_calculator.py` - Main calculator implementation
+- `{metric}_test.py` - Unit tests
+- Follow naming convention: `{metric}.py` for core logic
+
+**Configuration Files:**
+- `config.yml` - Main configuration
+- Use YAML format with proper indentation
+- Support configuration inheritance with `Extends`
+
+**Output Files:**
+- CSV files for data export
+- PNG files for charts
+- JSON files for structured data
+- HTML files for progress reports
+
+### Error Handling
+
+**Configuration Errors:**
+- Use `ConfigError` for configuration issues
+- Validate required fields
+- Provide clear error messages
+
+**Data Errors:**
+- Handle empty datasets gracefully
+- Log warnings for missing data
+- Continue processing when possible
+
+**API Errors:**
+- Handle JIRA/Trello API errors
+- Implement retry logic for transient failures
+- Provide meaningful error messages
+
+### Performance Considerations
+
+**Data Processing:**
+- Use pandas for data manipulation
+- Implement caching for expensive calculations
+- Limit data fetching with `max_results` option
+
+**Web Application:**
+- Use in-memory caching for calculator results
+- Implement thread-safe caching
+- Handle concurrent requests properly
+
+**Memory Management:**
+- Process data in chunks for large datasets
+- Clean up temporary files
+- Monitor memory usage
+
+## Common Patterns
+
+### Adding New Calculators
+
+1. Use Context7 to research any third-party libraries needed for the calculator
+2. Create calculator class inheriting from `Calculator`
+3. Implement `run()` method
+4. Add to `CALCULATORS` list in `config_main.py`
+5. Write comprehensive tests
+6. Update documentation
+
+### Working with External APIs
+
+**Before Implementation:**
+- Use Context7 to look up current API documentation
+- Check for recent changes, deprecations, or new features
+- Verify authentication methods and required parameters
+- Review best practices and performance considerations
+
+**During Development:**
+- Reference Context7 for correct method signatures
+- Check for proper error handling patterns
+- Verify data format expectations
+- Look up common issues and solutions
+
+**JIRA-Specific Guidelines:**
+- Always use Context7 to reference the `pycontribs/jira` project for JIRA API documentation
+- Consult Context7 for JIRA client initialization, authentication methods, and API endpoint usage
+- Use Context7 to verify correct usage of JIRA search methods, issue creation, and field handling
+- Reference Context7 for JIRA error handling patterns and exception types
+
+### Configuration Validation
+
+1. Use `force_int()`, `force_float()`, `force_date()` utilities
+2. Validate required fields
+3. Provide default values where appropriate
+4. Handle configuration inheritance
+
+### Chart Generation
+
+1. Use matplotlib for static charts
+2. Use Bokeh for interactive web charts
+3. Apply consistent styling with `chart_styling_utils`
+4. Handle empty data gracefully
+5. Provide meaningful titles and labels
+
+### Data Export
+
+1. Support multiple formats (CSV, JSON, XLSX)
+2. Use appropriate data types
+3. Handle missing values
+4. Provide metadata where useful
+
+## Troubleshooting
+
+### Common Issues
+
+**Configuration Problems:**
+- Check YAML syntax and indentation
+- Verify JIRA credentials and permissions
+- Validate JQL query syntax
+- Check workflow status mappings
+
+**Data Issues:**
+- Verify issue types and statuses exist
+- Check date formats and timezone handling
+- Validate field names and custom fields
+- Review workflow transitions
+
+**Performance Issues:**
+- Use `max_results` for testing
+- Check network connectivity
+- Monitor memory usage
+- Consider data filtering
+
+### Debugging
+
+**API Documentation Lookup:**
+- Use Context7 to look up current documentation for any third-party API issues
+- Check for API changes, deprecations, or new features in external libraries
+- Verify correct parameter usage and method signatures
+- Look up error messages and their solutions in official documentation
+- **For JIRA issues**: Always reference the `pycontribs/jira` project from Context7 for troubleshooting JIRA API problems
+
+**Verbose Logging:**
+- Use `-v` for INFO level logging
+- Use `-vv` for DEBUG level logging
+- Check log output for errors
+
+**Configuration Debugging:**
+- Validate JQL queries in JIRA interface
+- Test with small datasets first
+- Check field mappings and values
+
+**Web Application Debugging:**
+- Check Flask logs
+- Verify configuration file path
+- Test individual calculator endpoints
+- Clear browser cache if needed
+
+## Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest jira_agile_metrics/calculators/cycletime_test.py
+
+# Run with verbose output
+pytest -v
+
+# Run with coverage
+pytest --cov=jira_agile_metrics
+```
+
+### Test Structure
+
+**Test Files:**
+- `{module}_test.py` - Unit tests for each module
+- `conftest.py` - Shared fixtures and configuration
+- `test_data.py` - Common test data
+- `test_utils.py` - Test utilities
+
+**Mock Objects:**
+- `FauxJIRA` - Mock JIRA client
+- `FauxIssue` - Mock JIRA issue
+- `FauxChange` - Mock status change
+- `FauxFieldValue` - Mock field value
+
+### Test Data
+
+**Common Fixtures:**
+- `minimal_query_manager` - Basic query manager
+- `base_minimal_settings` - Minimal configuration
+- `common_cycle_config` - Standard workflow
+- `common_cfd_data` - CFD test data
+
+## Deployment
+
+### Production Considerations
+
+**Security:**
+- Use API tokens instead of passwords
+- Set `FLASK_SECRET_KEY` environment variable
+- Use HTTPS in production
+- Implement proper authentication
+
+**Performance:**
+- Use production WSGI server (uWSGI)
+- Implement proper caching
+- Monitor resource usage
+- Use load balancing for high traffic
+
+**Monitoring:**
+- Set up logging aggregation
+- Monitor API rate limits
+- Track calculation performance
+- Alert on configuration errors
+
+### Docker Deployment
+
+**Production Docker:**
+- Use multi-stage builds
+- Minimize image size
+- Use non-root user
+- Implement health checks
+
+**Kubernetes:**
+- Use ConfigMaps for configuration
+- Implement proper resource limits
+- Set up monitoring and logging
+- Use secrets for credentials
