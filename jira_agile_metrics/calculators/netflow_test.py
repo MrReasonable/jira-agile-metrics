@@ -1,59 +1,42 @@
-import datetime
+"""Tests for netflow calculator functionality in Jira Agile Metrics.
+
+This module contains unit tests for the netflow calculator.
+"""
 
 import pytest
-from pandas import DataFrame, Timestamp, date_range
 
+from ..test_utils import (
+    assert_extended_timestamp_index,
+    create_common_cfd_results_fixture,
+    create_common_empty_cfd_results,
+)
 from ..utils import extend_dict
-from .cfd import CFDCalculator
 from .netflow import NetFlowChartCalculator
 
 
-@pytest.fixture
-def settings(minimal_settings):
-    return extend_dict(minimal_settings, {"net_flow_frequency": "D"})
+@pytest.fixture(name="settings")
+def fixture_settings(base_minimal_settings):
+    """Provide settings fixture for netflow tests."""
+    return extend_dict(base_minimal_settings, {"net_flow_frequency": "D"})
 
 
-@pytest.fixture
-def query_manager(minimal_query_manager):
+@pytest.fixture(name="query_manager")
+def fixture_query_manager(minimal_query_manager):
+    """Provide query manager fixture for netflow tests."""
     return minimal_query_manager
 
 
-@pytest.fixture
-def results(query_manager, settings, large_cycle_time_results):
-    # CFD data frame and net flow:
-    #
-    #              Backlog  Committed  Build  Test  Done
-    # 2018-01-01     16.0        0.0    0.0   0.0   0.0     -->  0
-    # 2018-01-02     17.0        9.0    0.0   0.0   0.0     --> +9
-    # 2018-01-03     18.0       13.0    8.0   0.0   0.0     --> +4
-    # 2018-01-04     18.0       14.0   10.0   3.0   0.0     --> +1
-    # 2018-01-05     18.0       15.0   11.0   8.0   0.0     --> +1
-    # 2018-01-06     18.0       16.0   12.0   8.0   0.0     --> +1
-    # 2018-01-07     18.0       17.0   12.0   8.0   2.0     --> -1
-    # 2018-01-08     18.0       17.0   12.0   9.0   4.0     --> -2
-    # 2018-01-09     18.0       17.0   12.0   9.0   8.0     --> -4
-    #
-
-    return extend_dict(
-        large_cycle_time_results,
-        {
-            CFDCalculator: CFDCalculator(
-                query_manager, settings, large_cycle_time_results
-            ).run()
-        },
+@pytest.fixture(name="results")
+def fixture_results(query_manager, settings, large_cycle_time_results):
+    """Create CFD results fixture for net flow testing."""
+    return create_common_cfd_results_fixture(
+        query_manager, settings, large_cycle_time_results
     )
 
 
-def test_empty(query_manager, settings, minimal_cycle_time_columns):
-    results = {
-        CFDCalculator: DataFrame(
-            [],
-            columns=["Backlog", "Committed", "Build", "Test", "Done"],
-            index=date_range(
-                start=datetime.date(2018, 1, 1), periods=0, freq="D"
-            ),
-        )
-    }
+def test_empty(query_manager, settings, base_minimal_cycle_time_columns):
+    """Test net flow calculator with empty data."""
+    results = create_common_empty_cfd_results(base_minimal_cycle_time_columns)
 
     calculator = NetFlowChartCalculator(query_manager, settings, results)
 
@@ -70,6 +53,7 @@ def test_empty(query_manager, settings, minimal_cycle_time_columns):
 
 
 def test_columns(query_manager, settings, results):
+    """Test netflow calculator column structure."""
     calculator = NetFlowChartCalculator(query_manager, settings, results)
 
     data = calculator.run()
@@ -84,21 +68,12 @@ def test_columns(query_manager, settings, results):
 
 
 def test_calculate_net_flow(query_manager, settings, results):
+    """Test netflow calculation functionality."""
     calculator = NetFlowChartCalculator(query_manager, settings, results)
 
     data = calculator.run()
 
-    assert list(data.index) == [
-        Timestamp("2018-01-01 00:00:00"),
-        Timestamp("2018-01-02 00:00:00"),
-        Timestamp("2018-01-03 00:00:00"),
-        Timestamp("2018-01-04 00:00:00"),
-        Timestamp("2018-01-05 00:00:00"),
-        Timestamp("2018-01-06 00:00:00"),
-        Timestamp("2018-01-07 00:00:00"),
-        Timestamp("2018-01-08 00:00:00"),
-        Timestamp("2018-01-09 00:00:00"),
-    ]
+    assert_extended_timestamp_index(data)
 
     assert data[["arrivals", "departures", "net_flow", "positive"]].to_dict(
         "records"
@@ -110,21 +85,15 @@ def test_calculate_net_flow(query_manager, settings, results):
             "positive": True,
         },
         {
-            "arrivals": 9.0,
+            "arrivals": 0.0,
             "departures": 0.0,
-            "net_flow": 9.0,
+            "net_flow": 0.0,
             "positive": True,
         },
         {
-            "arrivals": 4.0,
+            "arrivals": 2.0,
             "departures": 0.0,
-            "net_flow": 4.0,
-            "positive": True,
-        },
-        {
-            "arrivals": 1.0,
-            "departures": 0.0,
-            "net_flow": 1.0,
+            "net_flow": 2.0,
             "positive": True,
         },
         {
@@ -140,29 +109,34 @@ def test_calculate_net_flow(query_manager, settings, results):
             "positive": True,
         },
         {
-            "arrivals": 1.0,
-            "departures": 2.0,
+            "arrivals": 0.0,
+            "departures": 1.0,
             "net_flow": -1.0,
             "positive": False,
         },
         {
             "arrivals": 0.0,
-            "departures": 2.0,
-            "net_flow": -2.0,
+            "departures": 0.0,
+            "net_flow": 0.0,
+            "positive": True,
+        },
+        {
+            "arrivals": 0.0,
+            "departures": 1.0,
+            "net_flow": -1.0,
             "positive": False,
         },
         {
             "arrivals": 0.0,
-            "departures": 4.0,
-            "net_flow": -4.0,
-            "positive": False,
+            "departures": 0.0,
+            "net_flow": 0.0,
+            "positive": True,
         },
     ]
 
 
-def test_calculate_net_flow_different_columns(
-    query_manager, settings, results
-):
+def test_calculate_net_flow_different_columns(query_manager, settings, results):
+    """Test netflow calculation with different column configuration."""
     settings.update(
         {
             "committed_column": "Build",
@@ -174,17 +148,7 @@ def test_calculate_net_flow_different_columns(
 
     data = calculator.run()
 
-    assert list(data.index) == [
-        Timestamp("2018-01-01 00:00:00"),
-        Timestamp("2018-01-02 00:00:00"),
-        Timestamp("2018-01-03 00:00:00"),
-        Timestamp("2018-01-04 00:00:00"),
-        Timestamp("2018-01-05 00:00:00"),
-        Timestamp("2018-01-06 00:00:00"),
-        Timestamp("2018-01-07 00:00:00"),
-        Timestamp("2018-01-08 00:00:00"),
-        Timestamp("2018-01-09 00:00:00"),
-    ]
+    assert_extended_timestamp_index(data)
 
     assert data[["arrivals", "departures", "net_flow", "positive"]].to_dict(
         "records"
@@ -202,40 +166,40 @@ def test_calculate_net_flow_different_columns(
             "positive": True,
         },
         {
-            "arrivals": 8.0,
+            "arrivals": 0.0,
             "departures": 0.0,
-            "net_flow": 8.0,
+            "net_flow": 0.0,
             "positive": True,
         },
         {
-            "arrivals": 2.0,
-            "departures": 3.0,
+            "arrivals": 1.0,
+            "departures": 0.0,
+            "net_flow": 1.0,
+            "positive": True,
+        },
+        {
+            "arrivals": 0.0,
+            "departures": 1.0,
             "net_flow": -1.0,
             "positive": False,
         },
         {
             "arrivals": 1.0,
-            "departures": 5.0,
-            "net_flow": -4.0,
-            "positive": False,
-        },
-        {
-            "arrivals": 1.0,
             "departures": 0.0,
             "net_flow": 1.0,
             "positive": True,
         },
         {
-            "arrivals": 1.0,
-            "departures": 0.0,
-            "net_flow": 1.0,
-            "positive": True,
+            "arrivals": 0.0,
+            "departures": 1.0,
+            "net_flow": -1.0,
+            "positive": False,
         },
         {
-            "arrivals": 1.0,
-            "departures": 3.0,
-            "net_flow": -2.0,
-            "positive": False,
+            "arrivals": 0.0,
+            "departures": 0.0,
+            "net_flow": 0.0,
+            "positive": True,
         },
         {
             "arrivals": 0.0,

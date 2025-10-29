@@ -1,3 +1,8 @@
+"""Histogram calculator for Jira Agile Metrics.
+
+This module provides functionality to calculate histogram metrics from JIRA data.
+"""
+
 import logging
 
 import matplotlib.pyplot as plt
@@ -6,7 +11,8 @@ import pandas as pd
 import seaborn as sns
 
 from ..calculator import Calculator
-from ..utils import get_extension, set_chart_style
+from ..chart_styling_utils import set_chart_style
+from ..utils import get_extension
 from .cycletime import CycleTimeCalculator
 
 logger = logging.getLogger(__name__)
@@ -20,7 +26,19 @@ class HistogramCalculator(Calculator):
     def run(self):
         cycle_data = self.get_result(CycleTimeCalculator)
 
-        cycle_times = cycle_data["cycle_time"].dt.days.dropna().tolist()
+        # Check if cycle_time column exists and has timedelta data
+        if "cycle_time" not in cycle_data.columns:
+            return pd.Series([], name="Items", index=[])
+
+        cycle_time_series = cycle_data["cycle_time"]
+
+        # Check if the series is empty or not timedelta type
+        if cycle_time_series.empty or not pd.api.types.is_timedelta64_dtype(
+            cycle_time_series
+        ):
+            return pd.Series([], name="Items", index=[])
+
+        cycle_times = cycle_time_series.dt.days.dropna().tolist()
 
         if not cycle_times:
             bins = range(11)
@@ -33,13 +51,7 @@ class HistogramCalculator(Calculator):
         for i, _ in enumerate(edges):
             if i == 0:
                 continue
-            index.append(
-                "%.01f to %.01f"
-                % (
-                    edges[i - 1],
-                    edges[i],
-                )
-            )
+            index.append(f"{edges[i - 1]:.01f} to {edges[i]:.01f}")
 
         return pd.Series(values, name="Items", index=index)
 
@@ -47,10 +59,12 @@ class HistogramCalculator(Calculator):
         data = self.get_result()
 
         logger.debug(
-            f"[DEBUG] lead_time_histogram_data: {self.settings.get('lead_time_histogram_data')}"
+            "[DEBUG] lead_time_histogram_data: %s",
+            self.settings.get("lead_time_histogram_data"),
         )
         logger.debug(
-            f"[DEBUG] lead_time_histogram_chart: {self.settings.get('lead_time_histogram_chart')}"
+            "[DEBUG] lead_time_histogram_chart: %s",
+            self.settings.get("lead_time_histogram_chart"),
         )
 
         if self.settings["histogram_data"]:
@@ -65,23 +79,18 @@ class HistogramCalculator(Calculator):
 
         # Lead time histogram outputs
         if self.settings.get("lead_time_histogram_data"):
-            self.write_lead_time_file(
-                data, self.settings["lead_time_histogram_data"]
-            )
+            self.write_lead_time_file(data, self.settings["lead_time_histogram_data"])
         else:
-            logger.debug(
-                "No output file specified for lead time histogram data"
-            )
+            logger.debug("No output file specified for lead time histogram data")
 
         if self.settings.get("lead_time_histogram_chart"):
             for output_file in self.settings["lead_time_histogram_chart"]:
                 self.write_lead_time_chart(data, output_file)
         else:
-            logger.debug(
-                "No output file specified for lead time histogram chart"
-            )
+            logger.debug("No output file specified for lead time histogram chart")
 
-    def write_file(self, data, output_files):
+    def write_file(self, _data, output_files):
+        """Write histogram data to output files."""
         file_data = self.get_result()
 
         for output_file in output_files:
@@ -97,7 +106,13 @@ class HistogramCalculator(Calculator):
             else:
                 file_data.to_csv(output_file, header=True)
 
-    def write_chart(self, data, output_file):
+    def write_chart(self, _data, output_file):
+        """Write histogram chart to output file.
+
+        Args:
+            _data: Unused parameter (kept for interface compatibility)
+            output_file: Path to output file
+        """
         cycle_data = self.get_result(CycleTimeCalculator)
         chart_data = cycle_data[["cycle_time", "completed_timestamp"]].dropna(
             subset=["cycle_time"]
@@ -110,26 +125,36 @@ class HistogramCalculator(Calculator):
             logger.warning("Need at least 2 completed items to draw histogram")
             return
 
-        # Slice off items before the window
+        # Apply window filtering if specified
+        chart_data = self._apply_window_filter(chart_data)
+        if chart_data is None:
+            return
+
+        ct_days = chart_data["cycle_time"].dt.days
+        self._create_histogram_chart(ct_days, output_file)
+
+    def _apply_window_filter(self, chart_data):
+        """Apply window filtering to chart data."""
         window = self.settings["histogram_window"]
         if window:
-            start = chart_data[
-                "completed_timestamp"
-            ].max().normalize() - pd.Timedelta(window, "D")
+            start = chart_data["completed_timestamp"].max().normalize() - pd.Timedelta(
+                window, "D"
+            )
             chart_data = chart_data[chart_data.completed_timestamp >= start]
 
             # Re-check that we have enough data
             ct_days = chart_data["cycle_time"].dt.days
             if len(ct_days.index) < 2:
-                logger.warning(
-                    "Need at least 2 completed items to draw histogram"
-                )
-                return
+                logger.warning("Need at least 2 completed items to draw histogram")
+                return None
+        return chart_data
 
+    def _create_histogram_chart(self, ct_days, output_file):
+        """Create and save histogram chart."""
         quantiles = self.settings["quantiles"]
         logger.debug(
             "Showing histogram at quantiles %s",
-            ", ".join(["%.2f" % (q * 100.0) for q in quantiles]),
+            ", ".join([f"{q * 100.0:.2f}" for q in quantiles]),
         )
 
         fig, ax = plt.subplots()
@@ -145,17 +170,27 @@ class HistogramCalculator(Calculator):
         ax.set_xlim(0, right)
 
         # Add quantiles
+        self._add_quantile_lines(ax, ct_days, quantiles)
+        ax.set_ylabel("Frequency")
+        set_chart_style()
+
+        # Write file
+        logger.info("Writing histogram chart to %s", output_file)
+        fig.savefig(output_file, bbox_inches="tight", dpi=300)
+        plt.close(fig)
+
+    def _add_quantile_lines(self, ax, ct_days, quantiles):
+        """Add quantile lines and labels to the chart."""
         bottom, top = ax.get_ylim()
         quantile_labels = []
         for quantile, value in ct_days.quantile(quantiles).items():
-            ax.vlines(
-                value, bottom, top - 0.001, linestyles="--", linewidths=1
-            )
-            label = "%.0f%% (%.0f days)" % ((quantile * 100), value)
+            ax.vlines(value, bottom, top - 0.001, linestyles="--", linewidths=1)
+            label = f"{quantile * 100:.0f}% ({value:.0f} days)"
             quantile_labels.append(label)
 
         # Add quantile labels as a block of text below the chart
         if quantile_labels:
+            fig = ax.get_figure()
             fig.text(
                 0.5,
                 -0.03,
@@ -165,15 +200,8 @@ class HistogramCalculator(Calculator):
                 fontsize="small",
             )
 
-        ax.set_ylabel("Frequency")
-        set_chart_style()
-
-        # Write file
-        logger.info("Writing histogram chart to %s", output_file)
-        fig.savefig(output_file, bbox_inches="tight", dpi=300)
-        plt.close(fig)
-
-    def write_lead_time_file(self, data, output_files):
+    def write_lead_time_file(self, _data, output_files):
+        """Write lead time histogram data to output files."""
         cycle_data = self.get_result(CycleTimeCalculator)
         lead_times = cycle_data["lead_time"].dt.days.dropna().tolist()
         if not lead_times:
@@ -185,7 +213,7 @@ class HistogramCalculator(Calculator):
         for i, _ in enumerate(edges):
             if i == 0:
                 continue
-            index.append("%.01f to %.01f" % (edges[i - 1], edges[i]))
+            index.append(f"{edges[i - 1]:.01f} to {edges[i]:.01f}")
         file_data = pd.Series(values, name="Items", index=index)
         for output_file in output_files:
             output_extension = get_extension(output_file)
@@ -199,7 +227,13 @@ class HistogramCalculator(Calculator):
             else:
                 file_data.to_csv(output_file, header=True)
 
-    def write_lead_time_chart(self, data, output_file):
+    def write_lead_time_chart(self, _data, output_file):
+        """Write lead time histogram chart to output file.
+
+        Args:
+            _data: Unused parameter (kept for interface compatibility)
+            output_file: Path to output file
+        """
         cycle_data = self.get_result(CycleTimeCalculator)
         chart_data = cycle_data[["lead_time", "completed_timestamp"]].dropna(
             subset=["lead_time"]
@@ -210,22 +244,37 @@ class HistogramCalculator(Calculator):
                 "Need at least 2 completed items to draw lead time histogram"
             )
             return
+
+        # Apply window filtering if specified
+        chart_data = self._apply_lead_time_window_filter(chart_data)
+        if chart_data is None:
+            return
+
+        lt_days = chart_data["lead_time"].dt.days
+        self._create_lead_time_histogram_chart(lt_days, output_file)
+
+    def _apply_lead_time_window_filter(self, chart_data):
+        """Apply window filtering to lead time chart data."""
         window = self.settings.get("histogram_window")
         if window:
-            start = chart_data[
-                "completed_timestamp"
-            ].max().normalize() - pd.Timedelta(window, "D")
+            start = chart_data["completed_timestamp"].max().normalize() - pd.Timedelta(
+                window, "D"
+            )
             chart_data = chart_data[chart_data.completed_timestamp >= start]
             lt_days = chart_data["lead_time"].dt.days
             if len(lt_days.index) < 2:
                 logger.warning(
                     "Need at least 2 completed items to draw lead time histogram"
                 )
-                return
+                return None
+        return chart_data
+
+    def _create_lead_time_histogram_chart(self, lt_days, output_file):
+        """Create and save lead time histogram chart."""
         quantiles = self.settings["quantiles"]
         logger.debug(
             "Showing lead time histogram at quantiles %s",
-            ", ".join(["%.2f" % (q * 100.0) for q in quantiles]),
+            ", ".join([f"{q * 100.0:.2f}" for q in quantiles]),
         )
         fig, ax = plt.subplots()
         bins = range(int(lt_days.max()) + 2)
@@ -235,15 +284,23 @@ class HistogramCalculator(Calculator):
             ax.set_title(self.settings["lead_time_histogram_chart_title"])
         _, right = ax.get_xlim()
         ax.set_xlim(0, right)
+        self._add_lead_time_quantile_lines(ax, lt_days, quantiles)
+        ax.set_ylabel("Frequency")
+        set_chart_style()
+        logger.info("Writing lead time histogram chart to %s", output_file)
+        fig.savefig(output_file, bbox_inches="tight", dpi=300)
+        plt.close(fig)
+
+    def _add_lead_time_quantile_lines(self, ax, lt_days, quantiles):
+        """Add quantile lines and labels to the lead time chart."""
         bottom, top = ax.get_ylim()
         quantile_labels = []
         for quantile, value in lt_days.quantile(quantiles).items():
-            ax.vlines(
-                value, bottom, top - 0.001, linestyles="--", linewidths=1
-            )
-            label = "%.0f%% (%.0f days)" % ((quantile * 100), value)
+            ax.vlines(value, bottom, top - 0.001, linestyles="--", linewidths=1)
+            label = f"{quantile * 100:.0f}% ({value:.0f} days)"
             quantile_labels.append(label)
         if quantile_labels:
+            fig = ax.get_figure()
             fig.text(
                 0.5,
                 -0.03,
@@ -252,8 +309,3 @@ class HistogramCalculator(Calculator):
                 va="top",
                 fontsize="small",
             )
-        ax.set_ylabel("Frequency")
-        set_chart_style()
-        logger.info("Writing lead time histogram chart to %s", output_file)
-        fig.savefig(output_file, bbox_inches="tight", dpi=300)
-        plt.close(fig)

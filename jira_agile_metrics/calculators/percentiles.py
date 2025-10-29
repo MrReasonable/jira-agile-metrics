@@ -1,3 +1,8 @@
+"""Percentiles calculator for Jira Agile Metrics.
+
+This module provides functionality to calculate percentile metrics from cycle time data.
+"""
+
 import logging
 
 from ..calculator import Calculator
@@ -14,10 +19,8 @@ class PercentilesCalculator(Calculator):
         cycle_data = self.get_result(CycleTimeCalculator)
 
         quantiles = self.settings["quantiles"]
-        logger.debug(
-            "Calculating percentiles at %s",
-            ", ".join(["%.2f" % (q * 100.0) for q in quantiles]),
-        )
+        percentile_strs = [f"{q * 100.0:.2f}" for q in quantiles]
+        logger.debug("Calculating percentiles at %s", ", ".join(percentile_strs))
 
         return cycle_data["cycle_time"].dropna().quantile(quantiles)
 

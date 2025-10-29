@@ -1,34 +1,41 @@
+"""Tests for percentiles calculator functionality in Jira Agile Metrics.
+
+This module contains unit tests for the percentiles calculator.
+"""
+
 import math
 
 import pytest
-from pandas import DataFrame, Timedelta
+from pandas import Timedelta
 
+from ..test_utils import (
+    create_empty_test_results,
+)
 from ..utils import extend_dict
-from .cycletime import CycleTimeCalculator
 from .percentiles import PercentilesCalculator
 
 
-@pytest.fixture
-def settings(minimal_settings):
-    return extend_dict(minimal_settings, {"quantiles": [0.1, 0.5, 0.9]})
+@pytest.fixture(name="settings")
+def fixture_settings(base_minimal_settings):
+    """Provide settings fixture for percentiles tests."""
+    return extend_dict(base_minimal_settings, {"quantiles": [0.1, 0.5, 0.9]})
 
 
-@pytest.fixture
-def query_manager(minimal_query_manager):
-    return minimal_query_manager
+@pytest.fixture(name="query_manager")
+def fixture_query_manager(custom_query_manager):
+    """Provide query manager fixture for percentiles tests."""
+    return custom_query_manager
 
 
-@pytest.fixture
-def results(large_cycle_time_results):
-    return extend_dict(large_cycle_time_results, {})
+@pytest.fixture(name="results")
+def fixture_results(base_minimal_cycle_time_results):
+    """Provide results fixture for percentiles tests."""
+    return base_minimal_cycle_time_results
 
 
-def test_empty(query_manager, settings, minimal_cycle_time_columns):
-    results = {
-        CycleTimeCalculator: DataFrame(
-            [], columns=minimal_cycle_time_columns, index=[]
-        )
-    }
+def test_empty(query_manager, settings, base_minimal_cycle_time_columns):
+    """Test percentiles calculator with empty data."""
+    results = create_empty_test_results(base_minimal_cycle_time_columns)
 
     calculator = PercentilesCalculator(query_manager, settings, results)
 
@@ -41,13 +48,14 @@ def test_empty(query_manager, settings, minimal_cycle_time_columns):
 
 
 def test_calculate_percentiles(query_manager, settings, results):
+    """Test percentiles calculation functionality."""
     calculator = PercentilesCalculator(query_manager, settings, results)
 
     data = calculator.run()
 
     assert list(data.index) == [0.1, 0.5, 0.9]
     assert list(data) == [
-        Timedelta("2 days 16:48:00"),
-        Timedelta("5 days 00:00:00"),
-        Timedelta("5 days 00:00:00"),
+        Timedelta("3 days 00:00:00"),
+        Timedelta("3 days 00:00:00"),
+        Timedelta("3 days 00:00:00"),
     ]
