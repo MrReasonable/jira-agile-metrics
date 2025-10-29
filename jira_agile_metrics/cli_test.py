@@ -1,3 +1,8 @@
+"""Tests for CLI functionality in Jira Agile Metrics.
+
+This module contains unit tests for the command line interface.
+"""
+
 import json
 import tempfile
 
@@ -10,11 +15,27 @@ from .cli import (
 
 
 def test_override_options():
+    """Test override_options functionality."""
+
     class FauxArgs:
+        """Mock arguments class for testing."""
+
         def __init__(self, opts):
             self.__dict__.update(opts)
             for k, v in opts.items():
                 setattr(self, k, v)
+
+        def get_option(self, key, default=None):
+            """Get an option value."""
+            return getattr(self, key, default)
+
+        def has_option(self, key):
+            """Check if an option exists."""
+            return hasattr(self, key)
+
+        def set_option(self, key, value):
+            """Set an option value."""
+            setattr(self, key, value)
 
     options = {"one": 1, "two": 2}
     override_options(options, FauxArgs({}))
@@ -30,6 +51,7 @@ def test_override_options():
 
 
 def test_run_command_line_with_trello_client(mocker):
+    """Test run_command_line with Trello client."""
     config = """
 Connection:
   Type: trello
@@ -58,9 +80,7 @@ Output:
         - cycletime.json
     CFD data: cfd.csv
 """
-    mock_get_trello_client = mocker.patch(
-        "jira_agile_metrics.cli.get_trello_client"
-    )
+    mock_get_trello_client = mocker.patch("jira_agile_metrics.cli.get_trello_client")
     mocker.patch("jira_agile_metrics.cli.QueryManager")
     with tempfile.NamedTemporaryFile(mode="w", delete=False) as config_file:
         config_file.write(config)
@@ -72,10 +92,9 @@ Output:
 
 
 def test_get_trello_client(mocker):
+    """Test get_trello_client functionality."""
     mock_trello = mocker.patch("jira_agile_metrics.cli.TrelloClient")
 
-    get_trello_client(
-        {"username": "me", "key": "my_key", "token": "my_token"}, {}
-    )
+    get_trello_client({"username": "me", "key": "my_key", "token": "my_token"}, {})
 
     mock_trello.assert_called_once()

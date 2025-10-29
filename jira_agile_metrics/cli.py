@@ -1,3 +1,8 @@
+"""Command line interface for Jira Agile Metrics.
+
+This module provides the CLI for running metrics calculations from JIRA/Trello data.
+"""
+
 import argparse
 import getpass
 import logging
@@ -9,6 +14,7 @@ from jira import JIRA
 from .calculator import run_calculators
 from .config import ConfigError, config_to_options
 from .config_main import CALCULATORS
+from .jira_client import get_jira_connection_params
 from .querymanager import QueryManager
 from .trello import TrelloClient
 from .utils import set_chart_context
@@ -65,7 +71,8 @@ def configure_argument_parser():
         "-o",
         metavar="metrics",
         help=(
-            "Write output files to this directory,rather than the current working directory."
+            "Write output files to this directory, "
+            "rather than the current working directory."
         ),
     )
 
@@ -73,9 +80,7 @@ def configure_argument_parser():
     parser.add_argument(
         "--domain", metavar="https://my.jira.com", help="JIRA domain name"
     )
-    parser.add_argument(
-        "--username", metavar="user", help="JIRA/Trello user name"
-    )
+    parser.add_argument("--username", metavar="user", help="JIRA/Trello user name")
     parser.add_argument("--password", metavar="password", help="JIRA password")
     parser.add_argument("--key", metavar="key", help="Trello API key")
     parser.add_argument("--token", metavar="token", help="Trello API password")
@@ -101,6 +106,7 @@ def configure_argument_parser():
 
 
 def main():
+    """Main entry point for the CLI application."""
     parser = configure_argument_parser()
     args = parser.parse_args()
 
@@ -110,7 +116,8 @@ def main():
         run_command_line(parser, args)
 
 
-def run_server(parser, args):
+def run_server(_parser, args):
+    """Run the web server."""
     host = None
     port = args.server
 
@@ -123,6 +130,7 @@ def run_server(parser, args):
 
 
 def run_command_line(parser, args):
+    """Run the command line interface."""
     if not args.config:
         parser.print_usage()
         return
@@ -133,7 +141,9 @@ def run_command_line(parser, args):
         level=(
             logging.DEBUG
             if args.very_verbose
-            else logging.INFO if args.verbose else logging.WARNING
+            else logging.INFO
+            if args.verbose
+            else logging.WARNING
         ),
     )
 
@@ -142,7 +152,7 @@ def run_command_line(parser, args):
 
     logger.debug("Parsing options from %s", args.config)
     try:
-        with open(args.config) as config:
+        with open(args.config, encoding="utf-8") as config:
             options = config_to_options(
                 config.read(),
                 cwd=os.path.dirname(os.path.abspath(args.config)),
@@ -168,15 +178,16 @@ def run_command_line(parser, args):
     if args.output_directory:
         output_dir = args.output_directory
     if output_dir:
-        logger.info("Changing working directory to %s" % output_dir)
+        logger.info("Changing working directory to %s", output_dir)
         os.makedirs(output_dir, exist_ok=True)
         os.chdir(output_dir)
-    logger.debug(f"[DEBUG] Config file path: {args.config}")
+    logger.debug("[DEBUG] Config file path: %s", args.config)
     logger.debug(
-        f"[DEBUG] Initial output_directory in options: {options.get('output_directory')}"
+        "[DEBUG] Initial output_directory in options: %s",
+        options.get("output_directory"),
     )
-    logger.debug(f"[DEBUG] Current working directory: {os.getcwd()}")
-    logger.debug(f"[DEBUG] output_dir value: {output_dir}")
+    logger.debug("[DEBUG] Current working directory: %s", os.getcwd())
+    logger.debug("[DEBUG] output_dir value: %s", output_dir)
 
     # Select data source
     jira = None
@@ -205,13 +216,9 @@ def override_options(options, arguments):
 
 
 def get_jira_client(connection):
-    url = connection["domain"] or os.environ.get("JIRA_URL")
-    username = connection["username"]
-    if not username:
-        username = os.environ.get("JIRA_USERNAME")
-    password = connection["password"]
-    if not password:
-        password = os.environ.get("JIRA_PASSWORD")
+    """Get JIRA client from connection configuration."""
+    url, username, password = get_jira_connection_params(connection)
+
     http_proxy = connection["http_proxy"]
     https_proxy = connection["https_proxy"]
     jira_server_version_check = connection["jira_server_version_check"]
@@ -246,6 +253,7 @@ def get_jira_client(connection):
 
 
 def get_trello_client(connection, type_mapping):
+    """Get Trello client from connection configuration."""
     username = connection["username"]
     key = connection["key"]
     token = connection["token"]
@@ -259,7 +267,14 @@ def get_trello_client(connection, type_mapping):
     if not token:
         token = getpass.getpass("Token: ")
 
-    return TrelloClient(username, key, token, type_mapping=type_mapping)
+    return TrelloClient(
+        {
+            "member": username,
+            "key": key,
+            "token": token,
+            "type_mapping": type_mapping,
+        }
+    )
 
 
 if __name__ == "__main__":
