@@ -1,3 +1,5 @@
+"""Ageing WIP chart calculator module."""
+
 import logging
 
 import matplotlib.pyplot as plt
@@ -6,7 +8,7 @@ import pandas as pd
 import seaborn as sns
 
 from ..calculator import Calculator
-from ..utils import set_chart_style
+from ..chart_styling_utils import set_chart_style
 from .cycletime import CycleTimeCalculator
 
 logger = logging.getLogger(__name__)
@@ -49,15 +51,11 @@ class AgeingWIPChartCalculator(Calculator):
                 return np.nan
             return (today - started.date()).days
 
-        ageing_wip_data["status"] = ageing_wip_data.apply(
-            extract_status, axis=1
-        )
+        ageing_wip_data["status"] = ageing_wip_data.apply(extract_status, axis=1)
         ageing_wip_data["age"] = ageing_wip_data.apply(extract_age, axis=1)
 
         # remove blank rows
-        ageing_wip_data.dropna(
-            how="any", inplace=True, subset=["status", "age"]
-        )
+        ageing_wip_data.dropna(how="any", inplace=True, subset=["status", "age"])
 
         # reorder columns so we get key, summary, status,
         # age, and then all the cycle stages
@@ -80,9 +78,7 @@ class AgeingWIPChartCalculator(Calculator):
         chart_data = self.get_result()
 
         if len(chart_data.index) == 0:
-            logger.warning(
-                "Unable to draw ageing WIP chart with zero completed items"
-            )
+            logger.warning("Unable to draw ageing WIP chart with zero completed items")
             return
 
         fig, ax = plt.subplots()

@@ -1,3 +1,9 @@
+"""CFD (Cumulative Flow Diagram) calculator for Jira Agile Metrics.
+
+This module provides functionality to calculate and visualize cumulative flow diagrams
+from JIRA cycle time data.
+"""
+
 import logging
 
 import matplotlib.pyplot as plt
@@ -5,7 +11,8 @@ import numpy as np
 import pandas as pd
 
 from ..calculator import Calculator
-from ..utils import get_extension, set_chart_style
+from ..chart_styling_utils import set_chart_style
+from ..utils import get_extension
 from .cycletime import CycleTimeCalculator
 
 logger = logging.getLogger(__name__)
@@ -43,6 +50,7 @@ class CFDCalculator(Calculator):
             logger.debug("No output file specified for CFD chart")
 
     def write_file(self, data, output_files):
+        """Write CFD data to output files in various formats."""
         for output_file in output_files:
             output_extension = get_extension(output_file)
 
@@ -55,6 +63,7 @@ class CFDCalculator(Calculator):
                 data.to_csv(output_file)
 
     def write_chart(self, data, output_file):
+        """Write CFD chart to output file."""
         if len(data.index) == 0:
             logger.warning("Cannot draw CFD with no data")
             return
@@ -83,7 +92,7 @@ class CFDCalculator(Calculator):
 
         if backlog_column not in data.columns:
             logger.error("Backlog column %s does not exist", backlog_column)
-            return None
+            return
 
         data = data.drop([backlog_column], axis=1)
         data.plot.area(ax=ax, stacked=False, legend=False)
@@ -103,14 +112,21 @@ class CFDCalculator(Calculator):
 
 
 def calculate_cfd_data(cycle_data, cycle_names):
+    """Calculate cumulative flow diagram data from cycle time data.
+
+    Args:
+        cycle_data: DataFrame containing cycle time data with date columns
+        cycle_names: List of cycle stage names
+
+    Returns:
+        DataFrame with cumulative counts for each cycle stage by date
+    """
     # Build a dataframe of just the "date" columns
     cfd_data = cycle_data[cycle_names]
 
     # Strip out times from all dates
     cfd_data = pd.DataFrame(
-        np.array(cfd_data.values, dtype="<M8[ns]")
-        .astype("<M8[D]")
-        .astype("<M8[ns]"),
+        np.array(cfd_data.values, dtype="<M8[ns]").astype("<M8[D]").astype("<M8[ns]"),
         columns=cfd_data.columns,
         index=cfd_data.index,
     )
@@ -130,8 +146,10 @@ def calculate_cfd_data(cycle_data, cycle_names):
     # Reindex to make sure we have all dates
     start, end = cfd_data.index.min(), cfd_data.index.max()
     if start is not pd.NaT and end is not pd.NaT:
+        # Extend the range by one day to include the final day
+        extended_end = end + pd.Timedelta(days=1)
         cfd_data = cfd_data.reindex(
-            pd.date_range(start, end, freq="D")
+            pd.date_range(start, extended_end, freq="D")
         ).ffill()
 
     return cfd_data
