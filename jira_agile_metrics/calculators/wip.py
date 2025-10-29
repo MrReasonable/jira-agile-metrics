@@ -1,10 +1,12 @@
+"""WIP chart calculator module."""
+
 import logging
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
 from ..calculator import Calculator
-from ..utils import set_chart_style
+from ..chart_styling_utils import set_chart_style
 from .cfd import CFDCalculator
 
 logger = logging.getLogger(__name__)
@@ -54,9 +56,7 @@ class WIPChartCalculator(Calculator):
             wip_data = wip_data[start:]
 
             if len(wip_data.index) < 2:
-                logger.warning(
-                    "Need at least 2 completed items to draw scatterplot"
-                )
+                logger.warning("Need at least 2 completed items to draw scatterplot")
                 return
 
         groups = wip_data.groupby(
@@ -64,9 +64,7 @@ class WIPChartCalculator(Calculator):
         )
         labels = [x[0].strftime(self.settings["date_format"]) for x in groups]
 
-        groups.boxplot(
-            subplots=False, ax=ax, showmeans=True, return_type="axes"
-        )
+        groups.boxplot(subplots=False, ax=ax, showmeans=True, return_type="axes")
         ax.set_xticklabels(labels, rotation=70, size="small")
 
         ax.set_xlabel("Period starting")

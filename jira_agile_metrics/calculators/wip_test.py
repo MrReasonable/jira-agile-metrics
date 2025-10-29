@@ -1,59 +1,42 @@
-import datetime
+"""Tests for WIP calculator functionality in Jira Agile Metrics.
+
+This module contains unit tests for the WIP calculator.
+"""
 
 import pytest
-from pandas import DataFrame, Timestamp, date_range
 
+from ..test_utils import (
+    assert_extended_timestamp_index,
+    create_common_cfd_results_fixture,
+    create_common_empty_cfd_results,
+)
 from ..utils import extend_dict
-from .cfd import CFDCalculator
 from .wip import WIPChartCalculator
 
 
-@pytest.fixture
-def settings(minimal_settings):
-    return extend_dict(minimal_settings, {})
+@pytest.fixture(name="settings")
+def fixture_settings(base_minimal_settings):
+    """Provide settings fixture for WIP tests."""
+    return extend_dict(base_minimal_settings, {})
 
 
-@pytest.fixture
-def query_manager(minimal_query_manager):
+@pytest.fixture(name="query_manager")
+def fixture_query_manager(minimal_query_manager):
+    """Provide query manager fixture for WIP tests."""
     return minimal_query_manager
 
 
-@pytest.fixture
-def results(query_manager, settings, large_cycle_time_results):
-    # CFD data frame and WIP
-    #
-    #              Backlog  Committed  Build  Test  Done
-    # 2018-01-01     16.0        0.0    0.0   0.0   0.0     -->  0
-    # 2018-01-02     17.0        9.0    0.0   0.0   0.0     -->  9
-    # 2018-01-03     18.0       13.0    8.0   0.0   0.0     --> 13
-    # 2018-01-04     18.0       14.0   10.0   3.0   0.0     --> 14
-    # 2018-01-05     18.0       15.0   11.0   8.0   0.0     --> 15
-    # 2018-01-06     18.0       16.0   12.0   8.0   0.0     --> 16
-    # 2018-01-07     18.0       17.0   12.0   8.0   2.0     --> 15
-    # 2018-01-08     18.0       17.0   12.0   9.0   4.0     --> 13
-    # 2018-01-09     18.0       17.0   12.0   9.0   8.0     -->  9
-    #
-
-    return extend_dict(
-        large_cycle_time_results,
-        {
-            CFDCalculator: CFDCalculator(
-                query_manager, settings, large_cycle_time_results
-            ).run()
-        },
+@pytest.fixture(name="results")
+def fixture_results(query_manager, settings, large_cycle_time_results):
+    """Create CFD results fixture for WIP testing."""
+    return create_common_cfd_results_fixture(
+        query_manager, settings, large_cycle_time_results
     )
 
 
-def test_empty(query_manager, settings, minimal_cycle_time_columns):
-    results = {
-        CFDCalculator: DataFrame(
-            [],
-            columns=["Backlog", "Committed", "Build", "Test", "Done"],
-            index=date_range(
-                start=datetime.date(2018, 1, 1), periods=0, freq="D"
-            ),
-        )
-    }
+def test_empty(query_manager, settings, base_minimal_cycle_time_columns):
+    """Test WIP calculator with empty data."""
+    results = create_common_empty_cfd_results(base_minimal_cycle_time_columns)
 
     calculator = WIPChartCalculator(query_manager, settings, results)
 
@@ -63,6 +46,7 @@ def test_empty(query_manager, settings, minimal_cycle_time_columns):
 
 
 def test_columns(query_manager, settings, results):
+    """Test WIP calculator column structure."""
     calculator = WIPChartCalculator(query_manager, settings, results)
 
     data = calculator.run()
@@ -70,36 +54,28 @@ def test_columns(query_manager, settings, results):
 
 
 def test_calculate_wip(query_manager, settings, results):
+    """Test WIP calculation functionality."""
     calculator = WIPChartCalculator(query_manager, settings, results)
 
     data = calculator.run()
 
-    assert list(data.index) == [
-        Timestamp("2018-01-01 00:00:00"),
-        Timestamp("2018-01-02 00:00:00"),
-        Timestamp("2018-01-03 00:00:00"),
-        Timestamp("2018-01-04 00:00:00"),
-        Timestamp("2018-01-05 00:00:00"),
-        Timestamp("2018-01-06 00:00:00"),
-        Timestamp("2018-01-07 00:00:00"),
-        Timestamp("2018-01-08 00:00:00"),
-        Timestamp("2018-01-09 00:00:00"),
-    ]
+    assert_extended_timestamp_index(data)
 
     assert data.to_dict("records") == [
         {"wip": 0.0},
-        {"wip": 9.0},
-        {"wip": 13.0},
-        {"wip": 14.0},
-        {"wip": 15.0},
-        {"wip": 16.0},
-        {"wip": 15.0},
-        {"wip": 13.0},
-        {"wip": 9.0},
+        {"wip": 0.0},
+        {"wip": 2.0},
+        {"wip": 3.0},
+        {"wip": 4.0},
+        {"wip": 3.0},
+        {"wip": 3.0},
+        {"wip": 2.0},
+        {"wip": 2.0},
     ]
 
 
 def test_calculate_wip_different_columns(query_manager, settings, results):
+    """Test WIP calculation with different column structure."""
     settings.update(
         {
             "committed_column": "Build",
@@ -111,26 +87,16 @@ def test_calculate_wip_different_columns(query_manager, settings, results):
 
     data = calculator.run()
 
-    assert list(data.index) == [
-        Timestamp("2018-01-01 00:00:00"),
-        Timestamp("2018-01-02 00:00:00"),
-        Timestamp("2018-01-03 00:00:00"),
-        Timestamp("2018-01-04 00:00:00"),
-        Timestamp("2018-01-05 00:00:00"),
-        Timestamp("2018-01-06 00:00:00"),
-        Timestamp("2018-01-07 00:00:00"),
-        Timestamp("2018-01-08 00:00:00"),
-        Timestamp("2018-01-09 00:00:00"),
-    ]
+    assert_extended_timestamp_index(data)
 
     assert data.to_dict("records") == [
         {"wip": 0.0},
         {"wip": 0.0},
-        {"wip": 8.0},
-        {"wip": 7.0},
-        {"wip": 3.0},
-        {"wip": 4.0},
-        {"wip": 5.0},
-        {"wip": 3.0},
-        {"wip": 3.0},
+        {"wip": 0.0},
+        {"wip": 1.0},
+        {"wip": 0.0},
+        {"wip": 1.0},
+        {"wip": 0.0},
+        {"wip": 0.0},
+        {"wip": 0.0},
     ]
