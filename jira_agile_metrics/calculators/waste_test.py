@@ -1,38 +1,36 @@
+"""Tests for waste calculator functionality in Jira Agile Metrics.
+
+This module contains unit tests for the waste calculator.
+"""
+
 import pytest
 from pandas import Timestamp
 
-from ..conftest import FauxChange as Change
-from ..conftest import FauxFieldValue as Value
-from ..conftest import FauxIssue as Issue
-from ..conftest import FauxJIRA as JIRA
 from ..querymanager import QueryManager
+from ..test_classes import FauxChange as Change
+from ..test_classes import FauxFieldValue as Value
+from ..test_classes import FauxIssue as Issue
+from ..test_classes import FauxJIRA as JIRA
+from ..test_utils import create_waste_settings
 from ..utils import extend_dict
 from .waste import WasteCalculator
 
 
-@pytest.fixture
-def fields(minimal_fields):
-    return minimal_fields + []
+@pytest.fixture(name="fields")
+def fixture_fields(base_minimal_fields):
+    """Provide fields fixture for waste tests."""
+    return base_minimal_fields + []
 
 
-@pytest.fixture
-def settings(minimal_settings):
-    return extend_dict(
-        minimal_settings,
-        {
-            "waste_query": (
-                "issueType = Story AND resolution IN (Withdrawn, Invalid)"
-            ),
-            "waste_window": 3,
-            "waste_frequency": "2W-WED",
-            "waste_chart": "waste.png",
-            "waste_chart_title": "Waste",
-        },
-    )
+@pytest.fixture(name="settings")
+def fixture_settings(base_minimal_settings):
+    """Provide settings fixture for waste tests."""
+    return extend_dict(base_minimal_settings, create_waste_settings())
 
 
-@pytest.fixture
-def jira(fields):
+@pytest.fixture(name="jira")
+def fixture_jira(fields):
+    """Provide JIRA fixture for waste tests."""
     return JIRA(
         fields=fields,
         issues=[
@@ -317,6 +315,7 @@ def jira(fields):
 
 
 def test_no_query(jira, settings):
+    """Test waste calculator with no query."""
     query_manager = QueryManager(jira, settings)
     results = {}
     settings = extend_dict(settings, {"waste_query": None})
@@ -327,6 +326,7 @@ def test_no_query(jira, settings):
 
 
 def test_columns(jira, settings):
+    """Test waste calculator column structure."""
     query_manager = QueryManager(jira, settings)
     results = {}
     calculator = WasteCalculator(query_manager, settings, results)
@@ -342,6 +342,7 @@ def test_columns(jira, settings):
 
 
 def test_empty(fields, settings):
+    """Test waste calculator with empty data."""
     jira = JIRA(fields=fields, issues=[])
     query_manager = QueryManager(jira, settings)
     results = {}
@@ -353,6 +354,7 @@ def test_empty(fields, settings):
 
 
 def test_query(jira, settings):
+    """Test waste calculator query functionality."""
     query_manager = QueryManager(jira, settings)
     results = {}
     calculator = WasteCalculator(query_manager, settings, results)
@@ -376,6 +378,7 @@ def test_query(jira, settings):
 
 
 def test_different_backlog_column(jira, settings):
+    """Test waste calculator with different backlog column."""
     settings = extend_dict(
         settings,
         {
@@ -401,6 +404,7 @@ def test_different_backlog_column(jira, settings):
 
 
 def test_different_done_column(jira, settings):
+    """Test waste calculator with different done column."""
     settings = extend_dict(settings, {"done_column": "Test"})
 
     query_manager = QueryManager(jira, settings)

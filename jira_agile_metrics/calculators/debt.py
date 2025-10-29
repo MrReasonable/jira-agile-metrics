@@ -1,3 +1,8 @@
+"""Debt calculator for Jira Agile Metrics.
+
+This module provides functionality to calculate technical debt metrics from JIRA data.
+"""
+
 import datetime
 import logging
 
@@ -5,13 +10,16 @@ import dateutil.parser
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from ..calculator import Calculator
-from ..utils import breakdown_by_month, set_chart_style, to_bin
+from ..chart_styling_utils import set_chart_style
+from ..columns import create_debt_columns
+from ..common_constants import get_common_issue_data_pattern
+from ..utils import to_bin
+from .base_calculator import BaseCalculator
 
 logger = logging.getLogger(__name__)
 
 
-class DebtCalculator(Calculator):
+class DebtCalculator(BaseCalculator):
     """Calculate technical debt over time.
 
     Queries JIRA with JQL set in `debt_query` and draws a stacked bar
@@ -34,67 +42,85 @@ class DebtCalculator(Calculator):
 
         # This calculation is expensive. Only run it if we have a query.
         if not query:
-            logger.debug(
-                "Not calculating debt chart data as no query specified"
-            )
+            logger.debug("Not calculating debt chart data as no query specified")
             return None
 
         # Resolve field name to field id for later lookup
+        priority_field_id = self._get_priority_field_id()
+
+        # Build data frame
+        series = self._initialize_series()
+
+        for issue in self.query_manager.find_issues(query, expand=None):
+            self._process_issue(issue, series, priority_field_id, now)
+
+        return self._create_dataframe(series)
+
+    def _get_priority_field_id(self):
+        """Get priority field ID for lookup."""
         priority_field = self.settings["debt_priority_field"]
-        priority_field_id = priority_field_id = (
+        return (
             self.query_manager.field_name_to_id(priority_field)
             if priority_field
             else None
         )
 
-        # Build data frame
-        columns = ["key", "priority", "created", "resolved", "age"]
-        series = {
-            "key": {"data": [], "dtype": "str"},
-            "priority": {"data": [], "dtype": "str"},
-            "created": {"data": [], "dtype": "datetime64[ns]"},
-            "resolved": {"data": [], "dtype": "datetime64[ns]"},
-            "age": {"data": [], "dtype": "timedelta64[ns]"},
-        }
+    def _initialize_series(self):
+        """Initialize series structure for debt data."""
+        series = self.create_common_series_structure(
+            ["key", "priority", "created", "resolved", "type", "environment"]
+        )
+        series["age"] = {"data": [], "dtype": "timedelta64[ns]"}
+        return series
 
-        for issue in self.query_manager.find_issues(query, expand=None):
-            created_date = dateutil.parser.parse(issue.fields.created)
-            resolved_date = (
-                dateutil.parser.parse(issue.fields.resolutiondate)
-                if issue.fields.resolutiondate
-                else None
-            )
+    def _process_issue(self, issue, series, priority_field_id, now):
+        """Process a single issue and add to series."""
+        created_date = dateutil.parser.parse(issue.fields.created)
+        resolved_date = (
+            dateutil.parser.parse(issue.fields.resolutiondate)
+            if issue.fields.resolutiondate
+            else None
+        )
 
-            series["key"]["data"].append(issue.key)
-            series["priority"]["data"].append(
-                self.query_manager.resolve_field_value(
-                    issue, priority_field_id
-                )
-                if priority_field
-                else None
-            )
-            series["created"]["data"].append(created_date)
-            series["resolved"]["data"].append(resolved_date)
+        # Add common fields
+        issue_data_pattern = get_common_issue_data_pattern()
+        issue_data_pattern.update({"priority": priority_field_id})
+        self.add_issue_data_to_series(series, issue, issue_data_pattern)
 
-            # Ensure both datetimes are offset-naive for subtraction
-            if resolved_date is not None:
-                resolved_dt = resolved_date.replace(tzinfo=None)
+        # Add date fields
+        series["created"]["data"].append(created_date)
+        series["resolved"]["data"].append(resolved_date)
+
+        # Calculate age
+        age = self._calculate_age(created_date, resolved_date, now)
+        series["age"]["data"].append(age)
+
+    def _calculate_age(self, created_date, resolved_date, now):
+        """Calculate age of issue."""
+        # Ensure both datetimes are offset-naive for subtraction
+        if resolved_date is not None:
+            resolved_dt = resolved_date.replace(tzinfo=None)
+        else:
+            # If now is offset-aware, convert to naive
+            if now.tzinfo is not None:
+                resolved_dt = now.replace(tzinfo=None)
             else:
-                # If now is offset-aware, convert to naive
-                if now.tzinfo is not None:
-                    resolved_dt = now.replace(tzinfo=None)
-                else:
-                    resolved_dt = now
-            if created_date.tzinfo is not None:
-                created_dt = created_date.replace(tzinfo=None)
-            else:
-                created_dt = created_date
-            series["age"]["data"].append(resolved_dt - created_dt)
+                resolved_dt = now
 
+        if created_date.tzinfo is not None:
+            created_dt = created_date.replace(tzinfo=None)
+        else:
+            created_dt = created_date
+
+        return resolved_dt - created_dt
+
+    def _create_dataframe(self, series):
+        """Create DataFrame from series data."""
+
+        columns = create_debt_columns()
         data = {}
         for k, v in series.items():
             data[k] = pd.Series(v["data"], dtype=v["dtype"])
-
         return pd.DataFrame(data, columns=columns)
 
     def write(self):
@@ -110,66 +136,33 @@ class DebtCalculator(Calculator):
             self.write_debt_chart(chart_data, self.settings["debt_chart"])
 
         if self.settings["debt_age_chart"]:
-            self.write_debt_age_chart(
-                chart_data, self.settings["debt_age_chart"]
-            )
+            self.write_debt_age_chart(chart_data, self.settings["debt_age_chart"])
 
     def write_debt_chart(self, chart_data, output_file):
-        window = self.settings["debt_window"]
-        priority_values = self.settings["debt_priority_values"]
-
-        breakdown = breakdown_by_month(
-            chart_data,
-            "created",
-            "resolved",
-            "key",
-            "priority",
-            priority_values,
-        )
-
-        if window:
-            breakdown = breakdown[-window:]
-
-        fig, ax = plt.subplots()
-
-        breakdown.plot.bar(ax=ax, stacked=True)
-
-        if self.settings["debt_chart_title"]:
-            ax.set_title(self.settings["debt_chart_title"])
-
-        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        ax.set_xlabel("Month", labelpad=20)
-        ax.set_ylabel("Number of items", labelpad=10)
-
-        labels = [d.strftime("%b %y") for d in breakdown.index]
-        ax.set_xticklabels(labels, rotation=90, size="small")
-
-        set_chart_style()
-
-        # Write file
-        logger.info("Writing debt chart to %s", output_file)
-        fig.savefig(output_file, bbox_inches="tight", dpi=300)
-        plt.close(fig)
+        """Write debt chart using common monthly breakdown pattern."""
+        config = {
+            "created_field": "created",
+            "resolved_field": "resolved",
+            "group_field": "priority",
+            "group_values": self.settings["debt_priority_values"],
+            "window": self.settings["debt_window"],
+            "chart_title": self.settings.get("debt_chart_title"),
+        }
+        self.create_monthly_breakdown_chart(chart_data, output_file, config)
 
     def write_debt_age_chart(self, chart_data, output_file):
+        """Write debt age chart showing debt distribution by priority and age bins."""
         priority_values = self.settings["debt_priority_values"]
         bins = self.settings["debt_age_chart_bins"]
 
         def generate_bin_label(v):
             low, high = to_bin(v, bins)
-            return (
-                "> %d days" % (low,)
-                if high is None
-                else "%d-%d days"
-                % (
-                    low,
-                    high,
-                )
-            )
+            return f"> {low} days" if high is None else f"{low}-{high} days"
 
         def day_grouper(value):
             if isinstance(value, pd.Timedelta):
                 return generate_bin_label(value.days)
+            return None
 
         bin_labels = list(map(generate_bin_label, bins + [bins[-1] + 1]))
         breakdown = (

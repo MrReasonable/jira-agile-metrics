@@ -1,16 +1,20 @@
+"""Waste calculator for Jira Agile Metrics.
+
+This module provides functionality to calculate waste metrics from JIRA data.
+"""
+
 import logging
 
 import dateutil
 import pandas as pd
-from matplotlib import pyplot as plt
 
-from ..calculator import Calculator
-from ..utils import set_chart_style
+from ..utils import create_monthly_bar_chart
+from .base_calculator import BaseCalculator
 
 logger = logging.getLogger(__name__)
 
 
-class WasteCalculator(Calculator):
+class WasteCalculator(BaseCalculator):
     """Calculate stories withdrawn, grouped by the time of withdrawal and
     stage prior to withdrawal.
 
@@ -22,27 +26,18 @@ class WasteCalculator(Calculator):
     def run(self):
         query = self.settings["waste_query"]
         if not query:
-            logger.debug(
-                "Not calculating waste chart data as no query specified"
-            )
+            logger.debug("Not calculating waste chart data as no query specified")
             return None
 
-        cycle_names = [s["name"] for s in self.settings["cycle"]]
-        committed_column = self.settings["committed_column"]
-        done_column = self.settings["done_column"]
-        active_columns = cycle_names[
-            cycle_names.index(committed_column) : cycle_names.index(
-                done_column
-            )
-        ]
+        active_columns = self.get_active_cycle_columns()
 
         cycle_lookup = {}
         for idx, cycle_step in enumerate(self.settings["cycle"]):
             for status in cycle_step["statuses"]:
-                cycle_lookup[status.lower()] = dict(
-                    index=idx,
-                    name=cycle_step["name"],
-                )
+                cycle_lookup[status.lower()] = {
+                    "index": idx,
+                    "name": cycle_step["name"],
+                }
 
         columns = ["key", "last_status", "resolution", "withdrawn_date"]
         series = {
@@ -58,9 +53,7 @@ class WasteCalculator(Calculator):
                 continue
 
             last_status = None
-            status_changes = list(
-                self.query_manager.iter_changes(issue, ["status"])
-            )
+            status_changes = list(self.query_manager.iter_changes(issue, ["status"]))
             if len(status_changes) > 0:
                 last_status = status_changes[-1].from_string
 
@@ -84,11 +77,7 @@ class WasteCalculator(Calculator):
                 dateutil.parser.parse(issue.fields.resolutiondate)
             )
 
-        data = {}
-        for k, v in series.items():
-            data[k] = pd.Series(v["data"], dtype=v["dtype"])
-
-        return pd.DataFrame(data, columns=columns)
+        return self.create_dataframe_from_series(series, columns)
 
     def write(self):
         chart_data = self.get_result()
@@ -100,21 +89,13 @@ class WasteCalculator(Calculator):
             logger.debug("No output file specified for waste chart")
             return
 
-        if len(chart_data.index) == 0:
-            logger.warning("Cannot draw waste chart with zero items")
+        if self.check_chart_data_empty(chart_data, "waste"):
             return
 
         frequency = self.settings["waste_frequency"]
         window = self.settings["waste_window"]
 
-        cycle_names = [s["name"] for s in self.settings["cycle"]]
-        committed_column = self.settings["committed_column"]
-        done_column = self.settings["done_column"]
-        active_columns = cycle_names[
-            cycle_names.index(committed_column) : cycle_names.index(
-                done_column
-            )
-        ]
+        active_columns = self.get_active_cycle_columns()
 
         breakdown = (
             chart_data.pivot_table(
@@ -135,23 +116,9 @@ class WasteCalculator(Calculator):
             logger.warning("Cannot draw waste chart with zero items")
             return
 
-        fig, ax = plt.subplots()
-
-        breakdown.plot.bar(ax=ax, stacked=True)
-
-        if self.settings["waste_chart_title"]:
-            ax.set_title(self.settings["waste_chart_title"])
-
-        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        ax.set_xlabel("Month", labelpad=20)
-        ax.set_ylabel("Number of items", labelpad=10)
-
-        labels = [d.strftime("%b %y") for d in breakdown.index]
-        ax.set_xticklabels(labels, rotation=90, size="small")
-
-        set_chart_style()
-
-        # Write file
-        logger.info("Writing waste chart to %s", output_file)
-        fig.savefig(output_file, bbox_inches="tight", dpi=300)
-        plt.close(fig)
+        create_monthly_bar_chart(
+            breakdown,
+            "waste",
+            output_file,
+            self.settings.get("waste_chart_title"),
+        )

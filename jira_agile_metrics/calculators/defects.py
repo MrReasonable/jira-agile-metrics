@@ -1,16 +1,26 @@
+"""Defects calculator for Jira Agile Metrics.
+
+This module provides functionality to calculate defect metrics from JIRA data.
+"""
+
 import logging
 
 import dateutil.parser
 import matplotlib.pyplot as plt
-import pandas as pd
 
-from ..calculator import Calculator
-from ..utils import breakdown_by_month, set_chart_style
+from ..chart_styling_utils import apply_common_chart_styling
+from ..common_constants import get_common_issue_data_pattern
+from ..utils import (
+    breakdown_by_month,
+    create_common_defects_columns,
+    create_monthly_bar_chart,
+)
+from .base_calculator import BaseCalculator
 
 logger = logging.getLogger(__name__)
 
 
-class DefectsCalculator(Calculator):
+class DefectsCalculator(BaseCalculator):
     """Calculate defect concentration
 
     Queries JIRA with JQL set in `defects_query` and creates three stacked
@@ -37,9 +47,7 @@ class DefectsCalculator(Calculator):
 
         # This calculation is expensive. Only run it if we have a query.
         if not query:
-            logger.debug(
-                "Not calculating defects chart data as no query specified"
-            )
+            logger.debug("Not calculating defects chart data as no query specified")
             return None
 
         # Get the fields
@@ -52,9 +60,7 @@ class DefectsCalculator(Calculator):
 
         type_field = self.settings["defects_type_field"]
         type_field_id = (
-            self.query_manager.field_name_to_id(type_field)
-            if type_field
-            else None
+            self.query_manager.field_name_to_id(type_field) if type_field else None
         )
 
         environment_field = self.settings["defects_environment_field"]
@@ -65,44 +71,22 @@ class DefectsCalculator(Calculator):
         )
 
         # Build data frame
-        columns = [
-            "key",
-            "priority",
-            "type",
-            "environment",
-            "created",
-            "resolved",
-        ]
-        series = {
-            "key": {"data": [], "dtype": "str"},
-            "priority": {"data": [], "dtype": "str"},
-            "type": {"data": [], "dtype": "str"},
-            "environment": {"data": [], "dtype": "str"},
-            "created": {"data": [], "dtype": "datetime64[ns]"},
-            "resolved": {"data": [], "dtype": "datetime64[ns]"},
-        }
+        columns = create_common_defects_columns()
+        series = self.create_common_series_structure(columns)
 
         for issue in self.query_manager.find_issues(query, expand=None):
-            series["key"]["data"].append(issue.key)
-            series["priority"]["data"].append(
-                self.query_manager.resolve_field_value(
-                    issue, priority_field_id
-                )
-                if priority_field
-                else None
+            # Add common fields
+            issue_data_pattern = get_common_issue_data_pattern()
+            issue_data_pattern.update(
+                {
+                    "priority": priority_field_id,
+                    "type": type_field_id,
+                    "environment": environment_field_id,
+                }
             )
-            series["type"]["data"].append(
-                self.query_manager.resolve_field_value(issue, type_field_id)
-                if type_field
-                else None
-            )
-            series["environment"]["data"].append(
-                self.query_manager.resolve_field_value(
-                    issue, environment_field_id
-                )
-                if environment_field
-                else None
-            )
+            self.add_issue_data_to_series(series, issue, issue_data_pattern)
+
+            # Add date fields
             series["created"]["data"].append(
                 dateutil.parser.parse(issue.fields.created)
             )
@@ -112,19 +96,14 @@ class DefectsCalculator(Calculator):
                 else None
             )
 
-        data = {}
-        for k, v in series.items():
-            data[k] = pd.Series(v["data"], dtype=v["dtype"])
-
-        return pd.DataFrame(data, columns=columns)
+        return self.create_dataframe_from_series(series, columns)
 
     def write(self):
         chart_data = self.get_result()
         if chart_data is None:
             return
 
-        if len(chart_data.index) == 0:
-            logger.warning("Cannot draw defect charts with zero items")
+        if self.check_chart_data_empty(chart_data, "defect"):
             return
 
         if self.settings["defects_by_priority_chart"]:
@@ -143,42 +122,37 @@ class DefectsCalculator(Calculator):
             )
 
     def write_defects_by_priority_chart(self, chart_data, output_file):
+        """Write defects by priority chart showing monthly breakdown."""
         window = self.settings["defects_window"]
         priority_values = self.settings["defects_priority_values"]
 
         breakdown = breakdown_by_month(
             chart_data,
-            "created",
-            "resolved",
-            "key",
-            "priority",
-            priority_values,
+            {
+                "start_column": "created",
+                "end_column": "resolved",
+                "key_column": "key",
+                "value_column": "priority",
+                "output_columns": priority_values,
+            },
         )
 
         if window:
             breakdown = breakdown[-window:]
 
         if len(breakdown.index) == 0 or len(breakdown.columns) == 0:
-            logger.warning(
-                "Cannot draw defects by priority chart with zero items"
-            )
+            logger.warning("Cannot draw defects by priority chart with zero items")
             return
 
         fig, ax = plt.subplots()
 
         breakdown.plot.bar(ax=ax, stacked=True)
 
-        if self.settings["defects_by_priority_chart_title"]:
-            ax.set_title(self.settings["defects_by_priority_chart_title"])
-
-        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        ax.set_xlabel("Month", labelpad=20)
-        ax.set_ylabel("Number of items", labelpad=10)
-
-        labels = [d.strftime("%b %y") for d in breakdown.index]
-        ax.set_xticklabels(labels, rotation=90, size="small")
-
-        set_chart_style()
+        # Apply common chart styling
+        chart_title = self.settings.get("defects_by_priority_chart_title")
+        if chart_title:
+            ax.set_title(chart_title)
+        apply_common_chart_styling(ax, breakdown)
 
         # Write file
         logger.info("Writing defects by priority chart to %s", output_file)
@@ -186,11 +160,19 @@ class DefectsCalculator(Calculator):
         plt.close(fig)
 
     def write_defects_by_type_chart(self, chart_data, output_file):
+        """Write defects by type chart showing monthly breakdown of defects by type."""
         window = self.settings["defects_window"]
         type_values = self.settings["defects_type_values"]
 
         breakdown = breakdown_by_month(
-            chart_data, "created", "resolved", "key", "type", type_values
+            chart_data,
+            {
+                "start_column": "created",
+                "end_column": "resolved",
+                "key_column": "key",
+                "value_column": "type",
+                "output_columns": type_values,
+            },
         )
 
         if window:
@@ -200,64 +182,45 @@ class DefectsCalculator(Calculator):
             logger.warning("Cannot draw defects by type chart with zero items")
             return
 
-        fig, ax = plt.subplots()
-
-        breakdown.plot.bar(ax=ax, stacked=True)
-
-        if self.settings["defects_by_type_chart_title"]:
-            ax.set_title(self.settings["defects_by_type_chart_title"])
-
-        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        ax.set_xlabel("Month", labelpad=20)
-        ax.set_ylabel("Number of items", labelpad=10)
-
-        labels = [d.strftime("%b %y") for d in breakdown.index]
-        ax.set_xticklabels(labels, rotation=90, size="small")
-
-        set_chart_style()
-
-        # Write file
-        logger.info("Writing defects by type chart to %s", output_file)
-        fig.savefig(output_file, bbox_inches="tight", dpi=300)
-        plt.close(fig)
+        create_monthly_bar_chart(
+            breakdown,
+            "defects by type",
+            output_file,
+            self.settings.get("defects_by_type_chart_title"),
+        )
 
     def write_defects_by_environment_chart(self, chart_data, output_file):
+        """Write defects by environment chart showing monthly breakdown."""
         window = self.settings["defects_window"]
         environment_values = self.settings["defects_environment_values"]
 
         breakdown = breakdown_by_month(
             chart_data,
-            "created",
-            "resolved",
-            "key",
-            "environment",
-            environment_values,
+            {
+                "start_column": "created",
+                "end_column": "resolved",
+                "key_column": "key",
+                "value_column": "environment",
+                "output_columns": environment_values,
+            },
         )
 
         if window:
             breakdown = breakdown[-window:]
 
         if len(breakdown.index) == 0 or len(breakdown.columns) == 0:
-            logger.warning(
-                "Cannot draw defects by environment chart with zero items"
-            )
+            logger.warning("Cannot draw defects by environment chart with zero items")
             return
 
         fig, ax = plt.subplots()
 
         breakdown.plot.bar(ax=ax, stacked=True)
 
-        if self.settings["defects_by_environment_chart_title"]:
-            ax.set_title(self.settings["defects_by_environment_chart_title"])
-
-        ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        ax.set_xlabel("Month", labelpad=20)
-        ax.set_ylabel("Number of items", labelpad=10)
-
-        labels = [d.strftime("%b %y") for d in breakdown.index]
-        ax.set_xticklabels(labels, rotation=90, size="small")
-
-        set_chart_style()
+        # Apply common chart styling
+        chart_title = self.settings.get("defects_by_environment_chart_title")
+        if chart_title:
+            ax.set_title(chart_title)
+        apply_common_chart_styling(ax, breakdown)
 
         # Write file
         logger.info("Writing defects by environment chart to %s", output_file)
