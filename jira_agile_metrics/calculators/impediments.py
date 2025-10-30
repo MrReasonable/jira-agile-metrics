@@ -8,7 +8,7 @@ import logging
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from ..chart_styling_utils import set_chart_style
+from ..chart_styling_utils import _format_index_labels, set_chart_style
 from ..utils import (
     breakdown_by_month,
     breakdown_by_month_sum_days,
@@ -155,7 +155,11 @@ class ImpedimentsCalculator(BaseCalculator):
         ax.set_xlabel("Month", labelpad=20)
         ax.set_ylabel("Number of impediments", labelpad=10)
 
-        labels = [d.strftime("%b %y") for d in breakdown.index]
+        # Set ticks to match data positions to ensure proper label alignment
+        num_data_points = len(breakdown.index)
+        tick_positions = list(range(num_data_points))
+        ax.set_xticks(tick_positions)
+        labels = _format_index_labels(breakdown.index)
         ax.set_xticklabels(labels, rotation=90, size="small")
 
         set_chart_style()
@@ -195,7 +199,11 @@ class ImpedimentsCalculator(BaseCalculator):
         ax.set_xlabel("Month", labelpad=20)
         ax.set_ylabel("Total impeded days", labelpad=10)
 
-        labels = [d.strftime("%b %y") for d in breakdown.index]
+        # Set ticks to match data positions to ensure proper label alignment
+        num_data_points = len(breakdown.index)
+        tick_positions = list(range(num_data_points))
+        ax.set_xticks(tick_positions)
+        labels = _format_index_labels(breakdown.index)
         ax.set_xticklabels(labels, rotation=90, size="small")
 
         set_chart_style()
@@ -243,7 +251,11 @@ class ImpedimentsCalculator(BaseCalculator):
         ax.set_xlabel("Month", labelpad=20)
         ax.set_ylabel("Number of impediments", labelpad=10)
 
-        labels = [d.strftime("%b %y") for d in breakdown.index]
+        # Set ticks to match data positions to ensure proper label alignment
+        num_data_points = len(breakdown.index)
+        tick_positions = list(range(num_data_points))
+        ax.set_xticks(tick_positions)
+        labels = _format_index_labels(breakdown.index)
         ax.set_xticklabels(labels, rotation=90, size="small")
 
         set_chart_style()
@@ -290,7 +302,11 @@ class ImpedimentsCalculator(BaseCalculator):
         ax.set_xlabel("Month", labelpad=20)
         ax.set_ylabel("Total impeded days", labelpad=10)
 
-        labels = [d.strftime("%b %y") for d in breakdown.index]
+        # Set ticks to match data positions to ensure proper label alignment
+        num_data_points = len(breakdown.index)
+        tick_positions = list(range(num_data_points))
+        ax.set_xticks(tick_positions)
+        labels = _format_index_labels(breakdown.index)
         ax.set_xticklabels(labels, rotation=90, size="small")
 
         set_chart_style()

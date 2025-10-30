@@ -50,97 +50,81 @@ def fixture_cycle_time_results(base_minimal_cycle_time_columns):
     return create_impediments_cycle_time_results(base_minimal_cycle_time_columns)
 
 
-def test_only_runs_if_charts_set(query_manager, settings, cycle_time_results):
+@pytest.mark.parametrize(
+    "chart_config,expected_runs",
+    [
+        (
+            {
+                "impediments_data": None,
+                "impediments_chart": None,
+                "impediments_days_chart": None,
+                "impediments_status_chart": None,
+                "impediments_status_days_chart": None,
+            },
+            False,
+        ),
+        (
+            {
+                "impediments_data": "impediments.csv",
+                "impediments_chart": None,
+                "impediments_days_chart": None,
+                "impediments_status_chart": None,
+                "impediments_status_days_chart": None,
+            },
+            True,
+        ),
+        (
+            {
+                "impediments_data": None,
+                "impediments_chart": "impediments.png",
+                "impediments_days_chart": None,
+                "impediments_status_chart": None,
+                "impediments_status_days_chart": None,
+            },
+            True,
+        ),
+        (
+            {
+                "impediments_data": None,
+                "impediments_chart": None,
+                "impediments_days_chart": "days.png",
+                "impediments_status_chart": None,
+                "impediments_status_days_chart": None,
+            },
+            True,
+        ),
+        (
+            {
+                "impediments_data": None,
+                "impediments_chart": None,
+                "impediments_days_chart": None,
+                "impediments_status_chart": "status.png",
+                "impediments_status_days_chart": None,
+            },
+            True,
+        ),
+        (
+            {
+                "impediments_data": None,
+                "impediments_chart": None,
+                "impediments_days_chart": None,
+                "impediments_status_chart": None,
+                "impediments_status_days_chart": "status-days.png",
+            },
+            True,
+        ),
+    ],
+)
+def test_only_runs_if_charts_set(
+    query_manager, settings, cycle_time_results, chart_config, expected_runs
+):
     """Test that impediments calculator only runs when charts are configured."""
-    test_settings = extend_dict(
-        settings,
-        {
-            "impediments_data": None,
-            "impediments_chart": None,
-            "impediments_days_chart": None,
-            "impediments_status_chart": None,
-            "impediments_status_days_chart": None,
-        },
-    )
+    test_settings = extend_dict(settings, chart_config)
 
     calculator = ImpedimentsCalculator(query_manager, test_settings, cycle_time_results)
     data = calculator.run()
-    assert data is None
 
-    test_settings = extend_dict(
-        settings,
-        {
-            "impediments_data": "impediments.csv",
-            "impediments_chart": None,
-            "impediments_days_chart": None,
-            "impediments_status_chart": None,
-            "impediments_status_days_chart": None,
-        },
-    )
-
-    calculator = ImpedimentsCalculator(query_manager, test_settings, cycle_time_results)
-    data = calculator.run()
-    assert data is not None
-
-    test_settings = extend_dict(
-        settings,
-        {
-            "impediments_data": None,
-            "impediments_chart": "impediments.png",
-            "impediments_days_chart": None,
-            "impediments_status_chart": None,
-            "impediments_status_days_chart": None,
-        },
-    )
-
-    calculator = ImpedimentsCalculator(query_manager, test_settings, cycle_time_results)
-    data = calculator.run()
-    assert data is not None
-
-    test_settings = extend_dict(
-        settings,
-        {
-            "impediments_data": None,
-            "impediments_chart": None,
-            "impediments_days_chart": "days.png",
-            "impediments_status_chart": None,
-            "impediments_status_days_chart": None,
-        },
-    )
-
-    calculator = ImpedimentsCalculator(query_manager, test_settings, cycle_time_results)
-    data = calculator.run()
-    assert data is not None
-
-    test_settings = extend_dict(
-        settings,
-        {
-            "impediments_data": None,
-            "impediments_chart": None,
-            "impediments_days_chart": None,
-            "impediments_status_chart": "status.png",
-            "impediments_status_days_chart": None,
-        },
-    )
-
-    calculator = ImpedimentsCalculator(query_manager, test_settings, cycle_time_results)
-    data = calculator.run()
-    assert data is not None
-
-    test_settings = extend_dict(
-        settings,
-        {
-            "impediments_data": None,
-            "impediments_chart": None,
-            "impediments_days_chart": None,
-            "impediments_status_chart": None,
-            "impediments_status_days_chart": "status-days.png",
-        },
-    )
-
-    calculator = ImpedimentsCalculator(query_manager, test_settings, cycle_time_results)
-    data = calculator.run()
-    assert data is not None
+    assert (data is not None) == expected_runs
 
 
 def test_empty(query_manager, settings, columns):

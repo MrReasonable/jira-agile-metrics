@@ -10,7 +10,7 @@ import logging
 import pandas as pd
 
 from ..calculator import Calculator
-from ..common_constants import get_common_cycle_time_fields
+from ..common_constants import COMMON_CYCLE_TIME_FIELDS
 from ..trello import TrelloClient
 from ..utils import get_extension, to_json_string
 from .impediments_utils import _process_impediments
@@ -204,9 +204,21 @@ class CycleTimeConfig:
             "reset_on_backwards": config_dict.get("reset_on_backwards", True),
         }
 
-    def get_config_dict(self):
-        """Get configuration as a dictionary."""
+    def get_config(self):
+        """Get a copy of the configuration dictionary.
+
+        This is the canonical method for accessing the configuration.
+        Returns a copy to prevent external modification of internal state.
+        """
         return self.config.copy()
+
+    def get_config_dict(self):
+        """Get configuration as a dictionary.
+
+        Deprecated: Use get_config() instead. This method is maintained
+        for backward compatibility only.
+        """
+        return self.get_config()
 
     def __str__(self):
         """Return string representation."""
@@ -221,10 +233,6 @@ class CycleTimeConfig:
             f"committed_column='{self.config['committed_column']}', "
             f"done_column='{self.config['done_column']}')"
         )
-
-    def get_config(self):
-        """Get the configuration dictionary."""
-        return self.config.copy()
 
 
 class CycleTimeParams:
@@ -349,6 +357,20 @@ def _process_single_issue(issue, processing_params):
     return item
 
 
+def _extract_resolution_value(issue_fields):
+    """Extract a readable resolution value from an issue's fields.
+
+    Returns the resolution name when available, otherwise a string cast of the
+    resolution object, or None if no resolution is present.
+    """
+    resolution = getattr(issue_fields, "resolution", None)
+    if resolution is None:
+        return None
+    if hasattr(resolution, "name"):
+        return resolution.name
+    return str(resolution)
+
+
 def _create_base_item(issue, criteria, params, cycle_names):
     """Create base item dictionary for an issue."""
     if isinstance(params.query_manager.jira, TrelloClient):
@@ -361,9 +383,7 @@ def _create_base_item(issue, criteria, params, cycle_names):
         "issue_type": issue.fields.issuetype.name,
         "summary": issue.fields.summary,
         "status": issue.fields.status.name,
-        "resolution": (
-            issue.fields.resolution.name if issue.fields.resolution else None
-        ),
+        "resolution": _extract_resolution_value(issue.fields),
         "cycle_time": None,
         "lead_time": None,
         "completed_timestamp": None,
@@ -562,7 +582,7 @@ def _build_result_dataframe(series, params, cycle_names):
     return pd.DataFrame(
         data,
         columns=["key", "url", "issue_type", "summary", "status", "resolution"]
-        + get_common_cycle_time_fields()
+        + COMMON_CYCLE_TIME_FIELDS
         + sorted(params.config.config["attributes"].keys())
         + (
             [params.config.config["query_attribute"]]

@@ -170,7 +170,7 @@ class HistogramCalculator(Calculator):
         ax.set_xlim(0, right)
 
         # Add quantiles
-        self._add_quantile_lines(ax, ct_days, quantiles)
+        self._add_quantile_lines(ax, ct_days, quantiles, metric_name="Cycle time")
         ax.set_ylabel("Frequency")
         set_chart_style()
 
@@ -179,13 +179,21 @@ class HistogramCalculator(Calculator):
         fig.savefig(output_file, bbox_inches="tight", dpi=300)
         plt.close(fig)
 
-    def _add_quantile_lines(self, ax, ct_days, quantiles):
-        """Add quantile lines and labels to the chart."""
+    def _add_quantile_lines(self, ax, time_days, quantiles, metric_name=None):
+        """Add quantile lines and labels to the chart.
+
+        Args:
+            ax: Matplotlib Axes object
+            time_days: Series or array of time values in days
+            quantiles: List of quantile values (e.g., [0.5, 0.85, 0.95])
+            metric_name: Optional metric name prefix for labels
+        """
         bottom, top = ax.get_ylim()
         quantile_labels = []
-        for quantile, value in ct_days.quantile(quantiles).items():
+        for quantile, value in time_days.quantile(quantiles).items():
             ax.vlines(value, bottom, top - 0.001, linestyles="--", linewidths=1)
-            label = f"{quantile * 100:.0f}% ({value:.0f} days)"
+            prefix = f"{metric_name}: " if metric_name else ""
+            label = f"{prefix}{quantile * 100:.0f}% ({value:.0f} days)"
             quantile_labels.append(label)
 
         # Add quantile labels as a block of text below the chart
@@ -284,28 +292,9 @@ class HistogramCalculator(Calculator):
             ax.set_title(self.settings["lead_time_histogram_chart_title"])
         _, right = ax.get_xlim()
         ax.set_xlim(0, right)
-        self._add_lead_time_quantile_lines(ax, lt_days, quantiles)
+        self._add_quantile_lines(ax, lt_days, quantiles, metric_name="Lead time")
         ax.set_ylabel("Frequency")
         set_chart_style()
         logger.info("Writing lead time histogram chart to %s", output_file)
         fig.savefig(output_file, bbox_inches="tight", dpi=300)
         plt.close(fig)
-
-    def _add_lead_time_quantile_lines(self, ax, lt_days, quantiles):
-        """Add quantile lines and labels to the lead time chart."""
-        bottom, top = ax.get_ylim()
-        quantile_labels = []
-        for quantile, value in lt_days.quantile(quantiles).items():
-            ax.vlines(value, bottom, top - 0.001, linestyles="--", linewidths=1)
-            label = f"{quantile * 100:.0f}% ({value:.0f} days)"
-            quantile_labels.append(label)
-        if quantile_labels:
-            fig = ax.get_figure()
-            fig.text(
-                0.5,
-                -0.03,
-                " | ".join(quantile_labels),
-                ha="center",
-                va="top",
-                fontsize="small",
-            )

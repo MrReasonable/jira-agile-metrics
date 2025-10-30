@@ -130,12 +130,14 @@ class BaseCalculator(Calculator):
     def add_quantile_annotations(self, ax, chart_data, quantiles):
         """Add quantile annotations to a chart."""
         left, right = ax.get_xlim()
+        ymin, ymax = ax.get_ylim()
+        offset = 0.02 * (ymax - ymin)
         for quantile, value in chart_data["cycle_time"].quantile(quantiles).items():
             ax.hlines(value, left, right, linestyles="--", linewidths=1)
             ax.annotate(
                 f"{quantile * 100:.0f}% ({value:.0f} days)",
                 xy=(left, value),
-                xytext=(left, value + 0.5),
+                xytext=(left, value + offset),
                 fontsize="x-small",
                 ha="left",
             )

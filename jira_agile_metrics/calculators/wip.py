@@ -62,9 +62,15 @@ class WIPChartCalculator(Calculator):
         groups = wip_data.groupby(
             pd.Grouper(freq=frequency, label="left", closed="left")
         )
-        labels = [x[0].strftime(self.settings["date_format"]) for x in groups]
+        group_keys = list(groups.groups.keys())
+        labels = [x.strftime(self.settings["date_format"]) for x in group_keys]
 
         groups.boxplot(subplots=False, ax=ax, showmeans=True, return_type="axes")
+
+        # Set ticks to match data positions to ensure proper label alignment
+        num_groups = len(group_keys)
+        tick_positions = list(range(1, num_groups + 1))  # boxplot uses 1-based indexing
+        ax.set_xticks(tick_positions)
         ax.set_xticklabels(labels, rotation=70, size="small")
 
         ax.set_xlabel("Period starting")

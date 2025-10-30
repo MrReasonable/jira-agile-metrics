@@ -48,7 +48,9 @@ class ForecastDataValidator:
 
         return backlog_column, done_column
 
-    def setup_forecast_parameters(self, burnup_data: pd.DataFrame) -> Optional[dict]:
+    def setup_forecast_parameters(
+        self, burnup_data: pd.DataFrame, horizon_months: int = 6, freq: str = "D"
+    ) -> Optional[dict]:
         """Setup forecast parameters including dates and frequency settings."""
         if burnup_data is None or burnup_data.empty:
             return None
@@ -56,12 +58,11 @@ class ForecastDataValidator:
         # Get the last date from burnup data
         last_date = burnup_data.index[-1]
 
-        # Calculate forecast horizon (default to 6 months)
-        forecast_horizon_end = last_date + pd.DateOffset(months=6)
+        # Calculate forecast horizon
+        forecast_horizon_end = last_date + pd.DateOffset(months=horizon_months)
 
         # Determine frequency based on data
-        freq = "D"  # Daily frequency
-        freq_label = "day"
+        freq_label = "day" if freq == "D" else freq
 
         return {
             "forecast_horizon_end": forecast_horizon_end,

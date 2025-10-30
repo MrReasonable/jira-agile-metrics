@@ -8,27 +8,99 @@ class EpicProcessingParams:
     """Parameters for epic processing."""
 
     def __init__(self, params_dict):
-        """Initialize with a dictionary of parameters."""
+        """Initialize with a dictionary of parameters.
+
+        Args:
+            params_dict: Dictionary containing parameters with required keys:
+                outcomes: List of Outcome objects (required)
+                epic_config: Dictionary of epic configuration fields (required)
+                team_lookup: Dictionary mapping team names to Team objects (required)
+                story_query_template: String template for story queries (required)
+                cycle: Dictionary or object representing cycle configuration (required)
+                backlog_column: String name of backlog column (required)
+                done_column: String name of done column (required)
+                team_epics: Dictionary mapping team names to lists of epics
+                    (required)
+                default_team: Team object or None (optional, defaults to None)
+                epic_team_field: String field name for epic team or None/empty
+                    (optional, defaults to None)
+
+        Raises:
+            ValueError: If required fields are missing or have invalid types.
+        """
+        # Validate required fields
+        required_fields = {
+            "outcomes": (list, tuple),
+            "epic_config": dict,
+            "team_lookup": dict,
+            "team_epics": dict,
+            "story_query_template": str,
+            "backlog_column": str,
+            "done_column": str,
+        }
+
+        for field_name, expected_types in required_fields.items():
+            value = params_dict.get(field_name)
+            if value is None:
+                raise ValueError(
+                    f"EpicProcessingParams: required field '{field_name}' "
+                    f"is missing or None"
+                )
+            # Check type for fields
+            if isinstance(expected_types, tuple):
+                if not isinstance(value, expected_types):
+                    raise ValueError(
+                        f"EpicProcessingParams: field '{field_name}' "
+                        f"must be one of {expected_types}, "
+                        f"got {type(value).__name__}"
+                    )
+            elif not isinstance(value, expected_types):
+                raise ValueError(
+                    f"EpicProcessingParams: field '{field_name}' "
+                    f"must be {expected_types.__name__}, "
+                    f"got {type(value).__name__}"
+                )
+
+        # Validate cycle separately (required but no type check -
+        # can be dict or custom object)
+        if "cycle" not in params_dict or params_dict["cycle"] is None:
+            raise ValueError(
+                "EpicProcessingParams: required field 'cycle' is missing or None"
+            )
+
+        # Validate optional fields with defaults
+        default_team = params_dict.get("default_team")
+        epic_team_field = params_dict.get("epic_team_field")
+
         self.params = {
-            "outcomes": params_dict.get("outcomes"),
-            "epic_config": params_dict.get("epic_config"),
-            "team_lookup": params_dict.get("team_lookup"),
-            "team_epics": params_dict.get("team_epics"),
-            "default_team": params_dict.get("default_team"),
-            "epic_team_field": params_dict.get("epic_team_field"),
-            "story_query_template": params_dict.get("story_query_template"),
-            "cycle": params_dict.get("cycle"),
-            "backlog_column": params_dict.get("backlog_column"),
-            "done_column": params_dict.get("done_column"),
+            "outcomes": params_dict["outcomes"],
+            "epic_config": params_dict["epic_config"],
+            "team_lookup": params_dict["team_lookup"],
+            "team_epics": params_dict["team_epics"],
+            "default_team": default_team,
+            "epic_team_field": epic_team_field,
+            "story_query_template": params_dict["story_query_template"],
+            "cycle": params_dict["cycle"],
+            "backlog_column": params_dict["backlog_column"],
+            "done_column": params_dict["done_column"],
         }
 
     def get_params_dict(self):
-        """Get parameters as a dictionary."""
+        """Get parameters as a dictionary.
+
+        Returns:
+            Dictionary containing all parameters, with None values preserved
+            for optional fields (default_team, epic_team_field).
+        """
         return self.params.copy()
 
     def __str__(self):
-        """Return string representation."""
-        outcomes_count = len(self.params["outcomes"]) if self.params["outcomes"] else 0
+        """Return string representation.
+
+        Safely handles None/missing values to prevent exceptions.
+        """
+        outcomes = self.params.get("outcomes") or []
+        outcomes_count = len(outcomes)
         return f"EpicProcessingParams(outcomes={outcomes_count})"
 
 
@@ -148,27 +220,48 @@ class Epic:
 
         Args:
             epic_data: Dictionary containing epic information with keys:
-                key: Unique key for the epic
-                summary: Summary description of the epic
-                status: Current status of the epic
-                resolution: Resolution status
-                resolution_date: Date when epic was resolved
-                min_stories: Minimum number of stories
-                max_stories: Maximum number of stories
-                team_name: Name of the team working on the epic
-                deadline: Deadline for the epic
-                story_query: Query for finding stories
-                story_cycle_times: Cycle times for stories
-                stories_raised: Number of stories raised
-                stories_in_backlog: Number of stories in backlog
-                stories_in_progress: Number of stories in progress
-                stories_done: Number of stories done
-                first_story_started: Date first story started
-                last_story_finished: Date last story finished
-                team: Team object
-                outcome: Outcome object
-                forecast: Forecast object
+                key: Unique key for the epic (required)
+                summary: Summary description of the epic (required)
+                status: Current status of the epic (required)
+                resolution: Resolution status (required)
+                resolution_date: Date when epic was resolved (required)
+                min_stories: Minimum number of stories (required)
+                max_stories: Maximum number of stories (required)
+                team_name: Name of the team working on the epic (required)
+                deadline: Deadline for the epic (required)
+                story_query: Query for finding stories (optional)
+                story_cycle_times: Cycle times for stories (optional)
+                stories_raised: Number of stories raised (optional)
+                stories_in_backlog: Number of stories in backlog (optional)
+                stories_in_progress: Number of stories in progress (optional)
+                stories_done: Number of stories done (optional)
+                first_story_started: Date first story started (optional)
+                last_story_finished: Date last story finished (optional)
+                team: Team object (optional)
+                outcome: Outcome object (optional)
+                forecast: Forecast object (optional)
+
+        Raises:
+            ValueError: If required fields are missing.
         """
+        # Validate required fields
+        required_fields = [
+            "key",
+            "summary",
+            "status",
+            "resolution",
+            "resolution_date",
+            "min_stories",
+            "max_stories",
+            "team_name",
+            "deadline",
+        ]
+        missing_fields = [field for field in required_fields if field not in epic_data]
+        if missing_fields:
+            raise ValueError(
+                f"Epic: required fields missing: {', '.join(missing_fields)}"
+            )
+
         # Core epic data
         self.key = epic_data["key"]
         self.summary = epic_data["summary"]

@@ -4,11 +4,16 @@ This module contains functions for finding outcomes and epics, and for
 updating story counts.
 """
 
+import datetime as dt
+import logging
+
 import dateutil
 import pandas as pd
 
-from .cycletime import CycleTimeParams, calculate_cycle_times
+from .cycletime import CycleTimeConfig, CycleTimeParams, calculate_cycle_times
 from .progressreport_models import Outcome
+
+logger = logging.getLogger(__name__)
 
 
 def find_outcomes(query_manager, query, outcome_deadline_field, epic_query_template):
@@ -60,14 +65,19 @@ def find_epics(query_manager, epic_config, outcome):
     epic_deadline_field = epic_config["deadline_field"]
 
     for issue in query_manager.find_issues(outcome.epic_query):
+        resolution_value = getattr(issue.fields, "resolution", None)
         yield {
             "key": issue.key,
             "summary": issue.fields.summary,
             "status": issue.fields.status.name,
             "resolution": (
-                issue.fields.resolution.name if issue.fields.resolution else None
+                resolution_value.name
+                if resolution_value and hasattr(resolution_value, "name")
+                else (str(resolution_value) if resolution_value else None)
             ),
-            "resolution_date": _parse_date_field(issue.fields.resolutiondate),
+            "resolution_date": _parse_date_field(
+                getattr(issue.fields, "resolutiondate", None)
+            ),
             "min_stories": (
                 int_or_none(
                     query_manager.resolve_field_value(issue, epic_min_stories_field)
@@ -113,29 +123,35 @@ def _update_story_status_counts(epic, row, backlog_column, done_column):
         epic.data["stories_in_progress"] += 1
 
 
-def _update_story_dates(epic, row):
+def _update_story_dates(epic, row, committed_column, done_column):
     """Update first/last story dates from cycle time row.
 
     Args:
         epic: Epic object to update
         row: Cycle time row
+        committed_column: Name of the committed/started column
+        done_column: Name of the done/completed column
     """
-    if not pd.isna(row["started"]):
+    # Use committed_column as the "started" column
+    if committed_column in row and not pd.isna(row[committed_column]):
         if (
             epic.data["first_story_started"] is None
-            or row["started"] < epic.data["first_story_started"]
+            or row[committed_column] < epic.data["first_story_started"]
         ):
-            epic.data["first_story_started"] = row["started"]
+            epic.data["first_story_started"] = row[committed_column]
 
-    if not pd.isna(row["completed"]):
+    # Use done_column as the "completed" column
+    if done_column in row and not pd.isna(row[done_column]):
         if (
             epic.data["last_story_finished"] is None
-            or row["completed"] > epic.data["last_story_finished"]
+            or row[done_column] > epic.data["last_story_finished"]
         ):
-            epic.data["last_story_finished"] = row["completed"]
+            epic.data["last_story_finished"] = row[done_column]
 
 
-def update_story_counts(epic, query_manager, cycle, backlog_column, done_column):
+def update_story_counts(
+    epic, query_manager, cycle, backlog_column, done_column
+):  # pylint: disable=too-many-locals
     """Update story counts for an epic.
 
     Args:
@@ -174,15 +190,68 @@ def update_story_counts(epic, query_manager, cycle, backlog_column, done_column)
     quoted_keys = ['"' + key.replace('"', '""') + '"' for key in story_keys]
     keys_jql = f"key in ({', '.join(quoted_keys)})"
 
+    # Determine committed_column from cycle config with robust validation
+    # committed_column should be the column after backlog in the cycle
+    if not cycle:
+        # No cycle configured: return empty result safely
+        epic.data["story_cycle_times"] = pd.DataFrame(story_cycle_times)
+        return
+
+    cycle_names = [s["name"] for s in cycle if "name" in s]
+
+    if not cycle_names:
+        # Cycle provided but contains no names: return empty result safely
+        epic.data["story_cycle_times"] = pd.DataFrame(story_cycle_times)
+        return
+
+    if backlog_column in cycle_names:
+        backlog_index = cycle_names.index(backlog_column)
+        # Use the next column if it exists;
+        # otherwise default deterministically to backlog
+        if backlog_index + 1 < len(cycle_names):
+            committed_column = cycle_names[backlog_index + 1]
+        else:
+            logger.debug(
+                (
+                    "Backlog column is last in cycle, defaulting "
+                    "committed_column to backlog "
+                    "[backlog_column=%s, cycle_names=%s]"
+                ),
+                backlog_column,
+                cycle_names,
+            )
+            committed_column = backlog_column
+    else:
+        # Backlog not found: deterministic fallback to the first column
+        # (only after verifying there is at least one column, which is guaranteed here)
+        logger.debug(
+            (
+                "Backlog column not found in cycle, defaulting "
+                "committed_column to first column "
+                "[backlog_column=%s, cycle_names=%s]"
+            ),
+            backlog_column,
+            cycle_names,
+        )
+        committed_column = cycle_names[0]
+
+    # Get attributes from query_manager settings if available
+    # This is needed for cycle time calculation
+    attributes = getattr(query_manager, "settings", {}).get("attributes") or {}
+
     # Calculate cycle times for all stories in a single query
     all_cycle_times = calculate_cycle_times(
         CycleTimeParams(
             query_manager,
-            {
-                "cycle": cycle,
-                "backlog_column": backlog_column,
-                "done_column": done_column,
-            },
+            CycleTimeConfig(
+                {
+                    "cycle": cycle,
+                    "attributes": attributes,
+                    "backlog_column": backlog_column,
+                    "committed_column": committed_column,
+                    "done_column": done_column,
+                }
+            ),
             [{"jql": keys_jql}],
         )
     )
@@ -206,7 +275,8 @@ def update_story_counts(epic, query_manager, cycle, backlog_column, done_column)
             _update_story_status_counts(epic, row, backlog_column, done_column)
 
             # Update first/last dates
-            _update_story_dates(epic, row)
+            # Use committed_column as "started" and done_column as "completed"
+            _update_story_dates(epic, row, committed_column, done_column)
 
     epic.data["story_cycle_times"] = pd.DataFrame(story_cycle_times)
 
@@ -232,7 +302,7 @@ def _parse_date_field(value, default=None):
     """Safely parse a date field value.
 
     Args:
-        value: Date string value to parse
+        value: Date string value, datetime object, or None to parse
         default: Default value to return if parsing fails or value is falsy
 
     Returns:
@@ -240,6 +310,10 @@ def _parse_date_field(value, default=None):
     """
     if not value:
         return default
+
+    # If already a datetime object, return it
+    if isinstance(value, dt.datetime):
+        return value
 
     try:
         return dateutil.parser.parse(value)

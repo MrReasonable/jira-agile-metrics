@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from pandas import Timedelta
 
-from ..columns import create_debt_columns
+from ..columns import DEBT_COLUMNS
 from ..querymanager import QueryManager
 from ..test_classes import FauxJIRA as JIRA
 from ..test_data import COMMON_TEST_ISSUES
@@ -77,14 +77,14 @@ def test_columns(jira, settings):
     calculator = DebtCalculator(query_manager, settings, results)
 
     data = calculator.run()
-    expected_columns = create_debt_columns()
+    expected_columns = DEBT_COLUMNS
     assert list(data.columns) == expected_columns
 
 
 def test_empty(fields, settings):
     """Test debt calculator with empty data."""
 
-    expected_columns = create_debt_columns()
+    expected_columns = DEBT_COLUMNS
 
     data = run_empty_calculator_test(DebtCalculator, fields, settings, expected_columns)
     assert len(data.index) == 0
@@ -102,7 +102,7 @@ def test_breakdown(jira, settings):
     assert len(data) == 12
 
     # Check that we have the expected columns
-    expected_columns = create_debt_columns()
+    expected_columns = DEBT_COLUMNS
     records, valid_records = validate_defect_test_data(data, expected_columns)
 
     # Check specific valid records - common assertions
@@ -138,7 +138,7 @@ def test_no_priority_field(jira, settings):
     assert len(data) == 12
 
     # Check that we have the expected columns
-    expected_columns = create_debt_columns()
+    expected_columns = DEBT_COLUMNS
     records, valid_records = validate_defect_test_data(data, expected_columns)
 
     # Check specific valid records (no priority check due to no priority field)

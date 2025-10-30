@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from ..chart_styling_utils import set_chart_style
-from ..columns import create_debt_columns
-from ..common_constants import get_common_issue_data_pattern
+from ..columns import DEBT_COLUMNS
+from ..common_constants import COMMON_ISSUE_DATA_PATTERN
 from ..utils import to_bin
 from .base_calculator import BaseCalculator
 
@@ -83,7 +83,7 @@ class DebtCalculator(BaseCalculator):
         )
 
         # Add common fields
-        issue_data_pattern = get_common_issue_data_pattern()
+        issue_data_pattern = COMMON_ISSUE_DATA_PATTERN.copy()
         issue_data_pattern.update({"priority": priority_field_id})
         self.add_issue_data_to_series(series, issue, issue_data_pattern)
 
@@ -97,27 +97,38 @@ class DebtCalculator(BaseCalculator):
 
     def _calculate_age(self, created_date, resolved_date, now):
         """Calculate age of issue."""
-        # Ensure both datetimes are offset-naive for subtraction
+
+        def normalize_to_utc(dt):
+            """Normalize datetime to UTC-aware datetime.
+
+            Args:
+                dt: datetime (naive or aware)
+
+            Returns:
+                datetime with UTC timezone, or None if dt is None
+            """
+            if dt is None:
+                return None
+            if dt.tzinfo is not None:
+                return dt.astimezone(datetime.timezone.utc)
+            # Treat naive datetime as UTC
+            return dt.replace(tzinfo=datetime.timezone.utc)
+
+        # Normalize both datetimes to UTC before computing difference
+        created_utc = normalize_to_utc(created_date)
+
         if resolved_date is not None:
-            resolved_dt = resolved_date.replace(tzinfo=None)
+            resolved_utc = normalize_to_utc(resolved_date)
         else:
-            # If now is offset-aware, convert to naive
-            if now.tzinfo is not None:
-                resolved_dt = now.replace(tzinfo=None)
-            else:
-                resolved_dt = now
+            resolved_utc = normalize_to_utc(now)
 
-        if created_date.tzinfo is not None:
-            created_dt = created_date.replace(tzinfo=None)
-        else:
-            created_dt = created_date
-
-        return resolved_dt - created_dt
+        # Compute subtraction while both are UTC-aware
+        return resolved_utc - created_utc
 
     def _create_dataframe(self, series):
         """Create DataFrame from series data."""
 
-        columns = create_debt_columns()
+        columns = DEBT_COLUMNS
         data = {}
         for k, v in series.items():
             data[k] = pd.Series(v["data"], dtype=v["dtype"])

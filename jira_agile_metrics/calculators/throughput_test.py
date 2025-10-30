@@ -55,6 +55,13 @@ def test_columns(query_manager, settings, test_fixture):
 
 def test_calculate_throughput(query_manager, settings, test_fixture):
     """Test throughput calculation functionality."""
+    # Expected counts based on large_cycle_time_results fixture (extended_data):
+    # The fixture contains 5 issues (A-1 through A-5), but only A-3 and A-5 have
+    # completed_timestamp values (2018-01-06 and 2018-01-08 respectively).
+    # With no window specified, the date range spans from earliest to latest
+    # completion (2018-01-06 to 2018-01-08), creating 3 daily periods:
+    # 2018-01-06: 1 completion (A-3), 2018-01-07: 0 completions,
+    # 2018-01-08: 1 completion (A-5)
     calculator = ThroughputCalculator(query_manager, settings, test_fixture)
 
     data = calculator.run()
@@ -68,6 +75,13 @@ def test_calculate_throughput(query_manager, settings, test_fixture):
 
 def test_calculate_throughput_with_wider_window(query_manager, settings, test_fixture):
     """Test throughput calculation with wider window."""
+    # Expected counts based on large_cycle_time_results fixture (extended_data):
+    # With window=5 and frequency='D', the 5-day window ending on the latest
+    # completion (2018-01-08) starts 4 days earlier (2018-01-04),
+    # creating 5 daily periods:
+    # 2018-01-04: 0 completions, 2018-01-05: 0 completions,
+    # 2018-01-06: 1 completion (A-3), 2018-01-07: 0 completions,
+    # 2018-01-08: 1 completion (A-5)
     test_settings = extend_dict(
         settings,
         {
@@ -93,6 +107,11 @@ def test_calculate_throughput_with_narrower_window(
     query_manager, settings, test_fixture
 ):
     """Test throughput calculation with narrower window."""
+    # Expected counts based on large_cycle_time_results fixture (extended_data):
+    # With window=2 and frequency='D', the 2-day window ending on the latest completion
+    # (2018-01-08) starts 1 day earlier (2018-01-07), creating 2 daily periods:
+    # 2018-01-07: 0 completions, 2018-01-08: 1 completion (A-5)
+    # Note: A-3 (completed 2018-01-06) falls outside this narrower window
     test_settings = extend_dict(
         settings,
         {

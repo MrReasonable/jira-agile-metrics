@@ -15,9 +15,60 @@ logger = logging.getLogger(__name__)
 class MonteCarloSimulator:
     """Handles Monte Carlo simulation for burnup forecasting."""
 
-    def __init__(self):
-        self.trials = 1000  # Default number of trials
-        self.random_seed = None
+    def __init__(
+        self,
+        trials: int = 1000,
+        random_seed: int | None = None,
+        confidence: float = 0.8,
+    ):
+        """Initialize Monte Carlo simulator with configurable parameters.
+
+        Args:
+            trials: Number of simulation trials to run. Must be a positive integer.
+            random_seed: Random seed for reproducibility. Must be None or an integer.
+            confidence: Confidence level for trust metrics, must be between 0 and 1
+                (exclusive of 0, inclusive of 1).
+                Default is 0.8 (80% confidence interval). This represents a balanced
+                confidence level suitable for most forecasting scenarios - high enough
+                to provide meaningful predictions while allowing for reasonable
+                uncertainty bounds. Common alternatives: 0.9 (90%) for more
+                conservative, 0.95 (95%) for very conservative, or 0.68 (68%, one
+                sigma) for tighter bounds.
+
+        Raises:
+            ValueError: If trials is not a positive integer,
+                random_seed is not None or an integer, or
+                confidence is not between 0 and 1 (exclusive of 0, inclusive of 1).
+        """
+        # Validate trials
+        if not isinstance(trials, int) or trials <= 0:
+            raise ValueError(
+                f"trials must be a positive integer, got {trials} "
+                f"(type: {type(trials).__name__})"
+            )
+
+        # Validate random_seed
+        if random_seed is not None and not isinstance(random_seed, int):
+            raise ValueError(
+                f"random_seed must be None or an integer, got {random_seed} "
+                f"(type: {type(random_seed).__name__})"
+            )
+
+        # Validate confidence (explicitly reject booleans which are subclasses of int)
+        if (
+            isinstance(confidence, bool)
+            or not isinstance(confidence, (int, float))
+            or not 0 < confidence <= 1
+        ):
+            raise ValueError(
+                f"confidence must be a number between 0 and 1 (exclusive of 0), "
+                f"and boolean values are not allowed; got {confidence} "
+                f"(type: {type(confidence).__name__})"
+            )
+
+        self.trials = trials
+        self.random_seed = random_seed
+        self.confidence = float(confidence)
 
     def run_simulation(self, simulation_params: Dict[str, Any]) -> Dict[str, Any]:
         """Run Monte Carlo simulation for burnup forecast."""
@@ -99,7 +150,7 @@ class MonteCarloSimulator:
                 "p90": quantile_values[4],
                 "mean": np.mean(completion_dates),
                 "std": np.std(completion_dates),
-                "confidence": 0.8,  # Default confidence level
+                "confidence": self.confidence,
             }
 
         except (ValueError, TypeError, KeyError, AttributeError) as e:

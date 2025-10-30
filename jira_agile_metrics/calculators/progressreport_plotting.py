@@ -42,14 +42,14 @@ def _add_deadline_to_cfd(ax, deadline, target):
         )
 
 
-def _add_target_to_cfd(ax, target):
-    """Add target line to CFD plot.
+def _add_target_value_to_cfd(ax, target):
+    """Add target value (horizontal) to CFD plot.
 
     Args:
         ax: Matplotlib axes
         target: Target value
     """
-    if target:
+    if target is not None:
         ax.axhline(
             y=target,
             color="orange",
@@ -71,7 +71,7 @@ def plot_cfd(cycle_data, plot_config, target=None):
     Returns:
         Base64 encoded plot image
     """
-    _, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(12, 8))
 
     # Prepare CFD data
     cfd_data = calculate_cfd_data(
@@ -84,7 +84,7 @@ def plot_cfd(cycle_data, plot_config, target=None):
         ax.plot(cfd_data.index, cfd_data[column], label=column, linewidth=2)
 
     # Add horizontal target line (value threshold)
-    _add_target_to_cfd(ax, target)
+    _add_target_value_to_cfd(ax, target)
 
     # Add deadline/target date lines (vertical lines)
     _add_deadline_to_cfd(
@@ -102,10 +102,10 @@ def plot_cfd(cycle_data, plot_config, target=None):
 
     # Convert to base64
     buffer = io.BytesIO()
-    plt.savefig(buffer, format="png", dpi=300, bbox_inches="tight")
+    fig.savefig(buffer, format="png", dpi=300, bbox_inches="tight")
     buffer.seek(0)
     image_base64 = base64.b64encode(buffer.getvalue()).decode()
-    plt.close()
+    plt.close(fig)
 
     return image_base64
 
@@ -120,7 +120,7 @@ def plot_throughput(cycle_data, frequency="1W"):
     Returns:
         Base64 encoded plot image
     """
-    _, ax = plt.subplots(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(12, 6))
 
     # Calculate throughput
     throughput_data = calculate_throughput(cycle_data, frequency)
@@ -137,10 +137,10 @@ def plot_throughput(cycle_data, frequency="1W"):
 
     # Convert to base64
     buffer = io.BytesIO()
-    plt.savefig(buffer, format="png", dpi=300, bbox_inches="tight")
+    fig.savefig(buffer, format="png", dpi=300, bbox_inches="tight")
     buffer.seek(0)
     image_base64 = base64.b64encode(buffer.getvalue()).decode()
-    plt.close()
+    plt.close(fig)
 
     return image_base64
 
@@ -155,7 +155,7 @@ def plot_scatterplot(cycle_data, quantiles):
     Returns:
         Base64 encoded plot image
     """
-    _, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(12, 8))
 
     # Calculate scatterplot data
     scatterplot_data = calculate_scatterplot_data(cycle_data)
@@ -207,9 +207,9 @@ def plot_scatterplot(cycle_data, quantiles):
 
     # Convert to base64
     buffer = io.BytesIO()
-    plt.savefig(buffer, format="png", dpi=300, bbox_inches="tight")
+    fig.savefig(buffer, format="png", dpi=300, bbox_inches="tight")
     buffer.seek(0)
     image_base64 = base64.b64encode(buffer.getvalue()).decode()
-    plt.close()
+    plt.close(fig)
 
     return image_base64

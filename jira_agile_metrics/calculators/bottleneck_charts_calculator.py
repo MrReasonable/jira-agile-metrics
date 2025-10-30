@@ -15,7 +15,7 @@ import pandas as pd
 import seaborn as sns
 
 from ..calculator import Calculator
-from ..common_constants import get_bottleneck_chart_settings
+from ..common_constants import BOTTLENECK_CHART_SETTINGS
 from .cycletime import CycleTimeCalculator
 
 logger = logging.getLogger(__name__)
@@ -182,7 +182,7 @@ class BottleneckChartsCalculator(Calculator):
             "[BottleneckChartsCalculator] output_settings: %s",
             pprint.pformat(output_settings),
         )
-        for key in get_bottleneck_chart_settings():
+        for key in BOTTLENECK_CHART_SETTINGS:
             logger.debug(
                 "[BottleneckChartsCalculator] %s: %s",
                 key,

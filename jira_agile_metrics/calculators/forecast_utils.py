@@ -15,13 +15,17 @@ def calculate_daily_throughput(
 ) -> pd.DataFrame:
     """Calculate daily throughput from cycle data."""
     try:
-        if cycle_data is None or done_column not in cycle_data.columns:
+        if (
+            cycle_data is None
+            or cycle_data.empty
+            or done_column not in cycle_data.columns
+        ):
             return pd.DataFrame()
 
         # Group by completion date and count items
         daily_throughput = cycle_data.groupby(done_column).size().reset_index()
         daily_throughput.columns = ["date", "throughput"]
-        daily_throughput.set_index("date", inplace=True)
+        daily_throughput = daily_throughput.set_index("date")
 
         return daily_throughput
 
@@ -42,7 +46,11 @@ def calculate_daily_backlog_growth(
 ) -> pd.DataFrame:
     """Calculate daily backlog growth from burnup data."""
     try:
-        if burnup_data is None or backlog_column not in burnup_data.columns:
+        if (
+            burnup_data is None
+            or burnup_data.empty
+            or backlog_column not in burnup_data.columns
+        ):
             return pd.DataFrame()
 
         # Calculate daily changes
@@ -76,6 +84,15 @@ def burnup_monte_carlo_horizon(simulation_params: Dict[str, Any]) -> Dict[str, A
         backlog_growth_sampler_func = simulation_params.get("backlog_growth_sampler")
 
         if not throughput_sampler_func or not backlog_growth_sampler_func:
+            missing_samplers = []
+            if not throughput_sampler_func:
+                missing_samplers.append("throughput_sampler")
+            if not backlog_growth_sampler_func:
+                missing_samplers.append("backlog_growth_sampler")
+            logger.warning(
+                "Required samplers are missing: %s. Cannot run Monte Carlo simulation.",
+                ", ".join(missing_samplers),
+            )
             return {}
 
         # Run trials

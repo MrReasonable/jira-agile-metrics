@@ -6,10 +6,8 @@ This module provides functionality to calculate defect metrics from JIRA data.
 import logging
 
 import dateutil.parser
-import matplotlib.pyplot as plt
 
-from ..chart_styling_utils import apply_common_chart_styling
-from ..common_constants import get_common_issue_data_pattern
+from ..common_constants import COMMON_ISSUE_DATA_PATTERN
 from ..utils import (
     breakdown_by_month,
     create_common_defects_columns,
@@ -76,7 +74,7 @@ class DefectsCalculator(BaseCalculator):
 
         for issue in self.query_manager.find_issues(query, expand=None):
             # Add common fields
-            issue_data_pattern = get_common_issue_data_pattern()
+            issue_data_pattern = COMMON_ISSUE_DATA_PATTERN.copy()
             issue_data_pattern.update(
                 {
                     "priority": priority_field_id,
@@ -144,20 +142,12 @@ class DefectsCalculator(BaseCalculator):
             logger.warning("Cannot draw defects by priority chart with zero items")
             return
 
-        fig, ax = plt.subplots()
-
-        breakdown.plot.bar(ax=ax, stacked=True)
-
-        # Apply common chart styling
-        chart_title = self.settings.get("defects_by_priority_chart_title")
-        if chart_title:
-            ax.set_title(chart_title)
-        apply_common_chart_styling(ax, breakdown)
-
-        # Write file
-        logger.info("Writing defects by priority chart to %s", output_file)
-        fig.savefig(output_file, bbox_inches="tight", dpi=300)
-        plt.close(fig)
+        create_monthly_bar_chart(
+            breakdown,
+            "defects by priority",
+            output_file,
+            self.settings.get("defects_by_priority_chart_title"),
+        )
 
     def write_defects_by_type_chart(self, chart_data, output_file):
         """Write defects by type chart showing monthly breakdown of defects by type."""
@@ -212,17 +202,9 @@ class DefectsCalculator(BaseCalculator):
             logger.warning("Cannot draw defects by environment chart with zero items")
             return
 
-        fig, ax = plt.subplots()
-
-        breakdown.plot.bar(ax=ax, stacked=True)
-
-        # Apply common chart styling
-        chart_title = self.settings.get("defects_by_environment_chart_title")
-        if chart_title:
-            ax.set_title(chart_title)
-        apply_common_chart_styling(ax, breakdown)
-
-        # Write file
-        logger.info("Writing defects by environment chart to %s", output_file)
-        fig.savefig(output_file, bbox_inches="tight", dpi=300)
-        plt.close(fig)
+        create_monthly_bar_chart(
+            breakdown,
+            "defects by environment",
+            output_file,
+            self.settings.get("defects_by_environment_chart_title"),
+        )

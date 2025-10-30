@@ -138,12 +138,19 @@ class ThroughputCalculator:
         """
         frequency = window_params.get("freq", "D")
         window = window_params.get("window_size")
+        freq_label = window_params.get("freq_label", "periods")
 
-        logger.debug(
-            "Fixed window: using configured window size of %d %s",
-            window if window else "all available data",
-            window_params.get("freq_label", "periods"),
-        )
+        if window:
+            logger.debug(
+                "Fixed window: using configured window size of %d %s",
+                window,
+                freq_label,
+            )
+        else:
+            logger.debug(
+                "Fixed window: using all available data (%s)",
+                freq_label,
+            )
 
         return calculate_throughput(cycle_data, frequency, window)
 

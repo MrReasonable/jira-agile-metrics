@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from ..chart_styling_utils import set_chart_style
+from ..config.exceptions import ChartGenerationError
 from ..utils import find_backlog_and_done_columns
 
 logger = logging.getLogger(__name__)
@@ -17,46 +18,89 @@ logger = logging.getLogger(__name__)
 class BurnupChartGenerator:
     """Handles chart generation for burnup forecast visualization."""
 
-    def __init__(self, output_file: str):
+    def __init__(
+        self, output_file: str, figure_size: Optional[Tuple[float, float]] = None
+    ):
         self.output_file = output_file
         self.figure = None
         self.axis = None
+        # Validate and set figure_size with default (12, 8)
+        self.figure_size = self._validate_figure_size(figure_size)
+
+    def _validate_figure_size(
+        self,
+        figure_size: Optional[Tuple[float, float]],
+        default: Tuple[float, float] = (12, 8),
+    ) -> Tuple[float, float]:
+        """Validate and normalize a matplotlib figure size.
+
+        Returns a normalized (width, height) tuple of floats if valid, otherwise
+        returns the provided default while logging an error.
+        """
+        if figure_size is None:
+            return default
+
+        try:
+            if len(figure_size) != 2:
+                raise ValueError("figure_size must be a tuple of length 2")
+            if not all(isinstance(x, (int, float)) for x in figure_size):
+                raise ValueError("figure_size must contain numeric values")
+            if not all(x > 0 for x in figure_size):
+                raise ValueError("figure_size values must be positive")
+            return tuple(float(x) for x in figure_size)  # type: ignore[return-value]
+        except (ValueError, TypeError) as e:
+            logger.error("Invalid figure_size: %s. Using default %s", e, default)
+            return default
 
     def generate_chart(
         self, burnup_data: pd.DataFrame, chart_data: Dict[str, Any]
     ) -> bool:
         """Generate the complete burnup forecast chart."""
         try:
+            # Override figure_size from chart_data if provided
+            if "figure_size" in chart_data:
+                self.figure_size = self._validate_figure_size(
+                    chart_data["figure_size"], default=self.figure_size
+                )
+
             # Prepare chart data
             prepared_data = self._prepare_chart_data(burnup_data, chart_data)
             if prepared_data is None:
                 return False
 
             # Create figure and axis
-            self.figure, self.axis = self._create_chart_figure()
+            self.figure, self.axis = self.create_chart_figure()
             if self.figure is None or self.axis is None:
                 return False
 
             # Plot historical data
-            self._plot_historical_data(self.axis, burnup_data)
+            self.plot_historical_data(self.axis, burnup_data)
 
             # Plot forecast fans
-            self._plot_forecast_fans(self.axis, burnup_data, prepared_data)
+            self.plot_forecast_fans(self.axis, burnup_data, prepared_data)
 
             # Plot target and completion dates
-            self._plot_target_and_completion_dates(self.axis, prepared_data)
+            self.plot_target_and_completion_dates(self.axis, prepared_data)
 
             # Setup legend and styling
-            self._setup_chart_legend_and_style(self.axis, burnup_data, prepared_data)
+            self.setup_chart_legend_and_style(self.axis, burnup_data, prepared_data)
 
             # Save chart
-            self._save_chart(self.figure, self.output_file)
+            self.save_chart(self.figure, self.output_file)
 
             return True
 
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
-            logger.error("Error generating chart: %s", e)
+        except ChartGenerationError:
+            # Re-raise chart generation errors (already logged and wrapped)
             return False
+        except (ValueError, TypeError) as e:
+            # Catch ValueError/TypeError from matplotlib/pandas/numpy operations
+            logger.error("Error generating chart: %s", e)
+            raise ChartGenerationError(f"Chart generation failed: {e}") from e
+        except OSError as e:
+            # Catch file I/O errors
+            logger.error("Error saving chart file: %s", e)
+            raise ChartGenerationError(f"Failed to save chart: {e}") from e
 
     def validate_chart_data(self, chart_data: Dict[str, Any]) -> bool:
         """Validate that chart data contains required fields."""
@@ -91,21 +135,23 @@ class BurnupChartGenerator:
 
             return prepared_data
 
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
+        except (ValueError, TypeError) as e:
+            # Catch ValueError/TypeError from data processing operations
             logger.error("Error preparing chart data: %s", e)
-            return None
+            raise ChartGenerationError(f"Failed to prepare chart data: {e}") from e
 
-    def _create_chart_figure(self) -> Tuple[Optional[plt.Figure], Optional[plt.Axes]]:
+    def create_chart_figure(self) -> Tuple[Optional[plt.Figure], Optional[plt.Axes]]:
         """Create the matplotlib figure and axis."""
         try:
-            fig, ax = plt.subplots(figsize=(12, 8))
+            fig, ax = plt.subplots(figsize=self.figure_size)
             return fig, ax
 
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
+        except (ValueError, TypeError) as e:
+            # Catch ValueError/TypeError from matplotlib operations
             logger.error("Error creating chart figure: %s", e)
-            return None, None
+            raise ChartGenerationError(f"Failed to create chart figure: {e}") from e
 
-    def _plot_historical_data(self, ax: plt.Axes, burnup_data: pd.DataFrame) -> None:
+    def plot_historical_data(self, ax: plt.Axes, burnup_data: pd.DataFrame) -> None:
         """Plot historical backlog and done data."""
         try:
             # Find backlog and done columns
@@ -129,10 +175,12 @@ class BurnupChartGenerator:
                     linewidth=2,
                 )
 
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
+        except (ValueError, TypeError) as e:
+            # Catch ValueError/TypeError from matplotlib/pandas operations
             logger.error("Error plotting historical data: %s", e)
+            raise ChartGenerationError(f"Failed to plot historical data: {e}") from e
 
-    def _plot_forecast_fans(
+    def plot_forecast_fans(
         self, ax: plt.Axes, _burnup_data: pd.DataFrame, chart_data: Dict[str, Any]
     ) -> None:
         """Plot forecast fans for backlog and done data."""
@@ -145,93 +193,91 @@ class BurnupChartGenerator:
                 return
 
             # Plot backlog fan
-            self._plot_backlog_fan(ax, chart_data, forecast_dates)
+            self.plot_backlog_fan(ax, chart_data, forecast_dates)
 
             # Plot done fan
-            self._plot_done_fan(ax, chart_data, forecast_dates)
+            self.plot_done_fan(ax, chart_data, forecast_dates)
 
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
+        except (ValueError, TypeError) as e:
+            # Catch ValueError/TypeError from matplotlib/numpy operations
             logger.error("Error plotting forecast fans: %s", e)
+            raise ChartGenerationError(f"Failed to plot forecast fans: {e}") from e
 
-    def _plot_backlog_fan(
+    def _plot_fan(
+        self,
+        ax: plt.Axes,
+        forecast_dates: list,
+        trials: list,
+        style: Dict[str, Any],
+    ) -> None:
+        """Plot a fan chart with percentile bands and median line.
+
+        Args:
+            ax: Matplotlib axes to plot on
+            forecast_dates: List of dates for x-axis
+            trials: List of trial data arrays
+            style: Dictionary with keys 'colors', 'line_style', 'line_color'
+        """
+        try:
+            if not trials:
+                return
+
+            colors = style.get("colors", ["lightblue", "blue"])
+            line_style = style.get("line_style", "--")
+            line_color = style.get("line_color", "b")
+
+            # Convert trials to numpy array for easier manipulation
+            trials_array = np.array(trials)
+
+            # Calculate percentiles for fan
+            percentiles = [10, 25, 50, 75, 90]
+            fan_data = np.percentile(trials_array, percentiles, axis=0)
+
+            # Plot fan with transparency
+            for i, (p_low, p_high) in enumerate([(10, 90), (25, 75)]):
+                ax.fill_between(
+                    forecast_dates,
+                    fan_data[percentiles.index(p_low)],
+                    fan_data[percentiles.index(p_high)],
+                    alpha=0.3,
+                    color=colors[i],
+                )
+
+            # Plot median line
+            ax.plot(
+                forecast_dates,
+                fan_data[percentiles.index(50)],
+                f"{line_color}{line_style}",
+                alpha=0.7,
+                linewidth=1,
+            )
+
+        except (ValueError, TypeError) as e:
+            # Catch ValueError/TypeError from matplotlib/numpy operations
+            logger.error("Error plotting fan: %s", e)
+            raise ChartGenerationError(f"Failed to plot fan: {e}") from e
+
+    def plot_backlog_fan(
         self, ax: plt.Axes, chart_data: Dict[str, Any], forecast_dates: list
     ) -> None:
         """Plot backlog growth fan."""
-        try:
-            backlog_trials = chart_data.get("backlog_trials", [])
-            if not backlog_trials:
-                return
+        backlog_trials = chart_data.get("backlog_trials", [])
+        style = {"colors": ["lightblue", "blue"], "line_style": "--", "line_color": "b"}
+        self._plot_fan(ax, forecast_dates, backlog_trials, style)
 
-            # Convert trials to numpy array for easier manipulation
-            backlog_array = np.array(backlog_trials)
-
-            # Calculate percentiles for fan
-            percentiles = [10, 25, 50, 75, 90]
-            fan_data = np.percentile(backlog_array, percentiles, axis=0)
-
-            # Plot fan with transparency
-            colors = ["lightblue", "blue", "darkblue"]
-            for i, (p_low, p_high) in enumerate([(10, 90), (25, 75)]):
-                ax.fill_between(
-                    forecast_dates,
-                    fan_data[percentiles.index(p_low)],
-                    fan_data[percentiles.index(p_high)],
-                    alpha=0.3,
-                    color=colors[i],
-                )
-
-            # Plot median line
-            ax.plot(
-                forecast_dates,
-                fan_data[percentiles.index(50)],
-                "b--",
-                alpha=0.7,
-                linewidth=1,
-            )
-
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
-            logger.error("Error plotting backlog fan: %s", e)
-
-    def _plot_done_fan(
+    def plot_done_fan(
         self, ax: plt.Axes, chart_data: Dict[str, Any], forecast_dates: list
     ) -> None:
         """Plot done fan."""
-        try:
-            done_trials = chart_data.get("done_trials", [])
-            if not done_trials:
-                return
+        done_trials = chart_data.get("done_trials", [])
+        style = {
+            "colors": ["lightgreen", "green"],
+            "line_style": "--",
+            "line_color": "g",
+        }
+        self._plot_fan(ax, forecast_dates, done_trials, style)
 
-            # Convert trials to numpy array for easier manipulation
-            done_array = np.array(done_trials)
-
-            # Calculate percentiles for fan
-            percentiles = [10, 25, 50, 75, 90]
-            fan_data = np.percentile(done_array, percentiles, axis=0)
-
-            # Plot fan with transparency
-            colors = ["lightgreen", "green", "darkgreen"]
-            for i, (p_low, p_high) in enumerate([(10, 90), (25, 75)]):
-                ax.fill_between(
-                    forecast_dates,
-                    fan_data[percentiles.index(p_low)],
-                    fan_data[percentiles.index(p_high)],
-                    alpha=0.3,
-                    color=colors[i],
-                )
-
-            # Plot median line
-            ax.plot(
-                forecast_dates,
-                fan_data[percentiles.index(50)],
-                "g--",
-                alpha=0.7,
-                linewidth=1,
-            )
-
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
-            logger.error("Error plotting done fan: %s", e)
-
-    def _plot_target_and_completion_dates(
+    def plot_target_and_completion_dates(
         self, ax: plt.Axes, chart_data: Dict[str, Any]
     ) -> None:
         """Plot target line and quantile completion dates."""
@@ -241,16 +287,20 @@ class BurnupChartGenerator:
 
             # Plot target line
             if target > 0:
-                self._plot_target_line(ax, target)
+                self.plot_target_line(ax, target)
 
             # Plot completion quantiles
             if quantile_data:
-                self._plot_completion_quantiles(ax, chart_data)
+                self.plot_completion_quantiles(ax, chart_data)
 
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
+        except (ValueError, TypeError) as e:
+            # Catch ValueError/TypeError from matplotlib operations
             logger.error("Error plotting target and completion dates: %s", e)
+            raise ChartGenerationError(
+                f"Failed to plot target and completion dates: {e}"
+            ) from e
 
-    def _plot_target_line(self, ax: plt.Axes, target: float) -> None:
+    def plot_target_line(self, ax: plt.Axes, target: float) -> None:
         """Plot the target line."""
         try:
             ax.axhline(
@@ -261,10 +311,12 @@ class BurnupChartGenerator:
                 label=f"Target ({target})",
             )
 
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
+        except (ValueError, TypeError) as e:
+            # Catch ValueError/TypeError from matplotlib operations
             logger.error("Error plotting target line: %s", e)
+            raise ChartGenerationError(f"Failed to plot target line: {e}") from e
 
-    def _plot_completion_quantiles(
+    def plot_completion_quantiles(
         self, ax: plt.Axes, chart_data: Dict[str, Any]
     ) -> None:
         """Plot completion date quantiles."""
@@ -286,10 +338,14 @@ class BurnupChartGenerator:
                         label=f"{quantile} completion",
                     )
 
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
+        except (ValueError, TypeError) as e:
+            # Catch ValueError/TypeError from matplotlib operations
             logger.error("Error plotting completion quantiles: %s", e)
+            raise ChartGenerationError(
+                f"Failed to plot completion quantiles: {e}"
+            ) from e
 
-    def _setup_chart_legend_and_style(
+    def setup_chart_legend_and_style(
         self, ax: plt.Axes, _burnup_data: pd.DataFrame, chart_data: Dict[str, Any]
     ) -> None:
         """Setup chart legend and styling."""
@@ -301,15 +357,20 @@ class BurnupChartGenerator:
             ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
             ax.set_xlabel("Date", labelpad=20)
             ax.set_ylabel("Number of items", labelpad=10)
-            ax.set_title("Burnup Forecast Chart")
+            title = chart_data.get("title", "Burnup Forecast Chart")
+            ax.set_title(title)
 
             # Add trust metrics annotation
-            self._add_trust_metrics_annotation(ax, chart_data)
+            self.add_trust_metrics_annotation(ax, chart_data)
 
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
+        except (ValueError, TypeError) as e:
+            # Catch ValueError/TypeError from matplotlib operations
             logger.error("Error setting up chart legend and style: %s", e)
+            raise ChartGenerationError(
+                f"Failed to setup chart legend and style: {e}"
+            ) from e
 
-    def _add_trust_metrics_annotation(
+    def add_trust_metrics_annotation(
         self, ax: plt.Axes, chart_data: Dict[str, Any]
     ) -> None:
         """Add trustworthiness metrics annotation to the chart."""
@@ -334,20 +395,30 @@ class BurnupChartGenerator:
                 bbox={"boxstyle": "round", "facecolor": "wheat", "alpha": 0.8},
             )
 
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
+        except (ValueError, TypeError) as e:
+            # Catch ValueError/TypeError from matplotlib operations
             logger.error("Error adding trust metrics annotation: %s", e)
+            raise ChartGenerationError(
+                f"Failed to add trust metrics annotation: {e}"
+            ) from e
 
-    def _save_chart(self, fig: plt.Figure, output_file: str) -> None:
+    def save_chart(self, fig: plt.Figure, output_file: str) -> None:
         """Save the chart to file."""
         try:
             # Ensure output directory exists
             output_dir = os.path.dirname(output_file)
             if output_dir and not os.path.exists(output_dir):
-                os.makedirs(output_dir)
+                os.makedirs(output_dir, exist_ok=True)
 
             # Save figure
             fig.savefig(output_file, bbox_inches="tight", dpi=300)
             plt.close(fig)
 
-        except (ValueError, TypeError, KeyError, AttributeError) as e:
+        except OSError as e:
+            # Catch file I/O errors from matplotlib savefig
+            logger.error("Error saving chart file: %s", e)
+            raise ChartGenerationError(f"Failed to save chart file: {e}") from e
+        except (ValueError, TypeError) as e:
+            # Catch ValueError/TypeError from matplotlib operations
             logger.error("Error saving chart: %s", e)
+            raise ChartGenerationError(f"Failed to save chart: {e}") from e

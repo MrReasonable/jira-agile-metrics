@@ -91,6 +91,9 @@ class TestTeamThroughput(ProgressReportTestBase):
     ):
         """Test team throughput calculation."""
         # Test data setup
+        # When using min/max throughput (without throughput_samples),
+        # the function returns the midpoint of min and max as a static estimate.
+        # Default min_throughput=0, max_throughput=10, so midpoint = 5.0
         team_config = {
             "name": "Test Team",
             "throughput_window_start": "2018-01-01",
@@ -101,8 +104,9 @@ class TestTeamThroughput(ProgressReportTestBase):
             team_config, query_manager_with_data, base_custom_settings
         )
 
-        assert throughput is not None
-        assert throughput > 0
+        # Expected throughput is midpoint of default min/max range (0+10)/2 = 5.0
+        # Note: To get actual story count, configure throughput_samples instead
+        assert throughput == 5.0
 
     def test_calculate_team_throughput_no_data(
         self, custom_query_manager, base_custom_settings
@@ -122,24 +126,78 @@ class TestTeamThroughput(ProgressReportTestBase):
         assert throughput == 0
 
     def test_calculate_team_throughput_outside_window(
-        self, custom_query_manager, base_custom_settings
+        self, base_custom_fields, base_custom_settings
     ):
-        """Test team throughput calculation with no stories (empty query manager).
+        """Test team throughput calculation with stories outside the window."""
+        # Create issues with dates OUTSIDE the window
+        # (before 2018-01-01 or after 2018-01-15)
+        test_issues = [
+            FauxIssue(
+                key="TEST-OLD",
+                changes=[
+                    Change(
+                        "2017-12-15 01:01:01",
+                        [("status", "Backlog", "Next")],
+                    ),
+                    Change(
+                        "2017-12-20 01:01:01",
+                        [("status", "Next", "Build")],
+                    ),
+                    Change(
+                        "2017-12-25 01:01:01",
+                        [("status", "Build", "QA")],
+                    ),
+                    Change(
+                        "2017-12-28 01:01:01",
+                        [("status", "QA", "Done")],
+                    ),
+                ],
+                status=Value("Done", "Done"),
+                resolution=Value("Done", "Done"),
+                resolutiondate="2017-12-28 01:01:01",  # Before window (2018-01-01)
+                summary="Old Story",
+                issuetype=Value("Story", "story"),
+                created="2017-12-10 01:01:01",
+            ),
+            FauxIssue(
+                key="TEST-FUTURE",
+                changes=[
+                    Change(
+                        "2018-01-20 01:01:01",
+                        [("status", "Backlog", "Next")],
+                    ),
+                    Change(
+                        "2018-01-22 01:01:01",
+                        [("status", "Next", "Build")],
+                    ),
+                    Change(
+                        "2018-01-25 01:01:01",
+                        [("status", "Build", "QA")],
+                    ),
+                    Change(
+                        "2018-01-28 01:01:01",
+                        [("status", "QA", "Done")],
+                    ),
+                ],
+                status=Value("Done", "Done"),
+                resolution=Value("Done", "Done"),
+                resolutiondate="2018-01-28 01:01:01",  # After window (2018-01-15)
+                summary="Future Story",
+                issuetype=Value("Story", "story"),
+                created="2018-01-18 01:01:01",
+            ),
+        ]
+        jira = FauxJIRA(fields=base_custom_fields, issues=test_issues)
+        query_manager = QueryManager(jira, base_custom_settings)
 
-        Note: The calculate_team_throughput function returns 0 when the query manager
-        has no issues available, which simulates the scenario where stories are outside
-        the window or don't exist.
-        """
         team_config = {
             "throughput_window_start": "2018-01-01",
             "throughput_window_end": "2018-01-15",
         }
 
-        # Empty query manager simulates no data available
-        # (which could be because stories are outside the window)
         throughput = calculate_team_throughput(
             team_config,
-            custom_query_manager,
+            query_manager,
             base_custom_settings,
         )
 
@@ -365,25 +423,29 @@ class TestTeamConfiguration(ProgressReportTestBase):
 
         # Mock settings required for calculator
         settings = {
-            "progress_report": True,
-            "progress_report_epic_query_template": "query",
-            "progress_report_story_query_template": "query",
-            "progress_report_teams": to_progress_report_teams_list(
-                [
-                    {
-                        "name": "Team A",
-                        "wip": 2,
-                        "min_throughput": 1,
-                        "max_throughput": 5,
-                    }
-                ]
-            ),
+            "progress_report": {
+                "enabled": True,
+                "templates": {
+                    "epic": "query",
+                    "story": "query",
+                },
+                "teams": to_progress_report_teams_list(
+                    [
+                        {
+                            "name": "Team A",
+                            "wip": 2,
+                            "min_throughput": 1,
+                            "max_throughput": 5,
+                        }
+                    ]
+                ),
+            },
         }
 
         calculator = ProgressReportCalculator(query_manager, settings, results={})
 
         # Call validation - should not return an error message
-        team_config = settings["progress_report_teams"][0]
+        team_config = settings["progress_report"]["teams"][0]
         error = calculator.validate_single_team(team_config)
         assert error is None, "Valid team config should not produce validation errors"
 
@@ -395,23 +457,27 @@ class TestTeamConfiguration(ProgressReportTestBase):
         query_manager = QueryManager(jira, base_custom_settings)
 
         settings = {
-            "progress_report": True,
-            "progress_report_epic_query_template": "query",
-            "progress_report_story_query_template": "query",
-            "progress_report_teams": to_progress_report_teams_list(
-                [
-                    {
-                        "wip": 2,
-                        "min_throughput": 1,
-                        "max_throughput": 5,
-                    }
-                ]
-            ),
+            "progress_report": {
+                "enabled": True,
+                "templates": {
+                    "epic": "query",
+                    "story": "query",
+                },
+                "teams": to_progress_report_teams_list(
+                    [
+                        {
+                            "wip": 2,
+                            "min_throughput": 1,
+                            "max_throughput": 5,
+                        }
+                    ]
+                ),
+            },
         }
 
         calculator = ProgressReportCalculator(query_manager, settings, results={})
 
-        team_config = settings["progress_report_teams"][0]
+        team_config = settings["progress_report"]["teams"][0]
         error = calculator.validate_single_team(team_config)
         assert error is not None, "Team without name should produce validation error"
         assert "name" in error.lower()
@@ -424,22 +490,26 @@ class TestTeamConfiguration(ProgressReportTestBase):
         query_manager = QueryManager(jira, base_custom_settings)
 
         settings = {
-            "progress_report": True,
-            "progress_report_epic_query_template": "query",
-            "progress_report_story_query_template": "query",
-            "progress_report_teams": to_progress_report_teams_list(
-                [
-                    {
-                        "name": "Team A",
-                        "wip": 0,  # Invalid WIP
-                    }
-                ]
-            ),
+            "progress_report": {
+                "enabled": True,
+                "templates": {
+                    "epic": "query",
+                    "story": "query",
+                },
+                "teams": to_progress_report_teams_list(
+                    [
+                        {
+                            "name": "Team A",
+                            "wip": 0,  # Invalid WIP
+                        }
+                    ]
+                ),
+            },
         }
 
         calculator = ProgressReportCalculator(query_manager, settings, results={})
 
-        team_config = settings["progress_report_teams"][0]
+        team_config = settings["progress_report"]["teams"][0]
         error = calculator.validate_single_team(team_config)
         assert (
             error is not None
@@ -455,15 +525,19 @@ class TestTeamConfiguration(ProgressReportTestBase):
         query_manager = QueryManager(jira, base_custom_settings)
 
         settings = {
-            "progress_report": True,
-            "progress_report_epic_query_template": "query",
-            "progress_report_story_query_template": "query",
-            "progress_report_teams": [
-                {
-                    "name": "Team A",
-                    # No wip specified
-                }
-            ],
+            "progress_report": {
+                "enabled": True,
+                "templates": {
+                    "epic": "query",
+                    "story": "query",
+                },
+                "teams": [
+                    {
+                        "name": "Team A",
+                        # No wip specified
+                    }
+                ],
+            },
         }
 
         calculator = ProgressReportCalculator(query_manager, settings, results={})
@@ -472,11 +546,14 @@ class TestTeamConfiguration(ProgressReportTestBase):
         raw_team_config = {"name": "Team A"}
         try:
             _ = calculator.validate_single_team(raw_team_config)
-            # Should raise KeyError when 'wip' key is missing
-            assert False, "Expected KeyError when 'wip' key is missing"
-        except KeyError:
-            # This is expected - the validation assumes all keys exist
-            pass
+            # Should raise ConfigError when 'wip' key is missing
+            assert False, "Expected ConfigError when 'wip' key is missing"
+        except ConfigError as e:
+            # This is expected - validation should raise ConfigError
+            # for missing required keys
+            assert "missing required field" in str(e).lower()
+            assert "wip" in str(e).lower()
+            assert "team a" in str(e).lower() or "team: Team A" in str(e)
 
     def test_team_config_validation_incomplete_throughput_range(
         self, base_custom_fields, base_custom_settings
@@ -487,19 +564,23 @@ class TestTeamConfiguration(ProgressReportTestBase):
 
         # Test with only min_throughput set
         settings = {
-            "progress_report": True,
-            "progress_report_epic_query_template": "query",
-            "progress_report_story_query_template": "query",
-            "progress_report_teams": to_progress_report_teams_list(
-                [
-                    {
-                        "name": "Team A",
-                        "wip": 2,
-                        "min_throughput": 1,
-                        # Missing max_throughput
-                    }
-                ]
-            ),
+            "progress_report": {
+                "enabled": True,
+                "templates": {
+                    "epic": "query",
+                    "story": "query",
+                },
+                "teams": to_progress_report_teams_list(
+                    [
+                        {
+                            "name": "Team A",
+                            "wip": 2,
+                            "min_throughput": 1,
+                            # Missing max_throughput
+                        }
+                    ]
+                ),
+            },
         }
 
         calculator = ProgressReportCalculator(query_manager, settings, results={})
@@ -527,19 +608,23 @@ class TestTeamConfiguration(ProgressReportTestBase):
         query_manager = QueryManager(jira, base_custom_settings)
 
         settings = {
-            "progress_report": True,
-            "progress_report_epic_query_template": "query",
-            "progress_report_story_query_template": "query",
-            "progress_report_teams": to_progress_report_teams_list(
-                [
-                    {
-                        "name": "Team A",
-                        "wip": 2,
-                        "min_throughput": 5,
-                        "max_throughput": 1,  # min > max
-                    }
-                ]
-            ),
+            "progress_report": {
+                "enabled": True,
+                "templates": {
+                    "epic": "query",
+                    "story": "query",
+                },
+                "teams": to_progress_report_teams_list(
+                    [
+                        {
+                            "name": "Team A",
+                            "wip": 2,
+                            "min_throughput": 5,
+                            "max_throughput": 1,  # min > max
+                        }
+                    ]
+                ),
+            },
         }
 
         calculator = ProgressReportCalculator(query_manager, settings, results={})
@@ -567,20 +652,24 @@ class TestTeamConfiguration(ProgressReportTestBase):
         query_manager = QueryManager(jira, base_custom_settings)
 
         settings = {
-            "progress_report": True,
-            "progress_report_epic_query_template": "query",
-            "progress_report_story_query_template": "query",
-            "progress_report_teams": to_progress_report_teams_list(
-                [
-                    {
-                        "name": "Team A",
-                        "wip": 2,
-                        "min_throughput": 1,
-                        "max_throughput": 5,
-                        "throughput_samples": "query",  # Cannot set both
-                    }
-                ]
-            ),
+            "progress_report": {
+                "enabled": True,
+                "templates": {
+                    "epic": "query",
+                    "story": "query",
+                },
+                "teams": to_progress_report_teams_list(
+                    [
+                        {
+                            "name": "Team A",
+                            "wip": 2,
+                            "min_throughput": 1,
+                            "max_throughput": 5,
+                            "throughput_samples": "query",  # Cannot set both
+                        }
+                    ]
+                ),
+            },
         }
 
         calculator = ProgressReportCalculator(query_manager, settings, results={})
@@ -608,19 +697,23 @@ class TestTeamConfiguration(ProgressReportTestBase):
         query_manager = QueryManager(jira, base_custom_settings)
 
         settings = {
-            "progress_report": True,
-            "progress_report_epic_query_template": "query",
-            "progress_report_story_query_template": "query",
-            "progress_report_teams": to_progress_report_teams_list(
-                [
-                    {
-                        "name": "Team A",
-                        "wip": 2,
-                        "throughput_samples": "query",
-                        # Missing throughput_samples_window
-                    }
-                ]
-            ),
+            "progress_report": {
+                "enabled": True,
+                "templates": {
+                    "epic": "query",
+                    "story": "query",
+                },
+                "teams": to_progress_report_teams_list(
+                    [
+                        {
+                            "name": "Team A",
+                            "wip": 2,
+                            "throughput_samples": "query",
+                            # Missing throughput_samples_window
+                        }
+                    ]
+                ),
+            },
         }
 
         calculator = ProgressReportCalculator(query_manager, settings, results={})
@@ -663,22 +756,26 @@ class TestTeamConfiguration(ProgressReportTestBase):
         query_manager = QueryManager(jira, base_custom_settings)
 
         settings = {
-            "progress_report": True,
-            "progress_report_epic_query_template": "query",
-            "progress_report_story_query_template": "query",
-            "progress_report_teams": to_progress_report_teams_list(
-                [
-                    {
-                        "name": "Team A",
-                        "wip": 1,  # Minimum valid WIP
-                    }
-                ]
-            ),
+            "progress_report": {
+                "enabled": True,
+                "templates": {
+                    "epic": "query",
+                    "story": "query",
+                },
+                "teams": to_progress_report_teams_list(
+                    [
+                        {
+                            "name": "Team A",
+                            "wip": 1,  # Minimum valid WIP
+                        }
+                    ]
+                ),
+            },
         }
 
         calculator = ProgressReportCalculator(query_manager, settings, results={})
 
-        team_config = settings["progress_report_teams"][0]
+        team_config = settings["progress_report"]["teams"][0]
         error = calculator.validate_single_team(team_config)
         assert error is None, "WIP of 1 should be valid"
 
@@ -690,24 +787,28 @@ class TestTeamConfiguration(ProgressReportTestBase):
         query_manager = QueryManager(jira, base_custom_settings)
 
         settings = {
-            "progress_report": True,
-            "progress_report_epic_query_template": "query",
-            "progress_report_story_query_template": "query",
-            "progress_report_teams": to_progress_report_teams_list(
-                [
-                    {
-                        "name": "Team A",
-                        "wip": 2,
-                        "min_throughput": 100,
-                        "max_throughput": 1000,
-                    }
-                ]
-            ),
+            "progress_report": {
+                "enabled": True,
+                "templates": {
+                    "epic": "query",
+                    "story": "query",
+                },
+                "teams": to_progress_report_teams_list(
+                    [
+                        {
+                            "name": "Team A",
+                            "wip": 2,
+                            "min_throughput": 100,
+                            "max_throughput": 1000,
+                        }
+                    ]
+                ),
+            },
         }
 
         calculator = ProgressReportCalculator(query_manager, settings, results={})
 
-        team_config = settings["progress_report_teams"][0]
+        team_config = settings["progress_report"]["teams"][0]
         error = calculator.validate_single_team(team_config)
         assert error is None, "Large throughput values should be valid"
 
@@ -719,23 +820,27 @@ class TestTeamConfiguration(ProgressReportTestBase):
         query_manager = QueryManager(jira, base_custom_settings)
 
         settings = {
-            "progress_report": True,
-            "progress_report_epic_query_template": "query",
-            "progress_report_story_query_template": "query",
-            "progress_report_teams": to_progress_report_teams_list(
-                [
-                    {
-                        "name": "Team A",
-                        "wip": 2,
-                        "min_throughput": 5,
-                        "max_throughput": 5,  # Same as min
-                    }
-                ]
-            ),
+            "progress_report": {
+                "enabled": True,
+                "templates": {
+                    "epic": "query",
+                    "story": "query",
+                },
+                "teams": to_progress_report_teams_list(
+                    [
+                        {
+                            "name": "Team A",
+                            "wip": 2,
+                            "min_throughput": 5,
+                            "max_throughput": 5,  # Same as min
+                        }
+                    ]
+                ),
+            },
         }
 
         calculator = ProgressReportCalculator(query_manager, settings, results={})
 
-        team_config = settings["progress_report_teams"][0]
+        team_config = settings["progress_report"]["teams"][0]
         error = calculator.validate_single_team(team_config)
         assert error is None, "Equal min and max throughput should be valid"

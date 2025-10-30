@@ -146,25 +146,17 @@ def calculate_epic_target(epic):
     stories_done = _validate_stories_count(epic.data.get("stories_done", 0))
     stories_total = _validate_stories_count(epic.data.get("stories_raised", 0))
 
-    # Early validation check
-    if (
-        first_story_started is None
-        or stories_done is None
-        or stories_total is None
-        or stories_total == 0
-    ):
-        return None
-
-    # Data-consistency guard before computing completion_rate
-    # Verify stories_total is positive (already checked above, but explicit here)
-    # Verify stories_done and stories_total are numeric and non-negative
-    if (
-        not isinstance(stories_total, (int, float))
-        or not isinstance(stories_done, (int, float))
-        or stories_total <= 0
-        or stories_done < 0
-        or stories_done > stories_total
-    ):
+    # Early validation check - consolidate multiple checks
+    is_valid = (
+        first_story_started is not None
+        and stories_done is not None
+        and stories_total is not None
+        and isinstance(stories_total, (int, float))
+        and isinstance(stories_done, (int, float))
+        and stories_total > 0
+        and 0 <= stories_done <= stories_total
+    )
+    if not is_valid:
         return None
 
     # Calculate completion rate
@@ -172,22 +164,20 @@ def calculate_epic_target(epic):
     if completion_rate == 0:
         return None
 
-    # Estimate remaining time
+    # Estimate remaining time and calculate target date
     remaining_stories = stories_total - stories_done
     estimated_remaining_time = remaining_stories / completion_rate
 
-    # Validate and convert estimated time
+    # Validate, convert estimated time, and calculate target date
     try:
         estimated_remaining_time = int(round(estimated_remaining_time))
         if estimated_remaining_time < 0:
             return None
+        target_date = first_story_started + datetime.timedelta(
+            days=estimated_remaining_time
+        )
+        return target_date
     except (ValueError, TypeError, OverflowError):
-        return None
-
-    # Calculate target date
-    try:
-        return first_story_started + datetime.timedelta(days=estimated_remaining_time)
-    except (ValueError, OverflowError):
         return None
 
 

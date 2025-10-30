@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 
 from ..calculator import Calculator
 from ..chart_styling_utils import set_chart_style
+from ..config.exceptions import ConfigError
 from .cfd import calculate_cfd_data
 from .cycletime import CycleTimeCalculator
 from .progressreport_models import (
@@ -42,19 +43,20 @@ class ProgressReportCalculator(Calculator):
 
     def _validate_configuration(self):
         """Validate progress report configuration settings."""
-        if self.settings["progress_report"] is None:
+        pr_config = self.settings.get("progress_report")
+        if pr_config is None or not isinstance(pr_config, dict):
             return None
 
-        epic_query_template = self.settings["progress_report_epic_query_template"]
+        epic_query_template = pr_config["templates"]["epic"]
         if not epic_query_template:
             if (
-                self.settings["progress_report_outcome_query"] is not None
-                or self.settings["progress_report_outcomes"] is None
-                or len(self.settings["progress_report_outcomes"]) == 0
+                pr_config["outcome_query"] is not None
+                or pr_config["outcomes"] is None
+                or len(pr_config["outcomes"]) == 0
                 or any(
                     map(
                         lambda o: o["epic_query"] is None,
-                        self.settings["progress_report_outcomes"],
+                        pr_config["outcomes"],
                     )
                 )
             ):
@@ -67,7 +69,7 @@ class ProgressReportCalculator(Calculator):
                 )
                 return None
 
-        story_query_template = self.settings["progress_report_story_query_template"]
+        story_query_template = pr_config["templates"]["story"]
         if not story_query_template:
             logger.error("`Progress report story query template` is required")
             return None
@@ -76,7 +78,10 @@ class ProgressReportCalculator(Calculator):
 
     def _resolve_field_ids(self):
         """Resolve field names to field IDs for epic configuration."""
-        epic_deadline_field = self.settings["progress_report_epic_deadline_field"]
+        pr_config = self.settings.get("progress_report", {})
+        epic_fields = pr_config.get("epic_fields", {})
+
+        epic_deadline_field = epic_fields.get("deadline")
         if (
             epic_deadline_field
             and epic_deadline_field not in self.query_manager.jira_fields_to_names
@@ -85,7 +90,7 @@ class ProgressReportCalculator(Calculator):
                 epic_deadline_field
             )
 
-        epic_min_stories_field = self.settings["progress_report_epic_min_stories_field"]
+        epic_min_stories_field = epic_fields.get("min_stories")
         if (
             epic_min_stories_field
             and epic_min_stories_field not in self.query_manager.jira_fields_to_names
@@ -94,7 +99,7 @@ class ProgressReportCalculator(Calculator):
                 epic_min_stories_field
             )
 
-        epic_max_stories_field = self.settings["progress_report_epic_max_stories_field"]
+        epic_max_stories_field = epic_fields.get("max_stories")
         if not epic_max_stories_field:
             epic_max_stories_field = epic_min_stories_field
         elif epic_max_stories_field not in self.query_manager.jira_fields_to_names:
@@ -102,7 +107,7 @@ class ProgressReportCalculator(Calculator):
                 epic_max_stories_field
             )
 
-        epic_team_field = self.settings["progress_report_epic_team_field"]
+        epic_team_field = epic_fields.get("team")
         if (
             epic_team_field
             and epic_team_field not in self.query_manager.jira_fields_to_names
@@ -118,19 +123,42 @@ class ProgressReportCalculator(Calculator):
 
     def _validate_teams(self):
         """Validate team configuration settings."""
-        teams = self.settings["progress_report_teams"] or []
+        pr_config = self.settings.get("progress_report", {})
+        teams = pr_config.get("teams") or []
 
         # Validate each team
         for team in teams:
-            validation_error = self.validate_single_team(team)
-            if validation_error:
-                logger.error(validation_error)
+            try:
+                validation_error = self.validate_single_team(team)
+                if validation_error:
+                    logger.error(validation_error)
+                    return None
+            except ConfigError as e:
+                logger.error(str(e))
                 return None
 
         return teams
 
     def validate_single_team(self, team):
         """Validate a single team configuration."""
+        # Check for missing required keys and raise ConfigError with helpful message
+        team_name = team.get("name", "Unknown")
+        config_snippet = f" (team: {team_name})" if team_name != "Unknown" else ""
+
+        try:
+            team["name"]
+        except KeyError:
+            raise ConfigError(
+                f"Team configuration missing required field: 'name'{config_snippet}"
+            ) from None
+
+        try:
+            team["wip"]
+        except KeyError:
+            raise ConfigError(
+                f"Team configuration missing required field: 'wip'{config_snippet}"
+            ) from None
+
         error_message = None
 
         # Validate team name
@@ -140,21 +168,23 @@ class ProgressReportCalculator(Calculator):
         elif not team["wip"] or team["wip"] < 1:
             error_message = "Team WIP must be >= 1"
         # Validate throughput configuration
-        elif team["min_throughput"] or team["max_throughput"]:
-            if not (team["min_throughput"] and team["max_throughput"]):
+        elif team.get("min_throughput") or team.get("max_throughput"):
+            if not (team.get("min_throughput") and team.get("max_throughput")):
                 error_message = (
                     "If `Min throughput` is set, "
                     "`Max throughput` must also be set, "
                     "and vice versa."
                 )
-            elif team["min_throughput"] > team["max_throughput"]:
+            elif team.get("min_throughput") > team.get("max_throughput"):
                 error_message = "`Min throughput` must be <= `Max throughput`."
-            elif team["throughput_samples"]:
+            elif team.get("throughput_samples"):
                 error_message = (
                     "Cannot set both `Min/Max throughput` and `Throughput samples`."
                 )
         # Validate throughput samples
-        elif team["throughput_samples"] and not team["throughput_samples_window"]:
+        elif team.get("throughput_samples") and not team.get(
+            "throughput_samples_window"
+        ):
             error_message = (
                 "If `Throughput samples` is set, "
                 "`Throughput samples window` must also be set."
@@ -162,7 +192,7 @@ class ProgressReportCalculator(Calculator):
 
         return error_message
 
-    def _setup_teams_and_outcomes(self, teams, epic_query_template):
+    def setup_teams_and_outcomes(self, teams, epic_query_template):
         """Setup teams and outcomes for the progress report."""
         # Convert team configs to Team objects
         team_objects = [
@@ -187,23 +217,20 @@ class ProgressReportCalculator(Calculator):
         team_epics = {team.name.lower(): [] for team in team_objects}
 
         # Find outcomes
-        if self.settings["progress_report_outcome_query"]:
-            outcomes = list(
-                find_outcomes(
-                    query_manager=self.query_manager,
-                    query=self.settings["progress_report_outcome_query"],
-                    outcome_deadline_field=self.settings[
-                        "progress_report_outcome_deadline_field"
-                    ],
-                    epic_query_template=epic_query_template,
-                )
-            )
+        pr_config = self.settings.get("progress_report", {})
+        outcomes = self._process_outcomes(epic_query_template)
 
-            if len(outcomes) > 0:
-                if not all(outcome.name for outcome in outcomes):
-                    logger.error("Outcomes must have a name.")
-                    return None
-        else:
+        # Only create default outcome if outcomes is not explicitly configured
+        # and no outcome_query. If outcomes={} explicitly, we should keep it empty
+        has_explicit_outcomes = (
+            "outcomes" in pr_config and pr_config["outcomes"] is not None
+        )
+
+        if (
+            not outcomes
+            and not pr_config.get("outcome_query")
+            and not has_explicit_outcomes
+        ):
             outcomes = [
                 Outcome(
                     {
@@ -213,8 +240,13 @@ class ProgressReportCalculator(Calculator):
                         "epic_query": epic_query_template,
                     }
                 )
-                for _ in range(1)
             ]
+
+        if pr_config.get("outcome_query"):
+            if len(outcomes) > 0:
+                if not all(outcome.name for outcome in outcomes):
+                    logger.error("Outcomes must have a name.")
+                    return None
 
         return team_objects, team_lookup, team_epics, outcomes
 
@@ -222,6 +254,7 @@ class ProgressReportCalculator(Calculator):
         """Process and validate outcomes configuration."""
         # Find outcomes, either in the config file or by querying JIRA (or both).
         # If none set, we use a single epic query and don't group by outcomes
+        pr_config = self.settings.get("progress_report", {})
         outcomes = (
             [
                 Outcome(
@@ -244,17 +277,16 @@ class ProgressReportCalculator(Calculator):
                         ),
                     }
                 )
-                for o in self.settings["progress_report_outcomes"]
+                for o in pr_config["outcomes"]
             ]
-            if self.settings["progress_report_outcomes"] is not None
+            if pr_config.get("outcomes") is not None
+            and len(pr_config.get("outcomes", {})) > 0
             else []
         )
 
-        outcome_query = self.settings["progress_report_outcome_query"]
+        outcome_query = pr_config.get("outcome_query")
         if outcome_query:
-            outcome_deadline_field = self.settings[
-                "progress_report_outcome_deadline_field"
-            ]
+            outcome_deadline_field = pr_config["outcome_fields"]["deadline"]
             if (
                 outcome_deadline_field
                 and outcome_deadline_field
@@ -273,11 +305,19 @@ class ProgressReportCalculator(Calculator):
                 )
             )
 
+        # Check if outcomes was explicitly set to empty dict/list
+        has_explicit_empty_outcomes = (
+            "outcomes" in pr_config
+            and pr_config["outcomes"] is not None
+            and len(pr_config.get("outcomes", [])) == 0
+        )
+
         if len(outcomes) > 0:
             if not all(outcome.name for outcome in outcomes):
                 logger.error("Outcomes must have a name.")
                 return None
-        else:
+        elif not has_explicit_empty_outcomes:
+            # Only create default outcome if outcomes wasn't explicitly set to empty
             outcomes = [
                 Outcome(
                     {
@@ -413,18 +453,15 @@ class ProgressReportCalculator(Calculator):
     def _setup_epic_processing(self, config):
         """Setup epic processing parameters."""
         # Setup teams and outcomes
-        setup_result = self._setup_teams_and_outcomes(
+        setup_result = self.setup_teams_and_outcomes(
             config["teams"], config["epic_query_template"]
         )
         if setup_result is None:
             return None
-        outcomes, team_objects, team_lookup, team_epics = setup_result
+        team_objects, team_lookup, team_epics, outcomes = setup_result
 
         # Process outcomes
         self._process_outcomes(config["epic_query_template"])
-
-        # Setup team objects
-        team_objects = self._setup_team_objects(team_objects)
 
         # Get cycle configuration
         cycle = self.query_manager.settings["cycle"]
@@ -478,7 +515,8 @@ class ProgressReportCalculator(Calculator):
         outcomes, team_objects = processing_result
 
         # Run Monte Carlo simulation to complete
-        quantiles = self.settings["progress_report_quantiles"]
+        pr_config = self.settings.get("progress_report", {})
+        quantiles = pr_config.get("quantiles", [0.5, 0.85, 0.95])
 
         team_objects.sort(key=lambda t: t.name)
 
@@ -502,16 +540,18 @@ class ProgressReportCalculator(Calculator):
     def _generate_charts(self):
         """Generate charts for the progress report."""
         charts = {}
+        pr_config = self.settings.get("progress_report", {})
+        chart_config = pr_config.get("charts", {})
 
         # Get cycle time data
         cycle_data = self.get_result(CycleTimeCalculator)
         if cycle_data is not None and len(cycle_data) > 0:
             # Generate CFD chart
-            if self.settings["progress_report_cfd_chart"]:
+            if chart_config.get("cfd", {}).get("filename"):
                 charts["cfd"] = self._generate_cfd_chart(cycle_data)
 
             # Generate scatter plot
-            if self.settings["progress_report_scatterplot_chart"]:
+            if chart_config.get("scatterplot", {}).get("filename"):
                 charts["scatterplot"] = self._generate_scatterplot_chart(cycle_data)
 
         return charts

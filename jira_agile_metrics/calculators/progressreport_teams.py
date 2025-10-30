@@ -49,6 +49,9 @@ def throughput_range_sampler(min_val, max_val):
     if min_val is None or max_val is None:
         return None
 
+    if min_val > max_val:
+        raise ValueError(f"min_val ({min_val}) must be <= max_val ({max_val})")
+
     def sampler():
         return random.uniform(min_val, max_val)
 
@@ -85,6 +88,56 @@ def _get_throughput_config(team, config):
     }
 
 
+def _build_team_jql(team, config, throughput_config):
+    """Build team-scoped JQL query for data availability check.
+
+    Args:
+        team: Team object (dict or object with name attribute)
+        config: Configuration dict with progress_report.templates.story
+        throughput_config: Throughput configuration dict with throughput_samples
+
+    Returns:
+        str or None: Team-scoped JQL query (or non-scoped if throughput_samples
+                     exists but isn't team-scoped), or None if unavailable.
+    """
+    team_name = (
+        team.name
+        if hasattr(team, "name")
+        else (team.get("name") if isinstance(team, dict) else None)
+    )
+
+    # Option 1: Use team's throughput_samples JQL if available (team-scoped)
+    if throughput_config.get("throughput_samples"):
+        team_jql = throughput_config["throughput_samples"]
+        if team_name and "{team}" in team_jql:
+            # Escape quotes in team name to prevent JQL injection
+            escaped_name = escape_jql_string(team_name)
+            return team_jql.format(team=f'"{escaped_name}"')
+        # If throughput_samples exists but isn't team-scoped, return as-is
+        # (original behavior allows non-team-scoped queries)
+        return team_jql
+
+    # Option 2: Use story query template from config if available
+    if isinstance(config, dict) and team_name:
+        pr_config = config.get("progress_report", {})
+        story_template = (
+            pr_config.get("templates", {}).get("story") if pr_config else None
+        )
+    else:
+        story_template = None
+
+    if story_template:
+        escaped_name = escape_jql_string(team_name)
+        if "{team}" in story_template:
+            return story_template.format(team=f'"{escaped_name}"')
+        # If template doesn't use {team}, try appending team filter
+        # This is a fallback - may not work for all JIRA setups
+        # Note: Hardcoded "Team" field assumes specific JIRA configuration
+        return f'{story_template} AND Team = "{escaped_name}"'
+
+    return None
+
+
 def update_team_sampler(team, query_manager, config):
     """Update team sampler based on configuration.
 
@@ -93,6 +146,14 @@ def update_team_sampler(team, query_manager, config):
     respectively, with fallbacks to 0 and 10.
     """
     throughput_config = _get_throughput_config(team, config)
+
+    # Get team identifier for error messages
+    team_name = (
+        team.name
+        if hasattr(team, "name")
+        else (team.get("name") if isinstance(team, dict) else None)
+    )
+    team_identifier = team_name if team_name else "unknown team"
 
     if throughput_config.get("throughput_samples"):
         # Use throughput samples
@@ -105,12 +166,42 @@ def update_team_sampler(team, query_manager, config):
         )
         throughput_config["throughput_samples_cycle_times"] = cycle_times
         throughput_config["sampler"] = throughput_sampler(cycle_times)
+        # Validate sampler was created successfully
+        if not throughput_config["sampler"]:
+            logger.error(
+                "Failed to create sampler for team '%s' using throughput_samples: %s",
+                team_identifier,
+                throughput_config["throughput_samples"],
+            )
+            raise ValueError(
+                f"Sampler creation failed for team '{team_identifier}': "
+                f"throughput_sampler returned None/False for throughput_samples: "
+                f"{throughput_config['throughput_samples']}"
+            )
     else:
         # Use min/max throughput
+        min_throughput = throughput_config.get("min_throughput", 0)
+        max_throughput = throughput_config.get("max_throughput", 10)
         throughput_config["sampler"] = throughput_range_sampler(
-            throughput_config.get("min_throughput", 0),
-            throughput_config.get("max_throughput", 10),
+            min_throughput,
+            max_throughput,
         )
+        # Validate sampler was created successfully
+        if not throughput_config["sampler"]:
+            logger.error(
+                (
+                    "Failed to create sampler for team '%s' "
+                    "using min_throughput=%s, max_throughput=%s"
+                ),
+                team_identifier,
+                min_throughput,
+                max_throughput,
+            )
+            raise ValueError(
+                f"Sampler creation failed for team '{team_identifier}': "
+                f"throughput_range_sampler returned None/False for "
+                f"min_throughput={min_throughput}, max_throughput={max_throughput}"
+            )
 
 
 def calculate_team_throughput(team, query_manager, config):
@@ -123,12 +214,10 @@ def calculate_team_throughput(team, query_manager, config):
        Returns the cycle time data.
 
     2. **With min_throughput/max_throughput** (range-based): Returns the midpoint
-       ``(min_throughput + max_throughput) / 2`` as a static estimate, even when
-       historical data exists. This is a design choice made for:
-       - Performance: Avoiding expensive full data analysis
-       - Configuration intent: Using a simple range-based estimate
-       - Consistency: Aligning with the probabilistic range sampler
-       - Efficiency: Leveraging lightweight data availability checks
+       ``(min_throughput + max_throughput) / 2`` as a static estimate. This uses
+       a lightweight data availability check without full historical analysis for
+       performance. The midpoint aligns with the probabilistic range sampler used
+       in simulations.
 
     When team is a dict, default min_throughput and max_throughput values
     are read from config keys 'default_min_throughput' and 'default_max_throughput'
@@ -174,43 +263,15 @@ def calculate_team_throughput(team, query_manager, config):
 
     # Check if there's actual data available using a team-scoped JQL query
     # Return 0 as a clear sentinel when no data is available
-    # Build a team-scoped JQL query
-    # Prefer team's throughput_samples query if available (even if not using it),
-    # otherwise try to use story query template from config,
-    # or fall back to basic query
-    team_name = (
-        team.name
-        if hasattr(team, "name")
-        else (team.get("name") if isinstance(team, dict) else None)
-    )
-    team_jql = None
-
-    # Option 1: Use team's throughput_samples JQL if available (team-scoped)
-    if throughput_config.get("throughput_samples"):
-        team_jql = throughput_config["throughput_samples"]
-        if team_name and "{team}" in team_jql:
-            # Escape quotes in team name to prevent JQL injection
-            escaped_name = escape_jql_string(team_name)
-            team_jql = team_jql.format(team=f'"{escaped_name}"')
-    # Option 2: Use story query template from config if available
-    elif (
-        isinstance(config, dict)
-        and config.get("progress_report_story_query_template")
-        and team_name
-    ):
-        story_template = config["progress_report_story_query_template"]
-        if "{team}" in story_template:
-            escaped_name = escape_jql_string(team_name)
-            team_jql = story_template.format(team=f'"{escaped_name}"')
-        else:
-            # If template doesn't use {team}, try appending team filter
-            # This is a fallback - may not work for all JIRA setups
-            # Note: Hardcoded "Team" field assumes specific JIRA configuration
-            escaped_name = escape_jql_string(team_name)
-            team_jql = f'{story_template} AND Team = "{escaped_name}"'
-    else:
+    team_jql = _build_team_jql(team, config, throughput_config)
+    if team_jql is None:
         # No team-scoped query available - return 0 to indicate no data
         # rather than querying all issues
+        team_name = (
+            team.name
+            if hasattr(team, "name")
+            else (team.get("name") if isinstance(team, dict) else None)
+        )
         logger.debug(
             "No team-scoped query available for team %s, returning 0", team_name
         )
@@ -219,35 +280,10 @@ def calculate_team_throughput(team, query_manager, config):
     # Use the safe has_issues_for_jql method to check data availability
     # without mutating global settings
     if query_manager.has_issues_for_jql(team_jql):
-        # Return midpoint of min/max throughput as a static estimate.
-        #
-        # Note: Although has_issues_for_jql confirms that historical data exists
-        # for this team, we use the midpoint of the configured min/max throughput
-        # range rather than calculating actual historical throughput. This design
-        # decision is made for several reasons:
-        #
-        # 1. Performance: Calculating actual throughput requires fetching and
-        #    processing all relevant issues, determining cycle times, grouping by
-        #    completion periods, and aggregating - which is computationally
-        #    expensive for large datasets.
-        #
-        # 2. Configuration intent: When min_throughput/max_throughput are configured
-        #    without throughput_samples, it indicates the user wants to use a
-        #    simple range-based estimate rather than historical analysis.
-        #
-        # 3. Consistent with sampler behavior: The throughput sampler for this team
-        #    (created above) uses throughput_range_sampler, which samples uniformly
-        #    between min/max. Using the midpoint here provides a deterministic
-        #    point estimate that aligns with the probabilistic range used in
-        #    simulations.
-        #
-        # 4. Lightweight check: has_issues_for_jql only fetches one issue (maxResults=1)
-        #    to verify data availability. Using this as a quick validation without
-        #    expensive full data analysis keeps this function efficient.
-        #
-        # For teams that need actual historical throughput, configure throughput_samples
-        # in the team configuration, which will trigger full cycle time calculation
-        # and actual throughput analysis.
+        # Return midpoint of min/max throughput range as a static estimate.
+        # Note: When historical data is needed, use throughput_samples configuration
+        # instead to trigger full cycle time analysis. See function docstring for
+        # details on why the midpoint is used instead of historical calculation.
         return (min_throughput + max_throughput) / 2
-    # No issues available, return 0 as clear sentinel for no data
+    # No issues available
     return 0

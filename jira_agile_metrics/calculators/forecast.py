@@ -285,9 +285,13 @@ class BurnupForecastCalculator(Calculator):
         """Validate data and get column names."""
         return self._validator.validate_data(burnup_data, cycle_data)
 
-    def _setup_forecast_parameters(self, burnup_data):
+    def _setup_forecast_parameters(
+        self, burnup_data, horizon_months: int = 6, freq: str = "D"
+    ):
         """Setup forecast parameters."""
-        return self._validator.setup_forecast_parameters(burnup_data)
+        return self._validator.setup_forecast_parameters(
+            burnup_data, horizon_months=horizon_months, freq=freq
+        )
 
     def _calculate_throughput_data(self, cycle_data, done_column, forecast_params):
         """Calculate throughput data."""

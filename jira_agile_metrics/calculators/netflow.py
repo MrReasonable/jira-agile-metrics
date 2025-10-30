@@ -80,6 +80,10 @@ class NetFlowChartCalculator(Calculator):
             color=net_flow_data["positive"].map({True: "r", False: "b"}),
         )
 
+        # Set ticks to match data positions to ensure proper label alignment
+        num_data_points = len(net_flow_data.index)
+        tick_positions = list(range(num_data_points))
+        ax.set_xticks(tick_positions)
         labels = [d.strftime(self.settings["date_format"]) for d in net_flow_data.index]
         ax.set_xticklabels(labels, rotation=70, size="small")
 
