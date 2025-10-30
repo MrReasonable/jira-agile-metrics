@@ -4,6 +4,7 @@ Python task runner for Jira Agile Metrics
 Alternative to Makefile using Python's invoke library pattern
 """
 
+import importlib.metadata
 import shutil
 import subprocess
 import sys
@@ -213,7 +214,14 @@ def task_run():
         print(f"{RED}Error: config.yml not found{NC}")
         sys.exit(1)
     print(f"{GREEN}Running jira-agile-metrics...{NC}")
-    run_command([PYTHON, "-m", "jira_agile_metrics.cli", "-vv", "config.yml"])
+    # Build command: start with module invocation, then add user-supplied args
+    cmd = [PYTHON, "-m", "jira_agile_metrics.cli"] + sys.argv[2:]
+    # If user didn't supply a config path, append default
+    if len(sys.argv) < 3 or not any(
+        arg.endswith(".yml") or arg.endswith(".yaml") for arg in sys.argv[2:]
+    ):
+        cmd.append("config.yml")
+    run_command(cmd)
 
 
 def task_webapp():
@@ -248,14 +256,11 @@ def task_info():
 def task_version():
     """Show version information."""
     print(f"{GREEN}Version Information:{NC}")
-    if Path("setup.py").exists():
-        with Path("setup.py").open(encoding="utf-8") as f:
-            for line in f:
-                if "version" in line and "=" in line:
-                    print(f"  {line.strip()}")
-                    break
-    else:
-        print("  setup.py not found")
+    try:
+        version = importlib.metadata.version("jira-agile-metrics")
+        print(f"  version={version}")
+    except importlib.metadata.PackageNotFoundError:
+        print("  Package not installed or version not found")
 
 
 def task_reset():

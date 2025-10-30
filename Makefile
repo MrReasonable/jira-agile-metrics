@@ -108,7 +108,7 @@ lint: ## Run all linters (ruff and pylint)
 	@echo "$(GREEN)Running ruff linter...$(NC)"
 	$(RUFF) check .
 	@echo "$(GREEN)Running pylint...$(NC)"
-	$(PYLINT) jira_agile_metrics/
+	$(PYLINT) jira_agile_metrics/ setup.py
 
 lint-fix: ## Run ruff with auto-fix
 	@echo "$(GREEN)Running ruff with auto-fix...$(NC)"
@@ -116,15 +116,15 @@ lint-fix: ## Run ruff with auto-fix
 
 pylint: ## Run pylint
 	@echo "$(GREEN)Running pylint...$(NC)"
-	$(PYLINT) jira_agile_metrics/
+	$(PYLINT) jira_agile_metrics/ setup.py
 
 format: ## Format code with black
 	@echo "$(GREEN)Formatting code with black...$(NC)"
-	$(BLACK) .
+	$(BLACK) jira_agile_metrics/ setup.py
 
 format-check: ## Check code formatting without making changes
 	@echo "$(GREEN)Checking code formatting...$(NC)"
-	$(BLACK) . --check
+	$(BLACK) jira_agile_metrics/ setup.py --check
 
 check: format-check lint ## Run all checks without making changes
 	@echo "$(GREEN)All checks passed!$(NC)"

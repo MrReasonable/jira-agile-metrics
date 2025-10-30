@@ -8,6 +8,8 @@ repos:
       - id: ruff-format
 
   # Pytest - run tests
+  # Only runs when Python files are staged (via types: [python])
+  # This avoids unnecessary test runs when only non-Python files change
   - repo: local
     hooks:
       - id: pytest
@@ -16,4 +18,3 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-        always_run: true

@@ -30,3 +30,21 @@ ignore = []
 quote-style = "double"
 indent-style = "space"
 line-ending = "lf"
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jira-agile-metrics"
+version = "0.25"
+description = "Agile metrics and summary data extracted from JIRA"
+readme = "README.md"
+requires-python = ">=3.8"
+
+[project.optional-dependencies]
+testing = [
+  "pytest>=8.4.2",
+  "pytest-mock",
+  "mock",
+]

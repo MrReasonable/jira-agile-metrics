@@ -4,7 +4,7 @@ A tool to extract Agile metrics and charts from JIRA projects and Trello Boards.
 
 ## Installation
 
-Requires Python 3.6 or later.
+Requires Python 3.8 or later.
 
 Install Python 3 and the `pip` package manager. Then run:
 

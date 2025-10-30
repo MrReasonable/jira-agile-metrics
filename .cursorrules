@@ -263,7 +263,10 @@ docker run -d --rm -p 8080:80 optilude/jira-agile-metrics:server-latest
 
 ### Third-Party API Documentation
 
-**Context7 Integration:**
+**About Context7:**
+Context7 is an MCP (Model Context Protocol) integration available in Cursor that provides up-to-date documentation for third-party APIs and libraries. It allows developers to access current API documentation, verify method signatures, check for deprecations, and review best practices without leaving the IDE. This is especially valuable for keeping documentation references current as libraries evolve.
+
+**Context7 Usage Guidelines:**
 - ALWAYS use Context7 as the primary reference mechanism for third-party API documentation
 - When working with external APIs (JIRA, Trello, matplotlib, pandas, Flask, etc.), use Context7 to get up-to-date documentation
 - Before implementing new features or fixing issues with third-party libraries, consult Context7 for:
@@ -272,10 +275,10 @@ docker run -d --rm -p 8080:80 optilude/jira-agile-metrics:server-latest
   - Breaking changes and deprecation warnings
   - Performance considerations and optimization tips
 - Use Context7 to verify correct usage of:
-  - **JIRA API**: Always reference `pycontribs/jira` project from Context7 for JIRA REST API endpoints, authentication, and Python client usage
+  - **JIRA API**: Always reference `pycontribs/jira` project from Context7 for JIRA REST API endpoints, authentication, and Python client usage (see "Working with External APIs" section below for detailed JIRA-specific guidance)
   - **Trello API** methods and data structures Context7 MCP `developer_atlassian_cloud_trello_rest`
   - **matplotlib** charting functions and styling Context7 MCP `matplotlib/matplotlib`
-  - **pandas** data manipulation methods always reference  Context7 MCP `pandas-dev/pandas`
+  - **pandas** data manipulation methods always reference Context7 MCP `pandas-dev/pandas`
   - Flask routing and session management Context7 MCP `flask_palletsprojects-en-stable`
   - Bokeh interactive charting components Context7 MCP `websites/bokeh_en`
 
@@ -370,10 +373,11 @@ docker run -d --rm -p 8080:80 optilude/jira-agile-metrics:server-latest
 - Look up common issues and solutions
 
 **JIRA-Specific Guidelines:**
-- Always use Context7 to reference the `pycontribs/jira` project for JIRA API documentation
+When working with JIRA APIs, always use Context7 to reference the `pycontribs/jira` project for documentation. Specifically:
 - Consult Context7 for JIRA client initialization, authentication methods, and API endpoint usage
 - Use Context7 to verify correct usage of JIRA search methods, issue creation, and field handling
 - Reference Context7 for JIRA error handling patterns and exception types
+- For troubleshooting JIRA API issues, Context7 provides current documentation on common problems and solutions
 
 ### Configuration Validation
 
@@ -426,7 +430,7 @@ docker run -d --rm -p 8080:80 optilude/jira-agile-metrics:server-latest
 - Check for API changes, deprecations, or new features in external libraries
 - Verify correct parameter usage and method signatures
 - Look up error messages and their solutions in official documentation
-- **For JIRA issues**: Always reference the `pycontribs/jira` project from Context7 for troubleshooting JIRA API problems
+- **For JIRA-specific troubleshooting**: See the "JIRA-Specific Guidelines" in the "Working with External APIs" section above for detailed Context7 usage
 
 **Verbose Logging:**
 - Use `-v` for INFO level logging

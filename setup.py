@@ -1,40 +1,66 @@
-from codecs import open
-from os import path
+"""Package configuration for jira-agile-metrics.
 
-from setuptools import find_packages, setup
+This file defines installation metadata and console entry points.
+"""
 
-here = path.abspath(path.dirname(__file__))
+import os
 
-# Get the long description from the README file
-with open(path.join(here, "README.md"), encoding="utf-8") as f:
-    long_description = f.read()
+import setuptools
 
-with open(path.join(here, "requirements.txt")) as f:
-    install_requires = f.readlines()
+# Defer any expensive or failure-prone I/O (like reading README/requirements)
+# until setup is actually executed. This avoids side effects at import time and
+# supports lazy-loading goals during static analysis or tooling.
 
-setup(
-    name="jira-agile-metrics",
-    version="0.25",
-    description="Agile metrics and summary data extracted from JIRA",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    author="Martin Aspeli",
-    author_email="optilude@gmail.com",
-    url="https://github.com/optilude/jira-agile-metrics",
-    license="MIT",
-    keywords="agile jira analytics metrics",
-    packages=find_packages(exclude=["contrib", "docs", "tests*"]),
-    install_requires=install_requires,
-    setup_requires=["pytest-runner"],
-    tests_require=["pytest", "mock", "pytest-mock"],
-    include_package_data=True,
-    package_data={
-        "jira_agile_metrics.webapp": ["templates/*.*", "static/*.*"],
-        "jira_agile_metrics.calculators": ["*.html"],
-    },
-    entry_points={
-        "console_scripts": [
-            "jira-agile-metrics=jira_agile_metrics.cli:main",
-        ],
-    },
-)
+
+def main():
+    """Entrypoint for invoking setuptools.setup with package metadata."""
+
+    here = os.path.abspath(os.path.dirname(__file__))
+
+    # Safely read long description
+    try:
+        with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
+            long_description = f.read()
+    except OSError:
+        long_description = ""
+
+    # Safely read install requirements
+    try:
+        with open(os.path.join(here, "requirements.txt"), encoding="utf-8") as f:
+            install_requires = [
+                line.strip()
+                for line in f.read().splitlines()
+                if line.strip() and not line.strip().startswith("#")
+            ]
+    except OSError:
+        install_requires = []
+
+    setuptools.setup(
+        name="jira-agile-metrics",
+        version="0.25",
+        description="Agile metrics and summary data extracted from JIRA",
+        long_description=long_description,
+        long_description_content_type="text/markdown",
+        author="Martin Aspeli",
+        author_email="optilude@gmail.com",
+        url="https://github.com/optilude/jira-agile-metrics",
+        license="MIT",
+        keywords="agile jira analytics metrics",
+        packages=setuptools.find_packages(exclude=["contrib", "docs", "tests*"]),
+        install_requires=install_requires,
+        python_requires=">=3.8",
+        include_package_data=True,
+        package_data={
+            "jira_agile_metrics.webapp": ["templates/*.*", "static/*.*"],
+            "jira_agile_metrics.calculators": ["*.html"],
+        },
+        entry_points={
+            "console_scripts": [
+                "jira-agile-metrics=jira_agile_metrics.cli:main",
+            ],
+        },
+    )
+
+
+if __name__ == "__main__":
+    main()
