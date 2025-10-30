@@ -189,12 +189,12 @@ class TestSaveChartWithStyling:
         mock_logger = Mock()
         mock_get_logger.return_value = mock_logger
         mock_fig = Mock()
+        mock_fig.savefig = Mock()
+        savefig_mock = mock_fig.savefig
 
         save_chart_with_styling(mock_fig, "output.png", "Test Chart")
 
-        mock_fig.savefig.assert_called_once_with(
-            "output.png", bbox_inches="tight", dpi=300
-        )
+        savefig_mock.assert_called_once_with("output.png", bbox_inches="tight", dpi=300)
         mock_plt.close.assert_called_once_with(mock_fig)
         mock_logger.info.assert_called_once_with(
             "Writing %s chart to %s", "Test Chart", "output.png"
@@ -221,6 +221,7 @@ class TestSaveChartWithStyling:
         mock_logger = Mock()
         mock_get_logger.return_value = mock_logger
         mock_fig = Mock()
+        mock_fig.savefig = Mock()
 
         save_chart_with_styling(mock_fig, "/path/to/output.png", "Test Chart")
 
