@@ -91,7 +91,11 @@ class TestSetQueryRoute:
             assert sess.get("user_query") is None
 
     def test_set_query_too_long(self, test_client):
-        """Test that queries longer than 1000 characters are rejected."""
+        """Test that queries longer than 1000 characters are rejected.
+
+        When a query exceeds the maximum length, it is rejected and the session
+        key is not set (stored_query is None), indicating that no query was stored.
+        """
         long_query = "project = 'TEST'" + " AND issueType = Story" * 100
         response = test_client.post("/set_query", data={"user_query": long_query})
         assert response.status_code == 302
@@ -99,8 +103,8 @@ class TestSetQueryRoute:
         # Query should not be stored in session (too long and rejected)
         with test_client.session_transaction() as sess:
             stored_query = sess.get("user_query")
-            # Assert that the query is not stored at all (None or empty string)
-            assert stored_query is None or stored_query == ""
+            # The session key should not be set when the query is rejected
+            assert stored_query is None
 
     def test_set_query_strips_whitespace(self, test_client):
         """Test that whitespace is stripped from query input."""
@@ -152,7 +156,7 @@ def test_burnup_route_requires_config(test_client):
     """Test that burnup route tries to load config."""
     # This will fail without JIRA config
     # The route will raise RuntimeError for missing credentials
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match=r"JIRA.*credentials"):
         test_client.get("/burnup")
 
 

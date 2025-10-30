@@ -127,9 +127,23 @@ def get_real_results():
             results, timestamp = results_cache[cache_key]
             if now - timestamp < 86400:  # 24 hours
                 return results
-    jira = get_jira_client(options["connection"])
-    query_manager = QueryManager(jira, options["settings"])
-    results = run_calculators(CALCULATORS, query_manager, options["settings"])
+
+    # Change to output directory if specified
+    # (to write files there, not in project root)
+    output_dir = options.get("output_directory")
+    original_cwd = os.getcwd()
+    try:
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+            os.chdir(output_dir)
+
+        jira = get_jira_client(options["connection"])
+        query_manager = QueryManager(jira, options["settings"])
+        results = run_calculators(CALCULATORS, query_manager, options["settings"])
+    finally:
+        # Always restore the original working directory
+        os.chdir(original_cwd)
+
     with results_cache_lock:
         results_cache[cache_key] = (results, now)
     return results
