@@ -3,7 +3,7 @@
 This module contains unit tests for the web application routes and functionality.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -175,11 +175,9 @@ class TestRoutesEmptyResults:
     def _mock_results_empty(self, mocker):
         # Map each calculator to empty DataFrame-like objects where needed
         from pandas import DataFrame
+
         empty = DataFrame()
-        calculators = {
-            # Use MagicMock for index/columns lookups
-            object(): empty,
-        }
+
         # Return a dict that returns empties for any calculator key access
         class Results(dict):
             def __getitem__(self, key):  # type: ignore[override]
@@ -221,6 +219,7 @@ class TestRoutesEmptyResults:
 
 def test_get_jira_client_401_maps_to_config_error(mocker):
     from jira import exceptions as jira_exceptions
+
     from jira_agile_metrics.webapp import app
 
     fake_error = jira_exceptions.JIRAError(status_code=401, text="Unauthorized")
