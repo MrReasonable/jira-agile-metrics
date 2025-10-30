@@ -9,6 +9,7 @@ import tempfile
 
 from .config import ConfigError, config_to_options
 from .config.type_utils import expand_key, force_list
+from .conftest import DEFAULT_PROGRESS_REPORT_CHARTS
 from .test_data import COMMON_CYCLE_CONFIG
 from .test_utils import create_common_defect_test_settings, create_waste_settings
 
@@ -354,57 +355,65 @@ ABC AND type = Outcome AND resolution IS EMPTY"
         "debt_age_chart_title": "Technical debt age",
         "debt_age_chart_bins": [10, 20, 30],
         **create_waste_settings(),
-        "progress_report": "progress.html",
-        "progress_report_title": "Test progress report",
-        "progress_report_epic_query_template": (
-            "project = ABC AND type = Epic AND Outcome = {outcome}"
-        ),
-        "progress_report_story_query_template": (
-            'project = ABC AND type = Story AND "Epic link" = {epic}'
-        ),
-        "progress_report_epic_deadline_field": "Due date",
-        "progress_report_epic_min_stories_field": "Min stories",
-        "progress_report_epic_max_stories_field": "Max stories",
-        "progress_report_epic_team_field": "Team",
-        "progress_report_teams": [
-            {
-                "name": "Team one",
-                "max_throughput": 10,
-                "min_throughput": 5,
-                "throughput_samples": None,
-                "throughput_samples_window": None,
-                "wip": 1,
+        "progress_report": {
+            "filename": "progress.html",
+            "enabled": True,
+            "title": "Test progress report",
+            "templates": {
+                "epic": "project = ABC AND type = Epic AND Outcome = {outcome}",
+                "story": 'project = ABC AND type = Story AND "Epic link" = {epic}',
             },
-            {
-                "name": "Team two",
-                "max_throughput": None,
-                "min_throughput": None,
-                "throughput_samples": (
-                    'project = ABC AND type = Story AND team = "Team two" '
-                    'AND resolution = "Done"'
-                ),
-                "wip": 2,
-                "throughput_samples_window": 6,
+            "epic_fields": {
+                "deadline": "Due date",
+                "min_stories": "Min stories",
+                "max_stories": "Max stories",
+                "team": "Team",
             },
-        ],
-        "progress_report_outcomes": [
-            {
-                "key": "O1",
-                "name": "Outcome one",
-                "deadline": datetime.date(2019, 6, 1),
-                "epic_query": None,
+            "outcome_fields": {
+                "deadline": "Due date",
             },
-            {
-                "key": None,
-                "name": "Outcome two",
-                "deadline": None,
-                "epic_query": "project = ABS and type = Feature",
-            },
-        ],
-        "progress_report_outcome_deadline_field": "Due date",
-        "progress_report_outcome_query": (
-            "project = ABC AND type = Outcome AND resolution IS EMPTY"
-        ),
+            "fields": {},
+            "teams": [
+                {
+                    "name": "Team one",
+                    "max_throughput": 10,
+                    "min_throughput": 5,
+                    "throughput_samples": None,
+                    "throughput_samples_window": None,
+                    "wip": 1,
+                },
+                {
+                    "name": "Team two",
+                    "max_throughput": None,
+                    "min_throughput": None,
+                    "throughput_samples": (
+                        'project = ABC AND type = Story AND team = "Team two" '
+                        'AND resolution = "Done"'
+                    ),
+                    "wip": 2,
+                    "throughput_samples_window": 6,
+                },
+            ],
+            "outcomes": [
+                {
+                    "key": "O1",
+                    "name": "Outcome one",
+                    "deadline": datetime.date(2019, 6, 1),
+                    "epic_query": None,
+                },
+                {
+                    "key": None,
+                    "name": "Outcome two",
+                    "deadline": None,
+                    "epic_query": "project = ABS and type = Feature",
+                },
+            ],
+            "outcome_query": (
+                "project = ABC AND type = Outcome AND resolution IS EMPTY"
+            ),
+            "quantiles": [0.5, 0.85, 0.95],
+            "charts": DEFAULT_PROGRESS_REPORT_CHARTS,
+        },
     }
 
 

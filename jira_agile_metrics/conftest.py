@@ -31,6 +31,23 @@ from .utils import extend_dict
 
 # Fake a portion of the JIRA API
 
+# Shared test constants
+DEFAULT_PROGRESS_REPORT_CHARTS = {
+    "cfd": {"filename": None, "title": None},
+    "burnup": {"filename": None, "title": None},
+    "burnup_forecast": {"filename": None, "title": None},
+    "scatterplot": {"filename": None, "title": None},
+    "histogram": {"filename": None, "title": None},
+    "throughput": {"filename": None, "title": None},
+    "wip": {"filename": None, "title": None},
+    "ageing_wip": {"filename": None, "title": None},
+    "net_flow": {"filename": None, "title": None},
+    "impediments": {"filename": None, "title": None},
+    "defects": {"filename": None, "title": None},
+    "debt": {"filename": None, "title": None},
+    "waste": {"filename": None, "title": None},
+}
+
 # Fixtures
 
 
@@ -65,45 +82,29 @@ def custom_settings(base_minimal_settings):
                 "Estimate": "Size",
             },
             "known_values": {"Release": ["R1", "R3"]},
-            "progress_report": True,
-            "progress_report_outcomes": {},
-            "progress_report_outcome_query": None,
-            "progress_report_fields": {},
-            "progress_report_epic_query_template": "project = TEST AND type = Epic",
-            "progress_report_story_query_template": "project = TEST AND type = Story",
-            "progress_report_epic_deadline_field": None,
-            "progress_report_epic_min_stories_field": None,
-            "progress_report_epic_max_stories_field": None,
-            "progress_report_epic_team_field": None,
-            "progress_report_teams": [],
-            "progress_report_outcome_deadline_field": None,
-            "progress_report_quantiles": [0.5, 0.85, 0.95],
-            "progress_report_cfd_chart": None,
-            "progress_report_cfd_chart_title": None,
-            "progress_report_burnup_chart": None,
-            "progress_report_burnup_chart_title": None,
-            "progress_report_burnup_forecast_chart": None,
-            "progress_report_burnup_forecast_chart_title": None,
-            "progress_report_scatterplot_chart": None,
-            "progress_report_scatterplot_chart_title": None,
-            "progress_report_histogram_chart": None,
-            "progress_report_histogram_chart_title": None,
-            "progress_report_throughput_chart": None,
-            "progress_report_throughput_chart_title": None,
-            "progress_report_wip_chart": None,
-            "progress_report_wip_chart_title": None,
-            "progress_report_ageing_wip_chart": None,
-            "progress_report_ageing_wip_chart_title": None,
-            "progress_report_net_flow_chart": None,
-            "progress_report_net_flow_chart_title": None,
-            "progress_report_impediments_chart": None,
-            "progress_report_impediments_chart_title": None,
-            "progress_report_defects_chart": None,
-            "progress_report_defects_chart_title": None,
-            "progress_report_debt_chart": None,
-            "progress_report_debt_chart_title": None,
-            "progress_report_waste_chart": None,
-            "progress_report_waste_chart_title": None,
+            "progress_report": {
+                "enabled": True,
+                "title": None,
+                "outcomes": {},
+                "outcome_query": None,
+                "fields": {},
+                "templates": {
+                    "epic": "project = TEST AND type = Epic",
+                    "story": "project = TEST AND type = Story",
+                },
+                "epic_fields": {
+                    "deadline": None,
+                    "min_stories": None,
+                    "max_stories": None,
+                    "team": None,
+                },
+                "outcome_fields": {
+                    "deadline": None,
+                },
+                "teams": [],
+                "quantiles": [0.5, 0.85, 0.95],
+                "charts": DEFAULT_PROGRESS_REPORT_CHARTS,
+            },
         },
     )
 
@@ -154,7 +155,7 @@ def minimal_cycle_time_columns():
 
 
 @pytest.fixture
-def custom_cycle_time_columns(_base_minimal_fields):
+def custom_cycle_time_columns():
     """A columns list for the results of CycleTimeCalculator with the three
     custom fields from `custom_settings`.
     """

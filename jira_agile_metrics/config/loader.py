@@ -5,7 +5,7 @@ import os.path
 
 import yaml
 
-from ..common_constants import get_bottleneck_chart_settings
+from ..common_constants import BOTTLENECK_CHART_SETTINGS
 from .exceptions import ConfigError
 from .progress_report_utils import (
     to_progress_report_outcomes_list,
@@ -282,7 +282,7 @@ def _parse_filename_values(output_config, settings):
         "debt_age_chart",
         "waste_chart",
         "progress_report",
-    ] + get_bottleneck_chart_settings()
+    ] + BOTTLENECK_CHART_SETTINGS
 
     for key in filename_keys:
         if expand_key(key) in output_config:
@@ -409,6 +409,135 @@ def _parse_progress_report_values(output_config, settings):
         settings["progress_report_outcomes"] = to_progress_report_outcomes_list(
             output_config[expand_key("progress_report_outcomes")]
         )
+
+
+def _has_nested_progress_report(settings_dict):
+    pr = settings_dict.get("progress_report")
+    return isinstance(pr, dict) and "templates" in pr
+
+
+def _build_progress_report_structure(settings_dict):
+    progress_report_filename = settings_dict.get("progress_report")
+    settings_dict["progress_report"] = {
+        "enabled": progress_report_filename is not None,
+        "title": settings_dict.get("progress_report_title"),
+        "outcomes": settings_dict.get("progress_report_outcomes") or {},
+        "outcome_query": settings_dict.get("progress_report_outcome_query"),
+        "fields": settings_dict.get("progress_report_fields") or {},
+        "templates": {
+            "epic": settings_dict.get("progress_report_epic_query_template"),
+            "story": settings_dict.get("progress_report_story_query_template"),
+        },
+        "epic_fields": {
+            "deadline": settings_dict.get("progress_report_epic_deadline_field"),
+            "min_stories": settings_dict.get("progress_report_epic_min_stories_field"),
+            "max_stories": settings_dict.get("progress_report_epic_max_stories_field"),
+            "team": settings_dict.get("progress_report_epic_team_field"),
+        },
+        "outcome_fields": {
+            "deadline": settings_dict.get("progress_report_outcome_deadline_field"),
+        },
+        "teams": settings_dict.get("progress_report_teams") or [],
+        "quantiles": settings_dict.get("progress_report_quantiles")
+        or [0.5, 0.85, 0.95],
+        "charts": {},
+    }
+    # Build charts dict in a data-driven way to reduce repetition
+    chart_types = [
+        "cfd",
+        "burnup",
+        "burnup_forecast",
+        "scatterplot",
+        "histogram",
+        "throughput",
+        "wip",
+        "ageing_wip",
+        "net_flow",
+        "impediments",
+        "defects",
+        "debt",
+        "waste",
+    ]
+    charts = {}
+    for chart_type in chart_types:
+        charts[chart_type] = {
+            "filename": settings_dict.get(f"progress_report_{chart_type}_chart"),
+            "title": settings_dict.get(f"progress_report_{chart_type}_chart_title"),
+        }
+    settings_dict["progress_report"]["charts"] = charts
+    if progress_report_filename:
+        settings_dict["progress_report"]["filename"] = progress_report_filename
+
+
+def _remove_flat_progress_report_keys(settings_dict):
+    flat_keys_to_remove = [
+        "progress_report_title",
+        "progress_report_epic_query_template",
+        "progress_report_story_query_template",
+        "progress_report_epic_deadline_field",
+        "progress_report_epic_min_stories_field",
+        "progress_report_epic_max_stories_field",
+        "progress_report_epic_team_field",
+        "progress_report_teams",
+        "progress_report_outcomes",
+        "progress_report_outcome_query",
+        "progress_report_outcome_deadline_field",
+        "progress_report_quantiles",
+        "progress_report_cfd_chart",
+        "progress_report_cfd_chart_title",
+        "progress_report_burnup_chart",
+        "progress_report_burnup_chart_title",
+        "progress_report_burnup_forecast_chart",
+        "progress_report_burnup_forecast_chart_title",
+        "progress_report_scatterplot_chart",
+        "progress_report_scatterplot_chart_title",
+        "progress_report_histogram_chart",
+        "progress_report_histogram_chart_title",
+        "progress_report_throughput_chart",
+        "progress_report_throughput_chart_title",
+        "progress_report_wip_chart",
+        "progress_report_wip_chart_title",
+        "progress_report_ageing_wip_chart",
+        "progress_report_ageing_wip_chart_title",
+        "progress_report_net_flow_chart",
+        "progress_report_net_flow_chart_title",
+        "progress_report_impediments_chart",
+        "progress_report_impediments_chart_title",
+        "progress_report_defects_chart",
+        "progress_report_defects_chart_title",
+        "progress_report_debt_chart",
+        "progress_report_debt_chart_title",
+        "progress_report_waste_chart",
+        "progress_report_waste_chart_title",
+        "progress_report_fields",
+    ]
+    for key in flat_keys_to_remove:
+        settings_dict.pop(key, None)
+
+
+def _transform_progress_report_to_nested(settings):
+    """Transform flat progress_report_* keys into nested progress_report dict."""
+    # Check if any progress_report_* keys exist (flat keys)
+    has_flat_keys = any(
+        key.startswith("progress_report_") and key != "progress_report"
+        for key in settings
+    )
+
+    # Already nested: just clean up leftover flat keys and return
+    if _has_nested_progress_report(settings):
+        _remove_flat_progress_report_keys(settings)
+        return
+
+    # Nothing to do if neither flat nor nested exists
+    if not has_flat_keys and "progress_report" not in settings:
+        return
+
+    # Build nested structure if needed
+    if not isinstance(settings.get("progress_report"), dict):
+        _build_progress_report_structure(settings)
+
+    # Remove stale flat keys for clarity
+    _remove_flat_progress_report_keys(settings)
 
 
 def _parse_queries_config(config, options):
@@ -566,10 +695,13 @@ def _validate_column_order(settings, column_names):
         )
 
 
-def config_to_options(data, cwd=None, extended=False):
+def config_to_options(data, cwd=None, extended=False, _visited_files=None):
     """
     Parse YAML config data and return options dict.
     """
+    if _visited_files is None:
+        _visited_files = set()
+
     try:
         config = ordered_load(data, yaml.SafeLoader)
     except Exception as e:
@@ -596,12 +728,20 @@ def config_to_options(data, cwd=None, extended=False):
                 f"File `{extends_filename}` referenced in `extends` not found."
             ) from None
 
+        if extends_filename in _visited_files:
+            raise ConfigError(
+                f"Circular extends reference detected: {extends_filename}"
+            ) from None
+
+        _visited_files.add(extends_filename)
+
         logging.getLogger(__name__).debug("Extending file %s", extends_filename)
         with open(extends_filename, encoding="utf-8") as extends_file:
             options = config_to_options(
                 extends_file.read(),
                 cwd=os.path.dirname(extends_filename),
                 extended=True,
+                _visited_files=_visited_files,
             )
 
     # Parse configuration sections
@@ -610,6 +750,17 @@ def config_to_options(data, cwd=None, extended=False):
     _parse_queries_config(config, options)
     _parse_workflow_config(config, options, extended)
 
+    # Parse additional configuration sections
+    _parse_additional_config(config, options, extended)
+
+    # Transform flat progress_report_* keys to nested structure
+    _transform_progress_report_to_nested(options["settings"])
+
+    return options
+
+
+def _parse_additional_config(config, options, extended):
+    """Parse additional configuration sections like attributes, known values, etc."""
     # Parse attributes (fields) - merge from extended file if needed
     if "attributes" in config and config["attributes"] is not None:
         options["settings"]["attributes"].update(dict(config["attributes"]))
@@ -629,5 +780,3 @@ def config_to_options(data, cwd=None, extended=False):
             "No `Query` value or `Queries` section found. "
             "Many calculators rely on one of these."
         )
-
-    return options
