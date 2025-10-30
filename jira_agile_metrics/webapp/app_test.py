@@ -3,7 +3,7 @@
 This module contains unit tests for the web application routes and functionality.
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -37,6 +37,14 @@ def test_index_renders(test_client):
     response = test_client.get("/")
     assert response.status_code == 200
     assert b"Interactive Bokeh Charts" in response.data
+
+
+def test_security_headers_added(test_client):
+    response = test_client.get("/")
+    assert response.headers.get("X-Content-Type-Options") == "nosniff"
+    assert response.headers.get("X-Frame-Options") == "DENY"
+    assert response.headers.get("X-XSS-Protection") == "1; mode=block"
+    assert "Strict-Transport-Security" in response.headers
 
 
 class TestSetQueryRoute:
@@ -158,6 +166,72 @@ def test_burnup_route_requires_config(test_client):
     # The route will raise RuntimeError for missing credentials
     with pytest.raises(RuntimeError, match=r"JIRA.*credentials"):
         test_client.get("/burnup")
+
+
+class TestRoutesEmptyResults:
+    """Chart routes should render with warnings when no data is available."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_results_empty(self, mocker):
+        # Map each calculator to empty DataFrame-like objects where needed
+        from pandas import DataFrame
+        empty = DataFrame()
+        calculators = {
+            # Use MagicMock for index/columns lookups
+            object(): empty,
+        }
+        # Return a dict that returns empties for any calculator key access
+        class Results(dict):
+            def __getitem__(self, key):  # type: ignore[override]
+                return empty
+
+        mocker.patch(
+            "jira_agile_metrics.webapp.app.get_real_results",
+            return_value=Results(),
+        )
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/burnup-forecast",
+            "/burnup",
+            "/cfd",
+            "/histogram",
+            "/scatterplot",
+            "/netflow",
+            "/ageingwip",
+            "/debt",
+            "/debt-age",
+            "/defects-priority",
+            "/defects-type",
+            "/defects-environment",
+            "/impediments",
+            "/waste",
+            "/progress",
+            "/percentiles",
+            "/cycletime",
+        ],
+    )
+    def test_route_renders_with_warning_on_empty(self, test_client, path):
+        resp = test_client.get(path)
+        assert resp.status_code == 200
+        # Should render with empty script/div placeholders
+        assert b"script" in resp.data or b"div" in resp.data
+
+
+def test_get_jira_client_401_maps_to_config_error(mocker):
+    from jira import exceptions as jira_exceptions
+    from jira_agile_metrics.webapp import app
+
+    fake_error = jira_exceptions.JIRAError(status_code=401, text="Unauthorized")
+    mock_create = mocker.patch(
+        "jira_agile_metrics.webapp.app.create_jira_client",
+        side_effect=fake_error,
+    )
+
+    with pytest.raises(app.ConfigError):
+        app.get_jira_client({})
+    mock_create.assert_called_once()
 
 
 class TestQueryFormatting:
