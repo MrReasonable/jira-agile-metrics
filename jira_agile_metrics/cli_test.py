@@ -25,17 +25,13 @@ def test_override_options():
             for k, v in opts.items():
                 setattr(self, k, v)
 
-        def get_option(self, key, default=None):
-            """Get an option value."""
+        def __repr__(self):
+            """String representation."""
+            return f"FauxArgs({self.__dict__})"
+
+        def get(self, key, default=None):
+            """Get attribute value."""
             return getattr(self, key, default)
-
-        def has_option(self, key):
-            """Check if an option exists."""
-            return hasattr(self, key)
-
-        def set_option(self, key, value):
-            """Set an option value."""
-            setattr(self, key, value)
 
     options = {"one": 1, "two": 2}
     override_options(options, FauxArgs({}))

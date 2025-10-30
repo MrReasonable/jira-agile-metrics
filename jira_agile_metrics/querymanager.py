@@ -156,8 +156,8 @@ class QueryManager:
             )
 
             raise ConfigError(
-                f"JIRA field with name `{name}` does not exist"
-                "(did you try to use the field id instead?)"
+                f"JIRA field with name `{name}` does not exist "
+                f"(did you try to use the field id instead?)"
             ) from None
 
     def resolve_attribute_value(self, issue, attribute_name):

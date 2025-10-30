@@ -14,7 +14,23 @@ def _ts(date_string: str) -> datetime:
     return pd.to_datetime(date_string)
 
 
-def _issues(issues):
+def _determine_status(issue: Dict[str, Any]) -> str:
+    """Determine status from issue data based on timestamp fields.
+
+    Checks status fields in order: Done, Test, Build, Committed, else Backlog.
+    """
+    if issue["Done"] is not NaT:
+        return "Done"
+    if issue["Test"] is not NaT:
+        return "Test"
+    if issue["Build"] is not NaT:
+        return "Build"
+    if issue["Committed"] is not NaT:
+        return "Committed"
+    return "Backlog"
+
+
+def _issues(issues: List[Dict[str, Any]]):
     """Convert issue data to proper format matching conftest.py."""
     return [
         {
@@ -22,19 +38,7 @@ def _issues(issues):
             "url": f"https://example.org/browse/A-{idx + 1}",
             "issue_type": "Story",
             "summary": f"Generated issue A-{idx + 1}",
-            "status": (
-                "Done"
-                if i["Done"] is not NaT
-                else (
-                    "Test"
-                    if i["Test"] is not NaT
-                    else (
-                        "Build"
-                        if i["Build"] is not NaT
-                        else ("Committed" if i["Committed"] is not NaT else "Backlog")
-                    )
-                )
-            ),
+            "status": _determine_status(i),
             "resolution": "Done" if i["Done"] is not NaT else None,
             "completed_timestamp": i["Done"] if i["Done"] is not NaT else None,
             "cycle_time": (

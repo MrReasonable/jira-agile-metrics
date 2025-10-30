@@ -3,6 +3,13 @@
 This module provides mock classes for testing without circular imports.
 """
 
+import logging
+from datetime import datetime
+
+import dateutil.parser
+
+logger = logging.getLogger(__name__)
+
 
 class FauxFieldValue:
     """A complex field value, with a name and a typed value"""
@@ -81,11 +88,55 @@ class FauxChangelog:
     def __repr__(self):
         return f"FauxChangelog(histories={len(self.histories)})"
 
+    @staticmethod
+    def _normalize_timestamp(timestamp):
+        """Normalize a timestamp to a datetime.datetime object.
+
+        Args:
+            timestamp: A timestamp value (datetime, ISO string, or other)
+
+        Returns:
+            datetime.datetime: Normalized datetime object
+
+        Raises:
+            ValueError: If timestamp cannot be converted to datetime
+        """
+        if isinstance(timestamp, datetime):
+            return timestamp
+        if isinstance(timestamp, str):
+            try:
+                return dateutil.parser.parse(timestamp)
+            except (ValueError, TypeError) as e:
+                logger.warning(
+                    "Failed to parse timestamp string '%s': %s", timestamp, e
+                )
+                raise ValueError(f"Invalid timestamp string: {timestamp}") from e
+        raise ValueError(
+            f"Invalid timestamp type: {type(timestamp).__name__}, value: {timestamp}"
+        )
+
     def get_latest_change(self):
         """Get the most recent change."""
         if not self.histories:
             return None
-        return max(self.histories, key=lambda x: x.created)
+
+        # Normalize and validate all timestamps before comparison
+        valid_histories = []
+        for history in self.histories:
+            try:
+                # Validate and cache the normalized timestamp
+                normalized_ts = self._normalize_timestamp(history.created)
+                valid_histories.append((history, normalized_ts))
+            except ValueError as e:
+                logger.warning("Skipping history entry with invalid timestamp: %s", e)
+                continue
+
+        if not valid_histories:
+            logger.warning("No valid history entries found")
+            return None
+
+        latest_history, _ = max(valid_histories, key=lambda x: x[1])
+        return latest_history
 
     def get_histories(self):
         """Get the list of histories."""

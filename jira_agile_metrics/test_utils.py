@@ -5,7 +5,6 @@ across test files.
 """
 
 import datetime as dt
-from datetime import datetime, timedelta
 
 import pandas as pd
 import pytest
@@ -13,7 +12,7 @@ from pandas import DataFrame, Timestamp, date_range
 
 from .calculators.cfd import CFDCalculator
 from .calculators.cycletime import CycleTimeCalculator
-from .common_constants import get_common_cycle_time_fields
+from .common_constants import COMMON_CYCLE_TIME_FIELDS
 from .querymanager import QueryManager
 from .test_classes import (
     FauxChange as Change,
@@ -49,10 +48,61 @@ def create_empty_test_results(minimal_cycle_time_columns):
     }
 
 
+def create_default_epic_config():
+    """Create a default epic configuration dict for testing."""
+    return {
+        "min_stories_field": None,
+        "max_stories_field": None,
+        "team_field": None,
+        "deadline_field": None,
+    }
+
+
+def create_default_epic_data(**kwargs):
+    """Create default epic data dict for testing with optional overrides."""
+    defaults = {
+        "key": "EPIC-1",
+        "summary": "Test Epic",
+        "status": "In Progress",
+        "resolution": None,
+        "resolution_date": None,
+        "min_stories": 0,
+        "max_stories": 10,
+        "team_name": "Team A",
+        "deadline": None,
+        "story_query": None,
+        "story_cycle_times": [],
+        "stories_raised": 0,
+        "stories_in_backlog": 0,
+        "stories_in_progress": 0,
+        "stories_done": 0,
+        "first_story_started": None,
+        "last_story_finished": None,
+        "team": None,
+        "outcome": None,
+        "forecast": None,
+    }
+    defaults.update(kwargs)
+    return defaults
+
+
+def create_default_story_counts(**kwargs):
+    """Create default story counts dict for testing with optional overrides."""
+    defaults = {
+        "stories_raised": 0,
+        "stories_in_backlog": 0,
+        "stories_in_progress": 0,
+        "stories_done": 0,
+        "first_story_started": None,
+        "last_story_finished": None,
+    }
+    defaults.update(kwargs)
+    return defaults
+
+
 def create_timestamp_index(start_date="2018-01-01", periods=6):
     """Create a common timestamp index for tests."""
-    start = datetime.strptime(start_date, "%Y-%m-%d")
-    return [Timestamp(start + timedelta(days=i)) for i in range(periods)]
+    return list(pd.date_range(start=start_date, periods=periods, freq="D"))
 
 
 def create_extended_timestamp_index(start_date="2018-01-01", periods=9):
@@ -61,26 +111,9 @@ def create_extended_timestamp_index(start_date="2018-01-01", periods=9):
 
 
 # Common timestamp assertions used across multiple test files
-COMMON_TIMESTAMP_INDEX = [
-    Timestamp("2018-01-01 00:00:00"),
-    Timestamp("2018-01-02 00:00:00"),
-    Timestamp("2018-01-03 00:00:00"),
-    Timestamp("2018-01-04 00:00:00"),
-    Timestamp("2018-01-05 00:00:00"),
-    Timestamp("2018-01-06 00:00:00"),
-]
+COMMON_TIMESTAMP_INDEX = create_timestamp_index("2018-01-01", 6)
 
-EXTENDED_TIMESTAMP_INDEX = [
-    Timestamp("2018-01-01 00:00:00"),
-    Timestamp("2018-01-02 00:00:00"),
-    Timestamp("2018-01-03 00:00:00"),
-    Timestamp("2018-01-04 00:00:00"),
-    Timestamp("2018-01-05 00:00:00"),
-    Timestamp("2018-01-06 00:00:00"),
-    Timestamp("2018-01-07 00:00:00"),
-    Timestamp("2018-01-08 00:00:00"),
-    Timestamp("2018-01-09 00:00:00"),
-]
+EXTENDED_TIMESTAMP_INDEX = create_extended_timestamp_index("2018-01-01", 9)
 
 
 def assert_common_timestamp_index(data):
@@ -265,7 +298,7 @@ def create_common_cycle_time_columns():
         "summary",
         "status",
         "resolution",
-    ] + get_common_cycle_time_fields()
+    ] + COMMON_CYCLE_TIME_FIELDS
 
 
 def create_common_minimal_fields():

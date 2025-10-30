@@ -141,9 +141,7 @@ def run_command_line(parser, args):
         level=(
             logging.DEBUG
             if args.very_verbose
-            else logging.INFO
-            if args.verbose
-            else logging.WARNING
+            else logging.INFO if args.verbose else logging.WARNING
         ),
     )
 

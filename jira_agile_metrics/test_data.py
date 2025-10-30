@@ -11,7 +11,7 @@ from jira_agile_metrics.test_classes import (
     FauxIssue as Issue,
 )
 
-from .common_constants import get_bottleneck_chart_settings
+from .common_constants import BOTTLENECK_CHART_SETTINGS
 from .test_utils import (
     create_common_cycle_status_list,
     create_common_cycle_time_columns,
@@ -34,7 +34,7 @@ COMMON_CFD_COLUMNS = create_common_cycle_status_list()
 # Use common field definitions from test_utils
 COMMON_MINIMAL_FIELDS = create_common_minimal_fields()
 COMMON_CYCLE_TIME_COLUMNS = create_common_cycle_time_columns()
-COMMON_BOTTLENECK_CHART_SETTINGS = get_bottleneck_chart_settings()
+COMMON_BOTTLENECK_CHART_SETTINGS = BOTTLENECK_CHART_SETTINGS
 
 # Common CFD test data
 COMMON_CFD_DATA = [
