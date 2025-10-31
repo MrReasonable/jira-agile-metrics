@@ -44,7 +44,27 @@ requires-python = ">=3.8"
 
 [project.optional-dependencies]
 testing = [
-  "pytest>=8.4.2",
-  "pytest-mock",
-  "mock",
+    "pytest>=8.4.2",
+    "pytest-mock",
+    "mock",
+]
+
+[tool.coverage.run]
+omit = [
+    "*/tests/functional/*",
+    "*/test_file_jira_client.py",
+    "setup.py",
+    "*/conftest.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
 ]
