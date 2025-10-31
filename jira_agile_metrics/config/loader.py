@@ -390,6 +390,7 @@ def _parse_boolean_values(output_config, settings):
     boolean_keys = [
         "use_cache",
         "reset_on_backwards",
+        "keep_first_entry_time",
         "burnup_forecast_chart_smart_window",
     ]
 

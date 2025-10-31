@@ -137,13 +137,20 @@ def _create_generic_sampler(
         sample_buffer: Dict[str, Any] = {
             "buffer": None,
             "idx": 0,
-            "data": (data[column_name].values if column_name in data.columns else []),
+            # Convert column to numpy array for consistent numpy array interface
+            # (needed for efficient/random sampling via random.choices); note that
+            # to_numpy() may create a copy of the data; use explicit len()
+            "data": (
+                data[column_name].to_numpy()
+                if column_name in data.columns
+                else np.array([])
+            ),
         }
 
         def get_sample():
             buffer_list: Optional[List[Any]] = sample_buffer["buffer"]
-            # If data is empty, return 0
-            if not sample_buffer["data"]:
+            # If data is empty, return 0 (explicit length check supports numpy/list)
+            if len(sample_buffer["data"]) == 0:
                 return 0
             if buffer_list is None or sample_buffer["idx"] >= len(buffer_list):
                 # Refill buffer

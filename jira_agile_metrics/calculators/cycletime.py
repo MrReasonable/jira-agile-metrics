@@ -57,6 +57,9 @@ class CycleTimeCalculator(Calculator):
                 "lead_time_start_column": self.settings.get("lead_time_start_column"),
                 "now": now,
                 "reset_on_backwards": self.settings.get("reset_on_backwards", True),
+                "keep_first_entry_time": self.settings.get(
+                    "keep_first_entry_time", True
+                ),
             }
         )
         params = CycleTimeParams(
@@ -202,6 +205,7 @@ class CycleTimeConfig:
             "lead_time_start_column": config_dict.get("lead_time_start_column"),
             "now": config_dict.get("now"),
             "reset_on_backwards": config_dict.get("reset_on_backwards", True),
+            "keep_first_entry_time": config_dict.get("keep_first_entry_time", True),
         }
 
     def get_config(self):
@@ -368,7 +372,25 @@ def _extract_resolution_value(issue_fields):
         return None
     if hasattr(resolution, "name"):
         return resolution.name
+    if isinstance(resolution, dict):
+        return resolution.get("name")
     return str(resolution)
+
+
+def _extract_name(value):
+    """Extract a readable name from JIRA objects or dicts.
+
+    Handles PropertyHolder objects with a `name` attribute as well as
+    plain dictionaries like `{ 'name': 'Story' }` that may come from
+    file-backed fixtures.
+    """
+    if value is None:
+        return None
+    if hasattr(value, "name"):
+        return value.name
+    if isinstance(value, dict):
+        return value.get("name")
+    return str(value)
 
 
 def _create_base_item(issue, criteria, params, cycle_names):
@@ -376,13 +398,16 @@ def _create_base_item(issue, criteria, params, cycle_names):
     if isinstance(params.query_manager.jira, TrelloClient):
         issue_url = issue.url
     else:
-        issue_url = f"{params.query_manager.jira.server_url()}/browse/{issue.key}"
+        jira_client = params.query_manager.jira
+        # Use the standard JIRA client options dict for the server URL
+        base_server_url = getattr(jira_client, "_options", {}).get("server", "")
+        issue_url = f"{base_server_url}/browse/{issue.key}"
     item = {
         "key": issue.key,
         "url": issue_url,
-        "issue_type": issue.fields.issuetype.name,
+        "issue_type": _extract_name(issue.fields.issuetype),
         "summary": issue.fields.summary,
-        "status": issue.fields.status.name,
+        "status": _extract_name(issue.fields.status),
         "resolution": _extract_resolution_value(issue.fields),
         "cycle_time": None,
         "lead_time": None,
@@ -462,8 +487,14 @@ def _process_status_change_legacy(
 
     last_status = snapshot_cycle_step_name = snapshot_cycle_step["name"]
 
-    # Keep the first time we entered a step
-    if item[snapshot_cycle_step_name] is None:
+    # Record entry time based on configuration
+    # Default behavior: keep first entry time (important for cycle time)
+    if params.config.config["keep_first_entry_time"]:
+        # Keep the first time we entered a step
+        if item[snapshot_cycle_step_name] is None:
+            item[snapshot_cycle_step_name] = snapshot.date.date()
+    else:
+        # Use the latest observed timestamp
         item[snapshot_cycle_step_name] = snapshot.date.date()
 
     # Wipe any subsequent dates, in case this was a move backwards

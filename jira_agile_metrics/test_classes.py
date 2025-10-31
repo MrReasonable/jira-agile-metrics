@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 class FauxFieldValue:
     """A complex field value, with a name and a typed value"""
 
-    def __init__(self, name, value, display_name=None, email_address=None):
+    def __init__(
+        self, name, value, display_name=None, email_address=None, account_id=None
+    ):  # pylint: disable=too-many-arguments, too-many-positional-arguments
         self.name = name
         self.value = value
         self.displayName = (  # pylint: disable=invalid-name
@@ -22,6 +24,8 @@ class FauxFieldValue:
         )  # Add displayName for JIRA API compatibility
         if email_address:
             self.emailAddress = email_address  # pylint: disable=invalid-name
+        if account_id:
+            self.accountId = account_id  # pylint: disable=invalid-name
 
     def __str__(self):
         """Return string representation."""
@@ -41,10 +45,9 @@ class FauxChangeItem:
 
     def __init__(self, field, from_string, to_string):
         self.field = field
+        # Match real JIRA API camelCase attributes
         self.fromString = from_string  # pylint: disable=invalid-name
         self.toString = to_string  # pylint: disable=invalid-name
-        self.from_ = self.from_string = from_string  # Keep backward compatibility
-        self.to = self.to_string = to_string  # Keep backward compatibility
 
     def is_status_change(self):
         """Check if this is a status change."""
@@ -56,14 +59,18 @@ class FauxChangeItem:
 
     def get_from_string(self):
         """Get the from string value."""
-        return self.from_string
+        return self.fromString
 
 
 class FauxChange:
     """A change in a changelog. Contains a list of change items."""
 
     def __init__(self, created, items):
-        self.created = created
+        # Real JIRA returns ISO8601-like strings for created timestamps
+        if isinstance(created, datetime):
+            self.created = created.isoformat()
+        else:
+            self.created = created
         self.items = [FauxChangeItem(*i) for i in items]
 
     def add_item(self, item):
@@ -174,6 +181,9 @@ class FauxIssue:
         self.id = f"{key}-id"  # Add missing ID field
         self.self = f"https://example.org/rest/api/2/issue/{key}"  # Add self link
         self.expand = ""  # Add expand field
+        # Ensure created is a string to mirror JIRA API
+        if "created" in fields and isinstance(fields["created"], datetime):
+            fields["created"] = fields["created"].isoformat()
         self.fields = FauxFields(fields)
         self.changelog = FauxChangelog(changes)
 
@@ -220,7 +230,3 @@ class FauxJIRA:
             if self._filter is None
             else [i for i in self._issues if self._filter(i, jql)]
         )
-
-    def server_url(self):
-        """Return the server URL."""
-        return self._options.get("server", "https://example.org")

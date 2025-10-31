@@ -228,10 +228,18 @@ class QueryManager:
         """
 
         for field in fields:
-            field_id = self.field_name_to_id(field)
-            initial_value = self.resolve_field_value(issue, field_id)
             try:
-                initial_value = next(
+                field_id = self.field_name_to_id(field)
+                initial_value = self.resolve_field_value(issue, field_id)
+            except ConfigError:
+                # Field not present in this JIRA instance/fixture;
+                # proceed without initial value
+                logger.debug(
+                    "Unknown JIRA field '%s' in iter_changes; no initial value", field
+                )
+                initial_value = None
+            try:
+                found_item = next(
                     filter(
                         lambda h, f=field: h.field == f,
                         itertools.chain.from_iterable(
@@ -244,7 +252,11 @@ class QueryManager:
                             ]
                         ),
                     )
-                ).from_string
+                )
+                # Support both real JIRA PropertyHolder attributes and test aliases
+                initial_value = getattr(
+                    found_item, "fromString", getattr(found_item, "from_string", None)
+                )
             except StopIteration:
                 pass
 
@@ -271,8 +283,13 @@ class QueryManager:
                         transition_data={
                             "key": issue.key,
                             "date": change_date,
-                            "from_string": item.from_string,
-                            "to_string": item.to_string,
+                            # Support both camelCase from JIRA and snake_case in tests
+                            "from_string": getattr(
+                                item, "fromString", getattr(item, "from_string", None)
+                            ),
+                            "to_string": getattr(
+                                item, "toString", getattr(item, "to_string", None)
+                            ),
                         },
                     )
 
