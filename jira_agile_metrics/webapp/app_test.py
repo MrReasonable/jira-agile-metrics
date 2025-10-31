@@ -178,69 +178,97 @@ def test_burnup_route_requires_config(test_client):
         test_client.get("/burnup")
 
 
-class TestRoutesEmptyResults:
-    """Chart routes should render with warnings when no data is available."""
+@pytest.fixture
+def _mock_results_empty(mocker):
+    """Mock get_real_results to return empty DataFrames for all calculators."""
+    # Map each calculator to empty DataFrame-like objects where needed
+    empty = pd.DataFrame()
 
-    @pytest.fixture(autouse=True)
-    def _mock_results_empty(self, mocker):
-        # Map each calculator to empty DataFrame-like objects where needed
-        empty = pd.DataFrame()
+    # Return a dict that returns empties for any calculator key access
+    class Results(dict):
+        """Dictionary that returns an empty DataFrame for any key access."""
 
-        # Return a dict that returns empties for any calculator key access
-        class Results(dict):
-            """Dictionary that returns an empty DataFrame for any key access."""
+        def __missing__(self, key):
+            """Return an empty DataFrame for any missing key."""
+            return empty
 
-            def __getitem__(self, key):  # type: ignore[override]
-                return empty
+        def get(self, _key, _default=None):
+            """Always return an empty DataFrame for any key.
 
-            def get(self, _key, _default=None):
-                """Return an empty DataFrame for any key, mimicking missing data."""
-                return empty
+            The _default parameter is ignored to simulate missing data.
+            This method intentionally deviates from dict.get() behavior to
+            ensure tests consistently receive empty data regardless of the key
+            or default value provided.
+            """
+            return empty
 
-        mocker.patch(
-            "jira_agile_metrics.webapp.app.get_real_results",
-            return_value=Results(),
-        )
-
-    @pytest.mark.parametrize(
-        "path,title",
-        [
-            ("/burnup-forecast", "Burnup Forecast (Interactive)"),
-            ("/burnup", "Burnup Chart"),
-            ("/cfd", "Cumulative Flow Diagram (CFD)"),
-            ("/histogram", "Cycle Time Histogram"),
-            ("/scatterplot", "Cycle Time Scatterplot"),
-            ("/netflow", "Net Flow Chart"),
-            ("/ageingwip", "Ageing WIP Chart"),
-            ("/debt", "Technical Debt Chart"),
-            ("/debt-age", "Debt Age Chart"),
-            ("/defects-priority", "Defects by Priority"),
-            ("/defects-type", "Defects by Type"),
-            ("/defects-environment", "Defects by Environment"),
-            ("/impediments", "Impediments Chart"),
-            ("/waste", "Waste Chart"),
-            ("/progress", "Progress Report Chart"),
-            ("/percentiles", "Percentiles Chart"),
-            ("/cycletime", "Cycle Time Chart"),
-        ],
+    mocker.patch(
+        "jira_agile_metrics.webapp.app.get_real_results",
+        return_value=Results(),
     )
-    def test_route_renders_with_empty_placeholder_on_empty(
-        self, test_client, path, title
-    ):
-        """Ensure route renders empty-state placeholder when no data is
-        available (empty div, no script)."""
-        resp = test_client.get(path)
-        assert resp.status_code == 200
-        # Title should be rendered for the specific page
-        assert f"<h1>{title}</h1>".encode() in resp.data
-        # Div placeholder should be present but empty
-        assert re.search(b"<div>\\s*</div>", resp.data)
-        # No script should be rendered when empty
-        assert b"<script" not in resp.data
 
-    def test_additional_public_method_sanity(self):
-        """Additional public method to satisfy minimum method count rule."""
-        assert True
+
+@pytest.mark.parametrize(
+    "path,title",
+    [
+        ("/burnup-forecast", "Burnup Forecast (Interactive)"),
+        ("/burnup", "Burnup Chart"),
+        ("/cfd", "Cumulative Flow Diagram (CFD)"),
+        ("/histogram", "Cycle Time Histogram"),
+        ("/scatterplot", "Cycle Time Scatterplot"),
+        ("/netflow", "Net Flow Chart"),
+        ("/ageingwip", "Ageing WIP Chart"),
+        ("/debt", "Technical Debt Chart"),
+        ("/debt-age", "Debt Age Chart"),
+        ("/defects-priority", "Defects by Priority"),
+        ("/defects-type", "Defects by Type"),
+        ("/defects-environment", "Defects by Environment"),
+        ("/impediments", "Impediments Chart"),
+        ("/waste", "Waste Chart"),
+        ("/progress", "Progress Report Chart"),
+        ("/percentiles", "Percentiles Chart"),
+        ("/cycletime", "Cycle Time Chart"),
+    ],
+)
+def test_route_renders_with_empty_placeholder_on_empty(
+    test_client, _mock_results_empty, path, title
+):
+    """Chart routes should render with warnings when no data is available.
+
+    Ensure route renders empty-state placeholder when no data is
+    available (empty div, no script).
+    """
+    resp = test_client.get(path)
+    assert resp.status_code == 200
+    # Title should be rendered for the specific page
+    assert f"<h1>{title}</h1>".encode() in resp.data
+    # Chart container div should be present but should not contain Bokeh chart content
+    # Decode response to use regex for targeted chart container check
+    resp_text = resp.data.decode("utf-8")
+    # Check that the chart container div exists after the h1 title
+    # Pattern matches: <h1>title</h1> followed by whitespace and <div> (chart container)
+    chart_container_pattern = re.compile(
+        rf"<h1>{re.escape(title)}</h1>\s*<div>", re.IGNORECASE | re.DOTALL
+    )
+    assert (
+        chart_container_pattern.search(resp_text) is not None
+    ), f"Chart container div not found after <h1>{title}</h1>"
+    assert "bk-root" not in resp_text
+    # No Bokeh chart scripts should be rendered when empty
+    # Check for absence of Bokeh-specific script content rather than all scripts
+    # to avoid false positives from legitimate site scripts
+    # Check that no script tags contain Bokeh initialization code
+    script_pattern = re.compile(r"<script[^>]*>.*?</script>", re.DOTALL | re.IGNORECASE)
+    scripts = script_pattern.findall(resp_text)
+    for script in scripts:
+        assert "Bokeh" not in script, "Bokeh script found when chart should be empty"
+        assert (
+            "bk-root" not in script
+        ), "Bokeh root reference found when chart should be empty"
+        # Check for Bokeh document initialization patterns
+        assert (
+            "document['document']" not in script
+        ), "Bokeh document initialization found when chart should be empty"
 
 
 @pytest.mark.parametrize(

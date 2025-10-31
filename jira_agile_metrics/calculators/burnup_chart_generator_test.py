@@ -136,7 +136,7 @@ class TestBurnupChartGeneratorChartGeneration(TestBurnupChartGeneratorBase):
         """Test successful chart generation."""
         mock_find_columns.return_value = ("Backlog", "Done")
         mock_fig = Mock()
-        mock_fig.savefig = Mock()
+        # savefig will be a mock via mock_fig
         mock_ax = Mock()
         mock_plt.subplots.return_value = (mock_fig, mock_ax)
 
