@@ -1,7 +1,7 @@
 # Jira Agile Metrics - Makefile
 # Provides common development and deployment tasks
 
-.PHONY: help install install-dev clean test lint format check docker-build docker-run webapp run check-full
+.PHONY: help install install-dev clean test test-functional lint format check docker-build docker-run webapp run check-full
 
 # Python interpreter
 PYTHON = python3
@@ -14,6 +14,9 @@ BLACK = $(VENV_BIN)/black
 RUFF = $(VENV_BIN)/ruff
 PYLINT = $(VENV_BIN)/pylint
 MYPY = $(VENV_BIN)/mypy
+
+# Common paths for linting/formatting
+LINT_PATHS = jira_agile_metrics/ jira_agile_metrics/tests setup.py
 
 # Colors for output
 GREEN = \033[0;32m
@@ -90,9 +93,13 @@ test: ## Run tests with pytest
 	@echo "$(GREEN)Running tests...$(NC)"
 	$(PYTEST) -v
 
-test-coverage: ## Run tests with coverage
+test-functional: ## Run functional tests (CSV E2E)
+	@echo "$(GREEN)Running functional tests...$(NC)"
+	$(PYTEST) -q jira_agile_metrics/tests/functional
+
+test-coverage: ## Run tests with coverage (excludes functional tests)
 	@echo "$(GREEN)Running tests with coverage...$(NC)"
-	$(PYTEST) --cov=jira_agile_metrics --cov-report=html --cov-report=term
+	$(PYTEST) --cov=jira_agile_metrics --cov-report=html --cov-report=term --ignore=jira_agile_metrics/tests/functional
 
 test-verbose: ## Run tests with verbose output
 	@echo "$(GREEN)Running tests with verbose output...$(NC)"
@@ -102,33 +109,33 @@ test-watch: ## Run tests in watch mode (requires pytest-watch)
 	@echo "$(GREEN)Running tests in watch mode...$(NC)"
 	$(PTW)
 
+test-all: ## Run all tests
+	@echo "$(GREEN)Running all tests...$(NC)"
+	$(MAKE) test
+	$(MAKE) test-functional
+
 ## Linting and formatting targets
 
-lint: ## Run all linters (ruff and pylint)
-	@echo "$(GREEN)Running ruff linter...$(NC)"
-	$(RUFF) check .
-	@echo "$(GREEN)Running pylint...$(NC)"
-	$(PYLINT) jira_agile_metrics/ setup.py
+lint: lint-fix pylint ## Run all linters (ruff and pylint)
 
 lint-fix: ## Run ruff with auto-fix
 	@echo "$(GREEN)Running ruff with auto-fix...$(NC)"
-	$(RUFF) check . --fix
+	$(RUFF) check $(LINT_PATHS) --fix
 
 pylint: ## Run pylint
-	@echo "$(GREEN)Running pylint...$(NC)"
-	$(PYLINT) jira_agile_metrics/ setup.py
+	@echo "$(GREEN)Running pylint on source code...$(NC)"
+	$(PYLINT) $(LINT_PATHS)
 
 format: ## Format code with black
 	@echo "$(GREEN)Formatting code with black...$(NC)"
-	$(BLACK) jira_agile_metrics/ setup.py
+	$(BLACK) $(LINT_PATHS)
 
 format-check: ## Check code formatting without making changes
 	@echo "$(GREEN)Checking code formatting...$(NC)"
-	$(BLACK) jira_agile_metrics/ setup.py --check
+	$(BLACK) $(LINT_PATHS) --check
 
 check: format-check lint ## Run all checks without making changes
 	@echo "$(GREEN)All checks passed!$(NC)"
-
 ## Application targets
 
 run: ## Run the CLI with config.yml
