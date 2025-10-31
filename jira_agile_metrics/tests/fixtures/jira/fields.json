@@ -1,0 +1,8 @@
+[
+  { "id": "issuetype", "name": "Issue Type" },
+  { "id": "status", "name": "Status" },
+  { "id": "resolution", "name": "Resolution" },
+  { "id": "summary", "name": "Summary" },
+  { "id": "created", "name": "Created" }
+]
+

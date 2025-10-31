@@ -1,0 +1,75 @@
+[
+  {
+    "key": "I-1",
+    "fields": {
+      "summary": "Implement feature A",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-01-01T09:00:00.000+0000",
+      "updated": "2021-01-20T10:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-01-05T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-01-10T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-01-20T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-2",
+    "fields": {
+      "summary": "Implement feature B",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-01-03T09:00:00.000+0000",
+      "updated": "2021-01-25T11:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-01-07T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-01-12T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-01-18T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-01-25T11:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  }
+]
+
