@@ -39,12 +39,13 @@ class CFDCalculator(Calculator):
     def write(self):
         data = self.get_result()
 
-        if self.settings["cfd_data"]:
-            self.write_file(data, self.settings["cfd_data"])
+        cfd_data = self.settings.get("cfd_data", [])
+        if cfd_data:
+            self.write_file(data, cfd_data)
         else:
             logger.debug("No output file specified for CFD file")
 
-        if self.settings["cfd_chart"]:
+        if self.settings.get("cfd_chart"):
             self.write_chart(data, self.settings["cfd_chart"])
         else:
             logger.debug("No output file specified for CFD chart")

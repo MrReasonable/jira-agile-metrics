@@ -189,7 +189,6 @@ class TestSaveChartWithStyling:
         mock_logger = Mock()
         mock_get_logger.return_value = mock_logger
         mock_fig = Mock()
-        mock_fig.savefig = Mock()
 
         save_chart_with_styling(mock_fig, "output.png", "Test Chart")
 
@@ -222,7 +221,6 @@ class TestSaveChartWithStyling:
         mock_logger = Mock()
         mock_get_logger.return_value = mock_logger
         mock_fig = Mock()
-        mock_fig.savefig = Mock()
 
         save_chart_with_styling(mock_fig, "/path/to/output.png", "Test Chart")
 

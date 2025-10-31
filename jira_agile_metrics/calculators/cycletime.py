@@ -70,7 +70,7 @@ class CycleTimeCalculator(Calculator):
         return calculate_cycle_times(params)
 
     def write(self):
-        output_files = self.settings["cycle_time_data"]
+        output_files = self.settings.get("cycle_time_data", [])
 
         if not output_files:
             logger.debug("No output file specified for cycle time data")

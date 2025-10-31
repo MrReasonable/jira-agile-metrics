@@ -136,7 +136,10 @@ class TestBurnupChartGeneratorChartGeneration(TestBurnupChartGeneratorBase):
         """Test successful chart generation."""
         mock_find_columns.return_value = ("Backlog", "Done")
         mock_fig = Mock()
-        # savefig will be a mock via mock_fig
+        # savefig is auto-created by Mock, so mock_fig.savefig exists without
+        # explicit setup.
+        # Contrast with line 188 where savefig is explicitly assigned to avoid
+        # confusion.
         mock_ax = Mock()
         mock_plt.subplots.return_value = (mock_fig, mock_ax)
 
@@ -185,7 +188,6 @@ class TestBurnupChartGeneratorPlotting(TestBurnupChartGeneratorBase):
         """Test plotting historical data."""
         mock_find_columns.return_value = ("Backlog", "Done")
         mock_fig = Mock()
-        mock_fig.savefig = Mock()
         mock_ax = Mock()
         mock_plt.subplots.return_value = (mock_fig, mock_ax)
 

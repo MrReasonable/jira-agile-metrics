@@ -1,6 +1,6 @@
 """Functional tests for CFD calculator."""
 
-import os
+from pathlib import Path
 
 import pandas as pd
 
@@ -29,8 +29,8 @@ def test_cfd_generates_expected_csv(query_manager, simple_cycle_settings, tmp_pa
     # Read both actual and expected, comparing as DataFrames
     # for proper floating point handling
     actual_df = pd.read_csv(output_csv, index_col=0, parse_dates=True)
-    expected_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "fixtures", "expected", "cfd.csv"
+    expected_path = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "expected" / "cfd.csv"
     )
     expected_df = pd.read_csv(expected_path, index_col=0, parse_dates=True)
 

@@ -29,8 +29,18 @@ class FileJiraClient:
     def _load_fields(self) -> List[Dict[str, Any]]:
         if self._fields_cache is None:
             path = os.path.join(self._fixtures_dir, "fields.json")
-            with open(path, "r", encoding="utf-8") as f:
-                self._fields_cache = json.load(f)
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    self._fields_cache = json.load(f)
+            except FileNotFoundError as e:
+                raise FileNotFoundError(
+                    f"Fixture file not found: {path}. Underlying error: {str(e)}"
+                ) from e
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Failed to parse JSON from fixture file: {path}. "
+                    f"Error at line {e.lineno}, column {e.colno}: {e.msg}"
+                ) from e
         return self._fields_cache
 
     def _load_issues(self) -> List[FauxIssue]:
