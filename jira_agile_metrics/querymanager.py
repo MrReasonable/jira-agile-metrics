@@ -121,6 +121,23 @@ class QueryManager:
             self.attributes_to_fields[name] = field_id
             self.fields_to_attributes[field_id] = name
 
+    def _get_tolerant_attr(self, obj, camel_case_name, snake_case_name, default=None):
+        """Get attribute from object, trying camelCase first, then snake_case.
+
+        This helper supports both real JIRA PropertyHolder attributes (camelCase)
+        and test aliases (snake_case).
+
+        Args:
+            obj: The object to get attributes from
+            camel_case_name: The camelCase attribute name (e.g., "fromString")
+            snake_case_name: The snake_case attribute name (e.g., "from_string")
+            default: Default value if neither attribute exists (default: None)
+
+        Returns:
+            The attribute value or default if neither exists
+        """
+        return getattr(obj, camel_case_name, getattr(obj, snake_case_name, default))
+
     def field_name_to_id(self, name):
         """Convert field name to JIRA field ID.
 
@@ -254,8 +271,8 @@ class QueryManager:
                     )
                 )
                 # Support both real JIRA PropertyHolder attributes and test aliases
-                initial_value = getattr(
-                    found_item, "fromString", getattr(found_item, "from_string", None)
+                initial_value = self._get_tolerant_attr(
+                    found_item, "fromString", "from_string"
                 )
             except StopIteration:
                 pass
@@ -284,11 +301,11 @@ class QueryManager:
                             "key": issue.key,
                             "date": change_date,
                             # Support both camelCase from JIRA and snake_case in tests
-                            "from_string": getattr(
-                                item, "fromString", getattr(item, "from_string", None)
+                            "from_string": self._get_tolerant_attr(
+                                item, "fromString", "from_string"
                             ),
-                            "to_string": getattr(
-                                item, "toString", getattr(item, "to_string", None)
+                            "to_string": self._get_tolerant_attr(
+                                item, "toString", "to_string"
                             ),
                         },
                     )

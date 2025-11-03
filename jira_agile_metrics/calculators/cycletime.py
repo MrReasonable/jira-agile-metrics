@@ -489,12 +489,11 @@ def _process_status_change_legacy(
 
     # Record entry time based on configuration
     # Default behavior: keep first entry time (important for cycle time)
-    if params.config.config["keep_first_entry_time"]:
-        # Keep the first time we entered a step
-        if item[snapshot_cycle_step_name] is None:
-            item[snapshot_cycle_step_name] = snapshot.date.date()
-    else:
+    if not params.config.config["keep_first_entry_time"]:
         # Use the latest observed timestamp
+        item[snapshot_cycle_step_name] = snapshot.date.date()
+    elif item[snapshot_cycle_step_name] is None:
+        # Keep the first time we entered a step
         item[snapshot_cycle_step_name] = snapshot.date.date()
 
     # Wipe any subsequent dates, in case this was a move backwards

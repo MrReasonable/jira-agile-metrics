@@ -140,11 +140,8 @@ def _create_generic_sampler(
             # Convert column to numpy array for consistent numpy array interface
             # (needed for efficient/random sampling via random.choices); note that
             # to_numpy() may create a copy of the data; use explicit len()
-            "data": (
-                data[column_name].to_numpy()
-                if column_name in data.columns
-                else np.array([])
-            ),
+            # Missing columns will raise KeyError which is caught by the error handler
+            "data": data[column_name].to_numpy(),
         }
 
         def get_sample():

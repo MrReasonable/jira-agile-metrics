@@ -136,4 +136,14 @@ def calculate_scatterplot_data(cycle_data):
             data["cycle_time"], errors="coerce"
         ).dt.days
 
+    # Convert lead_time from timedelta to integer days if present
+    if "lead_time" in data.columns:
+        if pd.api.types.is_timedelta64_dtype(data["lead_time"]):
+            data["lead_time"] = data["lead_time"].dt.days
+        else:
+            # If not timedelta, convert to days if possible
+            data["lead_time"] = pd.to_timedelta(
+                data["lead_time"], errors="coerce"
+            ).dt.days
+
     return data
