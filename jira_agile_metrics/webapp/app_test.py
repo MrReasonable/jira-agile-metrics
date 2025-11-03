@@ -4,6 +4,7 @@ This module contains unit tests for the web application routes and functionality
 """
 
 import re
+from collections import defaultdict
 from unittest.mock import patch
 
 import pandas as pd
@@ -13,9 +14,6 @@ from jira import exceptions as jira_exceptions
 from jira_agile_metrics.webapp import app as app_module
 from jira_agile_metrics.webapp.app import app as webapp
 from jira_agile_metrics.webapp.test_utils import HTMLOutlineParser
-
-# Sentinel object to distinguish omitted default vs explicit None in get() method
-_sentinel = object()
 
 
 @pytest.fixture(name="flask_app")
@@ -185,36 +183,10 @@ def test_burnup_route_requires_config(test_client):
 @pytest.fixture
 def _mock_results_empty(mocker):
     """Mock get_real_results to return empty DataFrames for all calculators."""
-    # Map each calculator to empty DataFrame-like objects where needed
     empty = pd.DataFrame()
-
-    # Return a dict that returns empties for any calculator key access
-    class Results(dict):
-        """Dictionary that returns an empty DataFrame for any key access."""
-
-        def __missing__(self, key):
-            """Return an empty DataFrame for any missing key."""
-            return empty
-
-        def get(self, key, default=_sentinel):
-            """Return value for key if present, otherwise default or empty DataFrame.
-
-            Follows standard dict.get() behavior: if key exists, return it.
-            If key doesn't exist:
-            - If default was explicitly provided (even if None), return it.
-            - If no default was provided (default is sentinel), return empty DataFrame.
-            """
-            if key in self:
-                return self[key]
-            # Key doesn't exist - return default if explicitly provided,
-            # otherwise empty DataFrame
-            if default is not _sentinel:
-                return default
-            return empty
-
     mocker.patch(
         "jira_agile_metrics.webapp.app.get_real_results",
-        return_value=Results(),
+        return_value=defaultdict(lambda: empty),
     )
 
 
@@ -269,12 +241,10 @@ def test_route_renders_with_empty_placeholder_on_empty(
         (idx + 1) < len(parser.outline) and parser.outline[idx + 1][0] == "div"
         for idx in h1_indexes
     )
-    # Fallback: look for any div on the page
-    has_div = any(tag == "div" for tag, _ in parser.outline)
-    # Accept div immediately after h1, or any div on the page
-    assert (
-        has_next_div_after_h1 or has_div
-    ), "Chart container <div> not found after <h1> or elsewhere on the page"
+    # Require chart container div to appear immediately after the <h1>
+    assert has_next_div_after_h1, (
+        "Chart container <div> not found immediately after <h1>"
+    )
     assert "bk-root" not in resp_text
     # No Bokeh chart scripts should be rendered when empty
     # Check for absence of Bokeh-specific script content rather than all scripts
@@ -284,13 +254,13 @@ def test_route_renders_with_empty_placeholder_on_empty(
     scripts = script_pattern.findall(resp_text)
     for script in scripts:
         assert "Bokeh" not in script, "Bokeh script found when chart should be empty"
-        assert (
-            "bk-root" not in script
-        ), "Bokeh root reference found when chart should be empty"
+        assert "bk-root" not in script, (
+            "Bokeh root reference found when chart should be empty"
+        )
         # Check for Bokeh document initialization patterns
-        assert (
-            "document['document']" not in script
-        ), "Bokeh document initialization found when chart should be empty"
+        assert "document['document']" not in script, (
+            "Bokeh document initialization found when chart should be empty"
+        )
 
 
 @pytest.mark.parametrize(
