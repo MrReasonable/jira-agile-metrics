@@ -46,9 +46,23 @@ class FileJiraClient:
     def _load_issues(self) -> List[FauxIssue]:
         if self._issues_cache is None:
             path = os.path.join(self._fixtures_dir, "search_issues.json")
-            with open(path, "r", encoding="utf-8") as f:
-                raw = json.load(f)
-            self._issues_cache = [self._to_faux_issue(i) for i in raw]
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    raw = json.load(f)
+                self._issues_cache = [self._to_faux_issue(i) for i in raw]
+            except FileNotFoundError as e:
+                raise FileNotFoundError(
+                    f"Fixture file not found: {path}. Underlying error: {str(e)}"
+                ) from e
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Failed to parse JSON from fixture file: {path}. "
+                    f"Error at line {e.lineno}, column {e.colno}: {e.msg}"
+                ) from e
+            except Exception as e:
+                raise RuntimeError(
+                    f"Unexpected error while reading fixture file: {path}. {e}"
+                ) from e
         return self._issues_cache
 
     def _to_faux_issue(self, data: Dict[str, Any]) -> FauxIssue:
