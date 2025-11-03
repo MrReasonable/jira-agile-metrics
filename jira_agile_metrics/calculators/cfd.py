@@ -45,8 +45,9 @@ class CFDCalculator(Calculator):
         else:
             logger.debug("No output file specified for CFD file")
 
-        if self.settings.get("cfd_chart"):
-            self.write_chart(data, self.settings["cfd_chart"])
+        chart_path = self.settings.get("cfd_chart")
+        if chart_path:
+            self.write_chart(data, chart_path)
         else:
             logger.debug("No output file specified for CFD chart")
 
