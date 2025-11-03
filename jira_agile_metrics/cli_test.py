@@ -82,9 +82,11 @@ Output:
         config_file.write(config)
         config_file.flush()
         parser = configure_argument_parser()
-        args = parser.parse_args([config_file.name])
-        run_command_line(parser, args)
-        mock_get_trello_client.assert_called_once()
+        # Ensure any CSV outputs are written to a temporary directory rather than repo root
+        with tempfile.TemporaryDirectory() as outdir:
+            args = parser.parse_args([config_file.name, "--output-directory", outdir])
+            run_command_line(parser, args)
+    mock_get_trello_client.assert_called_once()
 
 
 def test_get_trello_client(mocker):
