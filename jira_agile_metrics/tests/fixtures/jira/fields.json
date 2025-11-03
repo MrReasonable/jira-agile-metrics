@@ -3,6 +3,14 @@
   { "id": "status", "name": "Status" },
   { "id": "resolution", "name": "Resolution" },
   { "id": "summary", "name": "Summary" },
-  { "id": "created", "name": "Created" }
+  { "id": "created", "name": "Created" },
+  { "id": "updated", "name": "Updated" },
+  { "id": "project", "name": "Project" },
+  { "id": "reporter", "name": "Reporter" },
+  { "id": "assignee", "name": "Assignee" },
+  { "id": "priority", "name": "Priority" },
+  { "id": "labels", "name": "Labels" },
+  { "id": "components", "name": "Component/s" },
+  { "id": "fixVersions", "name": "Fix version/s" },
+  { "id": "resolutiondate", "name": "Resolution date" }
 ]
-

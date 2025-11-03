@@ -2,7 +2,7 @@
   {
     "key": "I-1",
     "fields": {
-      "summary": "Implement feature A",
+      "summary": "Implement user authentication feature",
       "issuetype": { "name": "Story", "value": "story" },
       "status": { "name": "Done", "value": "done" },
       "resolution": { "name": "Done" },
@@ -35,7 +35,7 @@
   {
     "key": "I-2",
     "fields": {
-      "summary": "Implement feature B",
+      "summary": "Add payment processing integration",
       "issuetype": { "name": "Story", "value": "story" },
       "status": { "name": "Done", "value": "done" },
       "resolution": { "name": "Done" },
@@ -70,6 +70,603 @@
         }
       ]
     }
+  },
+  {
+    "key": "I-3",
+    "fields": {
+      "summary": "Design new dashboard UI",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-01-10T09:00:00.000+0000",
+      "updated": "2021-02-05T14:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-01-15T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-01-22T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-01-28T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-02-05T14:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-4",
+    "fields": {
+      "summary": "Fix login timeout issue",
+      "issuetype": { "name": "Bug", "value": "bug" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-01-15T09:00:00.000+0000",
+      "updated": "2021-01-28T15:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-01-16T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-01-20T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-01-25T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-01-28T15:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-5",
+    "fields": {
+      "summary": "Implement search functionality",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-01-20T09:00:00.000+0000",
+      "updated": "2021-02-12T11:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-01-25T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-02-01T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-02-08T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-02-12T11:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-6",
+    "fields": {
+      "summary": "Optimize database queries",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-02-01T09:00:00.000+0000",
+      "updated": "2021-02-20T13:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-02-05T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-02-10T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-02-15T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-02-20T13:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-7",
+    "fields": {
+      "summary": "Add export to PDF feature",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-02-05T09:00:00.000+0000",
+      "updated": "2021-02-25T16:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-02-08T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-02-14T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-02-20T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-02-25T16:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-8",
+    "fields": {
+      "summary": "Fix memory leak in background jobs",
+      "issuetype": { "name": "Bug", "value": "bug" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-02-10T09:00:00.000+0000",
+      "updated": "2021-02-22T12:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-02-11T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-02-15T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-02-19T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-02-22T12:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-9",
+    "fields": {
+      "summary": "Implement user notifications system",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-02-15T09:00:00.000+0000",
+      "updated": "2021-03-05T14:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-02-18T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-02-24T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-03-01T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-03-05T14:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-10",
+    "fields": {
+      "summary": "Add dark mode support",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-02-20T09:00:00.000+0000",
+      "updated": "2021-03-10T15:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-02-23T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-03-01T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-03-06T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-03-10T15:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-11",
+    "fields": {
+      "summary": "Fix API rate limiting bug",
+      "issuetype": { "name": "Bug", "value": "bug" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-02-25T09:00:00.000+0000",
+      "updated": "2021-03-08T11:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-02-26T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-03-02T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-03-05T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-03-08T11:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-12",
+    "fields": {
+      "summary": "Implement real-time collaboration",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-03-01T09:00:00.000+0000",
+      "updated": "2021-03-20T13:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-03-05T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-03-10T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-03-15T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-03-20T13:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-13",
+    "fields": {
+      "summary": "Refactor authentication service",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-03-05T09:00:00.000+0000",
+      "updated": "2021-03-22T16:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-03-08T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-03-14T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-03-18T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-03-22T16:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-14",
+    "fields": {
+      "summary": "Add unit tests for payment module",
+      "issuetype": { "name": "Task", "value": "task" },
+      "status": { "name": "Done", "value": "done" },
+      "resolution": { "name": "Done" },
+      "created": "2021-03-10T09:00:00.000+0000",
+      "updated": "2021-03-25T12:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-03-12T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-03-16T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-03-21T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        },
+        {
+          "created": "2021-03-25T12:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "QA", "toString": "Done" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-15",
+    "fields": {
+      "summary": "Build new mobile app interface",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "QA", "value": "qa" },
+      "resolution": null,
+      "created": "2021-03-15T09:00:00.000+0000",
+      "updated": "2021-03-28T14:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-03-18T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-03-22T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        },
+        {
+          "created": "2021-03-28T14:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Build", "toString": "QA" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-16",
+    "fields": {
+      "summary": "Fix critical security vulnerability",
+      "issuetype": { "name": "Bug", "value": "bug" },
+      "status": { "name": "Build", "value": "build" },
+      "resolution": null,
+      "created": "2021-03-18T09:00:00.000+0000",
+      "updated": "2021-03-26T10:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-03-19T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        },
+        {
+          "created": "2021-03-24T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Next", "toString": "Build" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-17",
+    "fields": {
+      "summary": "Implement advanced analytics dashboard",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Next", "value": "next" },
+      "resolution": null,
+      "created": "2021-03-20T09:00:00.000+0000",
+      "updated": "2021-03-27T10:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-03-27T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "key": "I-18",
+    "fields": {
+      "summary": "Create API documentation",
+      "issuetype": { "name": "Task", "value": "task" },
+      "status": { "name": "Backlog", "value": "backlog" },
+      "resolution": null,
+      "created": "2021-03-25T09:00:00.000+0000",
+      "updated": "2021-03-25T09:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": []
+    }
+  },
+  {
+    "key": "I-19",
+    "fields": {
+      "summary": "Optimize frontend bundle size",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Backlog", "value": "backlog" },
+      "resolution": null,
+      "created": "2021-03-28T09:00:00.000+0000",
+      "updated": "2021-03-28T09:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": []
+    }
+  },
+  {
+    "key": "I-20",
+    "fields": {
+      "summary": "Add multi-language support",
+      "issuetype": { "name": "Story", "value": "story" },
+      "status": { "name": "Next", "value": "next" },
+      "resolution": null,
+      "created": "2021-03-30T09:00:00.000+0000",
+      "updated": "2021-04-02T10:00:00.000+0000"
+    },
+    "changelog": {
+      "histories": [
+        {
+          "created": "2021-04-02T10:00:00.000+0000",
+          "items": [
+            { "field": "status", "fromString": "Backlog", "toString": "Next" }
+          ]
+        }
+      ]
+    }
   }
 ]
-
