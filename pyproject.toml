@@ -21,10 +21,17 @@ exclude = '''
 line-length = 88
 exclude = [".venv", "venv", "env", "build", "dist", "__pycache__"]
 target-version = "py311"
+preview = true
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
 ignore = []
+extend-select = [
+    # Whitespace / EOF hygiene to align with IDE warnings
+    "W291",  # trailing whitespace
+    "W292",  # no newline at end of file
+    "W391",  # blank line at end of file
+]
 
 [tool.ruff.format]
 quote-style = "double"
