@@ -82,7 +82,8 @@ Output:
         config_file.write(config)
         config_file.flush()
         parser = configure_argument_parser()
-        # Ensure any CSV outputs are written to a temporary directory rather than repo root
+        # Ensure CSV outputs go to a temporary directory
+        # (avoid writing to repo root)
         with tempfile.TemporaryDirectory() as outdir:
             args = parser.parse_args([config_file.name, "--output-directory", outdir])
             run_command_line(parser, args)

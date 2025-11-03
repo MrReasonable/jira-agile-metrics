@@ -6,6 +6,7 @@ import pandas as pd
 
 from jira_agile_metrics.calculator import run_calculators
 from jira_agile_metrics.calculators.cycletime import CycleTimeCalculator
+from jira_agile_metrics.tests.helpers.dataframe_utils import normalize_dataframe
 
 
 def test_cycletime_functional_generates_expected_csv(
@@ -22,12 +23,8 @@ def test_cycletime_functional_generates_expected_csv(
     expected_df = pd.read_csv(expected_path)
     actual_df = pd.read_csv(output_csv)
 
-    # Normalize to consistent column order
-    expected_df = expected_df.sort_index(axis=1)
-    actual_df = actual_df.sort_index(axis=1)
-
-    # Reset index if necessary
-    expected_df = expected_df.reset_index(drop=True)
-    actual_df = actual_df.reset_index(drop=True)
+    # Normalize DataFrames for stable comparison
+    expected_df = normalize_dataframe(expected_df)
+    actual_df = normalize_dataframe(actual_df)
 
     pd.testing.assert_frame_equal(expected_df, actual_df, check_dtype=False)

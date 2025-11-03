@@ -16,29 +16,10 @@ from jira_agile_metrics.cli import configure_argument_parser, run_command_line
 from jira_agile_metrics.test_file_jira_client import FileJiraClient
 from jira_agile_metrics.tests.e2e.e2e_config import get_e2e_config_yaml
 from jira_agile_metrics.tests.e2e.e2e_helpers import write_config_and_get_parser_args
-
-
-def _read_csv_for_comparison(file_path):
-    """Read CSV file with appropriate parsing based on file type.
-
-    Args:
-        file_path: Path to CSV file to read
-
-    Returns:
-        DataFrame with appropriate index and date parsing
-    """
-    filename = file_path.name
-    datetime_index_files = ["cfd.csv", "throughput.csv"]
-
-    if filename in datetime_index_files:
-        df = pd.read_csv(file_path, index_col=0, parse_dates=True)
-    elif filename == "scatterplot.csv":
-        df = pd.read_csv(file_path, parse_dates=["completed_date"])
-        df = df.sort_values("completed_date").reset_index(drop=True)
-    else:
-        df = pd.read_csv(file_path)
-
-    return df
+from jira_agile_metrics.tests.helpers.csv_utils import (
+    _print_dataframe_differences,
+    _read_csv_for_comparison,
+)
 
 
 def _compare_dataframes(actual_df, expected_df, filename):
@@ -59,33 +40,12 @@ def _compare_dataframes(actual_df, expected_df, filename):
         print(f"  Generated shape: {actual_df.shape}")
         print(f"  Expected shape: {expected_df.shape}")
         if actual_df.shape == expected_df.shape:
-            _print_column_differences(actual_df, expected_df)
+            _print_dataframe_differences(actual_df, expected_df)
         else:
             print("  Shape mismatch!")
             print(f"  Generated columns: {list(actual_df.columns)}")
             print(f"  Expected columns: {list(expected_df.columns)}")
         raise
-
-
-def _print_column_differences(actual_df, expected_df):
-    """Print detailed column-wise differences between DataFrames.
-
-    Args:
-        actual_df: Generated DataFrame
-        expected_df: Expected DataFrame
-    """
-    diff_mask = actual_df != expected_df
-    for col in actual_df.columns:
-        if diff_mask[col].any():
-            diff_count = diff_mask[col].sum()
-            print(f"  Column '{col}': {diff_count} differences")
-            diff_indices = actual_df[diff_mask[col]].index[:5]
-            for idx in diff_indices:
-                print(
-                    f"    Row {idx}: "
-                    f"got {actual_df.loc[idx, col]}, "
-                    f"expected {expected_df.loc[idx, col]}"
-                )
 
 
 def _cleanup_output_files(output_files):
@@ -124,7 +84,12 @@ def test_cli_e2e_generates_expected_outputs_and_cleans_up(tmp_path, monkeypatch)
     On success, remove the generated files to keep the workspace clean.
     """
     # Save original working directory to restore after test
-    original_cwd = os.getcwd()
+    try:
+        original_cwd = os.getcwd()
+    except FileNotFoundError:
+        # Current working directory may have been removed by a previous test
+        # Fall back to the project root (three levels up from this file's dir)
+        original_cwd = str(Path(__file__).resolve().parents[3])
 
     try:
         # Arrange: point the JIRA client at test fixtures and patch the CLI to use it
@@ -176,5 +141,6 @@ def test_cli_e2e_generates_expected_outputs_and_cleans_up(tmp_path, monkeypatch)
         # If we reached here, all assertions passed — cleanup generated outputs
         _cleanup_output_files(list(files_to_validate.keys()))
     finally:
-        # Always restore the original working directory
-        os.chdir(original_cwd)
+        # Always restore the original working directory when possible
+        if original_cwd and os.path.isdir(original_cwd):
+            os.chdir(original_cwd)

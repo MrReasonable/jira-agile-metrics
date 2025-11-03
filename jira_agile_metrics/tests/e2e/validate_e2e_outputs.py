@@ -22,25 +22,16 @@ import pandas as pd
 from jira_agile_metrics.tests.e2e.e2e_config import get_e2e_config_yaml
 from jira_agile_metrics.tests.e2e.e2e_helpers import write_config_and_get_parser_args
 from jira_agile_metrics.tests.e2e.e2e_imports import setup_path_and_import_cli
+from jira_agile_metrics.tests.helpers.csv_utils import (
+    _print_dataframe_differences,
+    _read_csv_for_comparison,
+)
 
 _modules = setup_path_and_import_cli()
 configure_argument_parser = _modules["configure_argument_parser"]
 run_command_line = _modules["run_command_line"]
 FileJiraClient = _modules["FileJiraClient"]
 jira_agile_metrics_cli = _modules["cli_module"]
-
-
-def _read_csv_for_comparison(file_path):
-    """Read CSV file with appropriate parsing based on file type."""
-    filename = file_path.name
-    datetime_index_files = ["cfd.csv", "throughput.csv"]
-
-    if filename in datetime_index_files:
-        return pd.read_csv(file_path, index_col=0, parse_dates=True)
-    if filename == "scatterplot.csv":
-        df = pd.read_csv(file_path, parse_dates=["completed_date"])
-        return df.sort_values("completed_date").reset_index(drop=True)
-    return pd.read_csv(file_path)
 
 
 def _compare_single_file(generated, expected):
@@ -69,28 +60,6 @@ def _compare_single_file(generated, expected):
         print("  ✗ MISMATCH: Files differ")
         _print_dataframe_differences(gen_df, exp_df)
         return False
-
-
-def _print_dataframe_differences(gen_df, exp_df):
-    """Print detailed differences between DataFrames."""
-    if gen_df.shape == exp_df.shape:
-        diff_mask = gen_df != exp_df
-        print("\n  Differences by column:")
-        for col in gen_df.columns:
-            if diff_mask[col].any():
-                diff_count = diff_mask[col].sum()
-                print(f"    '{col}': {diff_count} different value(s)")
-                diff_indices = gen_df[diff_mask[col]].index[:5]
-                for idx in diff_indices:
-                    gen_val = gen_df.loc[idx, col]
-                    exp_val = exp_df.loc[idx, col]
-                    print(
-                        f"      Row {idx}: "
-                        f"generated={gen_val}, "
-                        f"expected={exp_val}"
-                    )
-    else:
-        print("  Shape mismatch detected")
 
 
 def _get_e2e_config_yaml(tmp_path):
