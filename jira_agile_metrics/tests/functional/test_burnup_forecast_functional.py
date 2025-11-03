@@ -2,6 +2,7 @@
 
 import random
 
+import numpy as np
 import pandas as pd
 
 from jira_agile_metrics.calculator import run_calculators
@@ -20,6 +21,7 @@ def test_burnup_forecast_generates_expected_data_structure(
 
     # Set fixed random seed for reproducible results
     random.seed(42)
+    np.random.seed(42)
 
     # Configure forecast settings with minimal trials for faster execution
     settings = get_burnup_base_settings(settings)
@@ -51,30 +53,30 @@ def test_burnup_forecast_generates_expected_data_structure(
 
     # Verify forecast produces a DataFrame (or None if insufficient data)
     # With our minimal fixture, we should get a DataFrame with trial columns
-    assert forecast_result is not None, (
-        "Forecast should produce a result with valid data"
-    )
-    assert isinstance(forecast_result, pd.DataFrame), (
-        "Forecast result should be a DataFrame"
-    )
+    assert (
+        forecast_result is not None
+    ), "Forecast should produce a result with valid data"
+    assert isinstance(
+        forecast_result, pd.DataFrame
+    ), "Forecast result should be a DataFrame"
 
     # Verify structure
     assert len(forecast_result.columns) > 0, "Forecast should have trial columns"
-    assert isinstance(forecast_result.index, pd.DatetimeIndex), (
-        "Forecast index should be datetime"
-    )
+    assert isinstance(
+        forecast_result.index, pd.DatetimeIndex
+    ), "Forecast index should be datetime"
 
     # Verify forecast extends beyond the last burnup date
     # Last date from fixtures is 2021-01-25, forecast should extend forward
-    assert forecast_result.index.min() >= pd.Timestamp("2021-01-25"), (
-        "Forecast should start from or after last burnup date"
-    )
+    assert forecast_result.index.min() >= pd.Timestamp(
+        "2021-01-25"
+    ), "Forecast should start from or after last burnup date"
 
     # Verify all trial columns have numeric data
     for col in forecast_result.columns:
-        assert pd.api.types.is_numeric_dtype(forecast_result[col]), (
-            f"Trial column {col} should contain numeric data"
-        )
+        assert pd.api.types.is_numeric_dtype(
+            forecast_result[col]
+        ), f"Trial column {col} should contain numeric data"
 
     # Verify forecast has reasonable progression
     # (done values should be non-decreasing or stable)
@@ -85,10 +87,11 @@ def test_burnup_forecast_generates_expected_data_structure(
         if len(trial_values) > 1:
             # Values should be non-negative and generally increasing
             # (or at least not dramatically decreasing)
-            assert (trial_values >= 0).all(), (
-                f"Trial {trial_col} should have non-negative values"
-            )
-            # Initial value should match completed items from fixtures (2 items done)
-            assert trial_values.iloc[0] >= 2, (
-                f"Trial {trial_col} should start at least at 2 (completed items)"
-            )
+            assert (
+                trial_values >= 0
+            ).all(), f"Trial {trial_col} should have non-negative values"
+            # Fixture note: `jira_client` loads `tests/fixtures/jira/search_issues.json`
+            # where the initial completed-items count is 2, so expect >= 2 here
+            assert (
+                trial_values.iloc[0] >= 2
+            ), f"Trial {trial_col} should start at least at 2 (completed items)"
