@@ -16,7 +16,8 @@ PYLINT = $(VENV_BIN)/pylint
 MYPY = $(VENV_BIN)/mypy
 
 # Common paths for linting/formatting
-LINT_PATHS = jira_agile_metrics/ setup.py
+# Include tests explicitly so helpers like tests/helpers/csv_utils.py are linted
+LINT_PATHS = jira_agile_metrics/ jira_agile_metrics/tests/ setup.py
 
 # Colors for output
 GREEN = \033[0;32m
