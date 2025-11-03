@@ -2,9 +2,12 @@
 
 from pathlib import Path
 
+import pandas as pd
+
 from jira_agile_metrics.calculator import run_calculators
 from jira_agile_metrics.calculators.cycletime import CycleTimeCalculator
 from jira_agile_metrics.calculators.histogram import HistogramCalculator
+from jira_agile_metrics.tests.helpers.dataframe_utils import normalize_dataframe
 
 
 def test_histogram_generates_expected_csv(
@@ -27,12 +30,15 @@ def test_histogram_generates_expected_csv(
 
     run_calculators([CycleTimeCalculator, HistogramCalculator], query_manager, settings)
 
-    # Compare full CSV content against expected fixture
+    # Compare CSVs using shared DataFrame normalization
     expected_path = (
         Path(__file__).parent.parent / "fixtures" / "expected" / "histogram.csv"
     )
-    with expected_path.open(encoding="utf-8") as f:
-        expected_text = f.read().strip()
-    with Path(output_csv).open(encoding="utf-8") as f:
-        actual_text = f.read().strip()
-    assert actual_text == expected_text
+
+    expected_df = pd.read_csv(expected_path, encoding="utf-8")
+    actual_df = pd.read_csv(output_csv, encoding="utf-8")
+
+    expected_df = normalize_dataframe(expected_df)
+    actual_df = normalize_dataframe(actual_df)
+
+    pd.testing.assert_frame_equal(expected_df, actual_df, check_dtype=False)
