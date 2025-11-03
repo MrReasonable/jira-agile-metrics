@@ -9,7 +9,6 @@ import json
 import logging
 
 import dateutil.parser
-import dateutil.tz
 from jira.exceptions import JIRAError
 
 from .config import ConfigError
@@ -64,15 +63,13 @@ class IssueSnapshot:
         self.to_string = transition_data["to_string"]
 
     def __eq__(self, other):
-        return all(
-            (
-                self.change == other.change,
-                self.key == other.key,
-                self.date.isoformat() == other.date.isoformat(),
-                self.from_string == other.from_string,
-                self.to_string == other.to_string,
-            )
-        )
+        return all((
+            self.change == other.change,
+            self.key == other.key,
+            self.date.isoformat() == other.date.isoformat(),
+            self.from_string == other.from_string,
+            self.to_string == other.to_string,
+        ))
 
     def __repr__(self):
         return (
@@ -259,15 +256,13 @@ class QueryManager:
                 found_item = next(
                     filter(
                         lambda h, f=field: h.field == f,
-                        itertools.chain.from_iterable(
-                            [
-                                c.items
-                                for c in sorted(
-                                    issue.changelog.histories,
-                                    key=lambda c: dateutil.parser.parse(c.created),
-                                )
-                            ]
-                        ),
+                        itertools.chain.from_iterable([
+                            c.items
+                            for c in sorted(
+                                issue.changelog.histories,
+                                key=lambda c: dateutil.parser.parse(c.created),
+                            )
+                        ]),
                     )
                 )
                 # Support both real JIRA PropertyHolder attributes and test aliases
