@@ -1,7 +1,7 @@
 # Jira Agile Metrics - Makefile
 # Provides common development and deployment tasks
 
-.PHONY: help install install-dev clean test test-functional lint format check docker-build docker-run webapp run check-full
+.PHONY: help install install-dev clean test test-functional test-e2e lint format check docker-build docker-run webapp run check-full test-all lint-fix test-coverage pylint
 
 # Python interpreter
 PYTHON = python3
@@ -16,7 +16,7 @@ PYLINT = $(VENV_BIN)/pylint
 MYPY = $(VENV_BIN)/mypy
 
 # Common paths for linting/formatting
-LINT_PATHS = jira_agile_metrics/ jira_agile_metrics/tests setup.py
+LINT_PATHS = jira_agile_metrics/ setup.py
 
 # Colors for output
 GREEN = \033[0;32m
@@ -95,7 +95,11 @@ test: ## Run tests with pytest
 
 test-functional: ## Run functional tests (CSV E2E)
 	@echo "$(GREEN)Running functional tests...$(NC)"
-	$(PYTEST) -q jira_agile_metrics/tests/functional
+	$(PYTEST) -v jira_agile_metrics/tests/functional
+
+test-e2e: ## Run end-to-end tests (full application flow)
+	@echo "$(GREEN)Running end-to-end tests...$(NC)"
+	$(PYTEST) -v -m e2e jira_agile_metrics/tests/e2e
 
 test-coverage: ## Run tests with coverage (excludes functional tests)
 	@echo "$(GREEN)Running tests with coverage...$(NC)"
@@ -109,10 +113,9 @@ test-watch: ## Run tests in watch mode (requires pytest-watch)
 	@echo "$(GREEN)Running tests in watch mode...$(NC)"
 	$(PTW)
 
-test-all: ## Run all tests
+test-all: ## Run all tests (unit, functional, and e2e)
 	@echo "$(GREEN)Running all tests...$(NC)"
-	$(MAKE) test
-	$(MAKE) test-functional
+	$(MAKE) test && $(MAKE) test-functional && $(MAKE) test-e2e
 
 ## Linting and formatting targets
 
@@ -123,7 +126,7 @@ lint-fix: ## Run ruff with auto-fix
 	$(RUFF) check $(LINT_PATHS) --fix
 
 pylint: ## Run pylint
-	@echo "$(GREEN)Running pylint on source code...$(NC)"
+	@echo "$(GREEN)Running pylint on codebase...$(NC)"
 	$(PYLINT) $(LINT_PATHS)
 
 format: ## Format code with black

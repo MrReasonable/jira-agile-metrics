@@ -68,3 +68,8 @@ exclude_lines = [
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "e2e: marks tests as end-to-end (deselect with '-m \"not e2e\"')",
+]
