@@ -148,16 +148,21 @@ def run_command_line(parser, args):
     # Configuration and settings
     # (command line arguments override config file options)
 
-    logger.debug("Parsing options from %s", args.config)
+    # Resolve config file path to absolute before changing directories
+    # This ensures relative paths in the config are resolved correctly
+    config_path = os.path.abspath(args.config)
+    config_dir = os.path.dirname(config_path)
+
+    logger.debug("Parsing options from %s", config_path)
     try:
-        with open(args.config, encoding="utf-8") as config:
+        with open(config_path, encoding="utf-8") as config:
             options = config_to_options(
                 config.read(),
-                cwd=os.path.dirname(os.path.abspath(args.config)),
+                cwd=config_dir,
             )
     except FileNotFoundError:
         print(
-            f"Error: Configuration file '{args.config}' not found. "
+            f"Error: Configuration file '{config_path}' not found. "
             "Please provide a valid config file."
         )
         return
@@ -179,7 +184,7 @@ def run_command_line(parser, args):
         logger.info("Changing working directory to %s", output_dir)
         os.makedirs(output_dir, exist_ok=True)
         os.chdir(output_dir)
-    logger.debug("[DEBUG] Config file path: %s", args.config)
+    logger.debug("[DEBUG] Config file path: %s", config_path)
     logger.debug(
         "[DEBUG] Initial output_directory in options: %s",
         options.get("output_directory"),
