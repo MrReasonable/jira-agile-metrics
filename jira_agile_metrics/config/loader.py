@@ -5,7 +5,11 @@ import os.path
 
 import yaml
 
-from ..common_constants import BOTTLENECK_CHART_SETTINGS
+from ..common_constants import (
+    BOTTLENECK_CHART_SETTINGS,
+    CHART_FILENAME_KEYS,
+    DATA_FILENAME_KEYS,
+)
 from .exceptions import ConfigError
 from .progress_report_utils import (
     to_progress_report_outcomes_list,
@@ -261,28 +265,7 @@ def _parse_date_values(output_config, settings):
 
 def _parse_filename_values(output_config, settings):
     """Parse filename values from output config."""
-    filename_keys = [
-        "scatterplot_chart",
-        "histogram_chart",
-        "cfd_chart",
-        "throughput_chart",
-        "burnup_chart",
-        "burnup_forecast_chart",
-        "wip_chart",
-        "ageing_wip_chart",
-        "net_flow_chart",
-        "impediments_chart",
-        "impediments_days_chart",
-        "impediments_status_chart",
-        "impediments_status_days_chart",
-        "defects_by_priority_chart",
-        "defects_by_type_chart",
-        "defects_by_environment_chart",
-        "debt_chart",
-        "debt_age_chart",
-        "waste_chart",
-        "progress_report",
-    ] + BOTTLENECK_CHART_SETTINGS
+    filename_keys = CHART_FILENAME_KEYS + BOTTLENECK_CHART_SETTINGS
 
     for key in filename_keys:
         if expand_key(key) in output_config:
@@ -291,17 +274,7 @@ def _parse_filename_values(output_config, settings):
 
 def _parse_filename_list_values(output_config, settings):
     """Parse filename list values from output config."""
-    filename_list_keys = [
-        "cycle_time_data",
-        "cfd_data",
-        "scatterplot_data",
-        "histogram_data",
-        "throughput_data",
-        "percentiles_data",
-        "impediments_data",
-        "lead_time_histogram_data",
-        "lead_time_histogram_chart",
-    ]
+    filename_list_keys = DATA_FILENAME_KEYS
 
     for key in filename_list_keys:
         if expand_key(key) in output_config:

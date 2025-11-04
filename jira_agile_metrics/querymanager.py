@@ -63,13 +63,15 @@ class IssueSnapshot:
         self.to_string = transition_data["to_string"]
 
     def __eq__(self, other):
-        return all((
-            self.change == other.change,
-            self.key == other.key,
-            self.date.isoformat() == other.date.isoformat(),
-            self.from_string == other.from_string,
-            self.to_string == other.to_string,
-        ))
+        return all(
+            (
+                self.change == other.change,
+                self.key == other.key,
+                self.date.isoformat() == other.date.isoformat(),
+                self.from_string == other.from_string,
+                self.to_string == other.to_string,
+            )
+        )
 
     def __repr__(self):
         return (
@@ -256,13 +258,15 @@ class QueryManager:
                 found_item = next(
                     filter(
                         lambda h, f=field: h.field == f,
-                        itertools.chain.from_iterable([
-                            c.items
-                            for c in sorted(
-                                issue.changelog.histories,
-                                key=lambda c: dateutil.parser.parse(c.created),
-                            )
-                        ]),
+                        itertools.chain.from_iterable(
+                            [
+                                c.items
+                                for c in sorted(
+                                    issue.changelog.histories,
+                                    key=lambda c: dateutil.parser.parse(c.created),
+                                )
+                            ]
+                        ),
                     )
                 )
                 # Support both real JIRA PropertyHolder attributes and test aliases
@@ -326,9 +330,37 @@ class QueryManager:
         if max_results:
             logger.info("Limiting to %d results", max_results)
 
-        issues = self.jira.search_issues(jql, expand=expand, maxResults=max_results)
-        logger.info("Fetched %d issues", len(issues))
-        return issues
+        try:
+            # Convert False to None for jira library - False means "no limit"
+            max_results_param = None if max_results is False else max_results
+            issues = self.jira.search_issues(
+                jql, expand=expand, maxResults=max_results_param
+            )
+            issues_count = len(issues)
+            logger.info("Fetched %d issues", issues_count)
+            if issues_count == 0:
+                logger.warning(
+                    "Query returned 0 issues. This may indicate: "
+                    "1. The JQL query doesn't match any issues "
+                    "2. Authentication/authorization issues "
+                    "3. The query needs adjustment"
+                )
+            return issues
+        except JIRAError as e:
+            logger.error(
+                "JIRA API error while fetching issues with query `%s`: %s (Status: %s)",
+                jql,
+                getattr(e, "text", str(e)),
+                getattr(e, "status_code", "Unknown"),
+            )
+            raise
+        except Exception as e:
+            logger.error(
+                "Unexpected error while fetching issues with query `%s`: %s",
+                jql,
+                str(e),
+            )
+            raise
 
     def has_issues_for_jql(self, jql):
         """Check if there are any issues matching the JQL query.

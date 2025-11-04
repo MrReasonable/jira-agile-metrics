@@ -20,9 +20,35 @@ def get_jira_connection_params(connection):
     password = connection.get("password") or os.environ.get("JIRA_PASSWORD")
 
     # Normalize/strip values
-    url = url.strip() if url else None
-    username = username.strip() if username else None
-    password = password.strip() if password else None
+    # First strip surrounding quotes (common when using --env-file in Docker)
+    # Docker's --env-file preserves quotes from .env files, which breaks authentication
+    # Handle mixed single/double quotes and extra spaces
+    def normalize_value(value):
+        if not value:
+            return None
+        # First strip whitespace to bring any quotes to the edges
+        value = value.strip()
+        # Then strip surrounding quotes iteratively
+        # (handles nested/mixed single and double quotes)
+        # Keep removing quotes from both ends until no more can be removed
+        while value and (
+            value.startswith('"')
+            or value.startswith("'")
+            or value.endswith('"')
+            or value.endswith("'")
+        ):
+            old_value = value
+            value = value.strip('"').strip("'")
+            # Stop if no quotes were removed (prevents infinite loop)
+            if value == old_value:
+                break
+        # Finally strip leading/trailing whitespace again (after quotes are removed)
+        value = value.strip()
+        return value if value else None
+
+    url = normalize_value(url)
+    username = normalize_value(username)
+    password = normalize_value(password)
 
     # Validate that all required parameters are present and non-empty
     missing_params = []
