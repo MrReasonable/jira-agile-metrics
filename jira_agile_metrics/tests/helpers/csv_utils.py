@@ -8,8 +8,13 @@ from pathlib import Path
 
 import pandas as pd
 
+__all__ = [
+    "read_csv_for_comparison",
+    "print_dataframe_differences",
+]
 
-def _read_csv_for_comparison(file_path: Path) -> pd.DataFrame:
+
+def read_csv_for_comparison(file_path: Path) -> pd.DataFrame:
     """Read CSV file with appropriate parsing based on file type.
 
     Applies consistent parsing rules for known CSV outputs so that equality
@@ -26,7 +31,7 @@ def _read_csv_for_comparison(file_path: Path) -> pd.DataFrame:
     return pd.read_csv(file_path)
 
 
-def _print_dataframe_differences(gen_df: pd.DataFrame, exp_df: pd.DataFrame) -> None:
+def print_dataframe_differences(gen_df: pd.DataFrame, exp_df: pd.DataFrame) -> None:
     """Print detailed differences between DataFrames.
 
     Shows per-column counts and up to five example row differences per column

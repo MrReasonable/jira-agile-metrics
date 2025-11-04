@@ -2,8 +2,14 @@
 
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
+from jira_agile_metrics.calculator import run_calculators
+from jira_agile_metrics.calculators.burnup import BurnupCalculator
+from jira_agile_metrics.calculators.cfd import CFDCalculator
+from jira_agile_metrics.calculators.cycletime import CycleTimeCalculator
+from jira_agile_metrics.calculators.forecast import BurnupForecastCalculator
 from jira_agile_metrics.querymanager import QueryManager
 from jira_agile_metrics.test_file_jira_client import FileJiraClient
 from jira_agile_metrics.tests.e2e.e2e_config import _get_standard_cycle_config
@@ -72,6 +78,79 @@ def get_burnup_base_settings(base_settings):
         "burnup_chart_title": None,
         "done_column": "Done",
     }
+
+
+def get_default_forecast_settings():
+    """Get default forecast settings for tests.
+
+    Returns a dictionary with common forecast test settings.
+    """
+    return {
+        "burnup_forecast_chart_throughput_window": 30,
+        "burnup_forecast_chart_throughput_window_end": None,
+        "burnup_forecast_chart_target": None,
+        "burnup_forecast_chart_deadline": None,
+        "burnup_forecast_chart_deadline_confidence": 0.85,
+    }
+
+
+def run_forecast_calculators(query_mgr, settings):
+    """Run forecast-related calculators and return results.
+
+    Args:
+        query_mgr: QueryManager instance
+        settings: Settings dictionary
+
+    Returns:
+        Dictionary of calculator results
+    """
+    return run_calculators(
+        [
+            CycleTimeCalculator,
+            CFDCalculator,
+            BurnupCalculator,
+            BurnupForecastCalculator,
+        ],
+        query_mgr,
+        settings,
+    )
+
+
+def validate_forecast_result_structure(forecast_result):
+    """Validate basic structure of forecast result DataFrame.
+
+    Args:
+        forecast_result: Forecast result DataFrame
+
+    Returns:
+        None (raises AssertionError if validation fails)
+    """
+    assert isinstance(
+        forecast_result, pd.DataFrame
+    ), "Forecast result should be a DataFrame"
+    assert len(forecast_result.columns) > 0, "Forecast should have trial columns"
+    assert isinstance(
+        forecast_result.index, pd.DatetimeIndex
+    ), "Forecast index should be datetime"
+
+
+def validate_forecast_trial_values(forecast_result, num_trials=3):
+    """Validate forecast trial values are reasonable.
+
+    Args:
+        forecast_result: Forecast result DataFrame
+        num_trials: Number of trial columns to check
+
+    Returns:
+        None (raises AssertionError if validation fails)
+    """
+    sample_trials = list(forecast_result.columns)[:num_trials]
+    for trial_col in sample_trials:
+        trial_values = forecast_result[trial_col].dropna()
+        if len(trial_values) > 1:
+            assert (
+                trial_values >= 0
+            ).all(), f"Trial {trial_col} should have non-negative values"
 
 
 # end of file

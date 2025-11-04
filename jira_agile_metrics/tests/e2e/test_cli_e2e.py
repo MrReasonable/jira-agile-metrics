@@ -17,9 +17,16 @@ from jira_agile_metrics.test_file_jira_client import FileJiraClient
 from jira_agile_metrics.tests.e2e.e2e_config import get_e2e_config_yaml
 from jira_agile_metrics.tests.e2e.e2e_helpers import write_config_and_get_parser_args
 from jira_agile_metrics.tests.helpers.csv_utils import (
-    _print_dataframe_differences,
-    _read_csv_for_comparison,
+    print_dataframe_differences,
+    read_csv_for_comparison,
 )
+
+# Number of parent directories to traverse from this file to reach the project root.
+# This file is at jira_agile_metrics/tests/e2e/test_cli_e2e.py, so:
+# parents[0] = tests/e2e/, parents[1] = tests/
+# parents[2] = jira_agile_metrics/
+# parents[3] = project root
+PROJECT_ROOT_LEVELS = 3
 
 
 def _compare_dataframes(actual_df, expected_df, filename):
@@ -40,7 +47,7 @@ def _compare_dataframes(actual_df, expected_df, filename):
         print(f"  Generated shape: {actual_df.shape}")
         print(f"  Expected shape: {expected_df.shape}")
         if actual_df.shape == expected_df.shape:
-            _print_dataframe_differences(actual_df, expected_df)
+            print_dataframe_differences(actual_df, expected_df)
         else:
             print("  Shape mismatch!")
             print(f"  Generated columns: {list(actual_df.columns)}")
@@ -89,7 +96,7 @@ def test_cli_e2e_generates_expected_outputs_and_cleans_up(tmp_path, monkeypatch)
     except FileNotFoundError:
         # Current working directory may have been removed by a previous test
         # Fall back to the project root (three levels up from this file's dir)
-        original_cwd = str(Path(__file__).resolve().parents[3])
+        original_cwd = str(Path(__file__).resolve().parents[PROJECT_ROOT_LEVELS])
 
     try:
         # Arrange: point the JIRA client at test fixtures and patch the CLI to use it
@@ -134,8 +141,8 @@ def test_cli_e2e_generates_expected_outputs_and_cleans_up(tmp_path, monkeypatch)
             assert produced.exists(), f"Missing expected output: {produced}"
             assert expected.exists(), f"Missing expected fixture: {expected}"
 
-            actual_df = _read_csv_for_comparison(produced)
-            expected_df = _read_csv_for_comparison(expected)
+            actual_df = read_csv_for_comparison(produced)
+            expected_df = read_csv_for_comparison(expected)
             _compare_dataframes(actual_df, expected_df, produced.name)
 
         # If we reached here, all assertions passed — cleanup generated outputs

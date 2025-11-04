@@ -23,8 +23,8 @@ from jira_agile_metrics.tests.e2e.e2e_config import get_e2e_config_yaml
 from jira_agile_metrics.tests.e2e.e2e_helpers import write_config_and_get_parser_args
 from jira_agile_metrics.tests.e2e.e2e_imports import setup_path_and_import_cli
 from jira_agile_metrics.tests.helpers.csv_utils import (
-    _print_dataframe_differences,
-    _read_csv_for_comparison,
+    print_dataframe_differences,
+    read_csv_for_comparison,
 )
 
 _modules = setup_path_and_import_cli()
@@ -44,8 +44,8 @@ def _compare_single_file(generated, expected):
         print(f"  ✗ ERROR: Expected file {expected} does not exist!")
         return False
 
-    gen_df = _read_csv_for_comparison(generated)
-    exp_df = _read_csv_for_comparison(expected)
+    gen_df = read_csv_for_comparison(generated)
+    exp_df = read_csv_for_comparison(expected)
 
     print(f"  Generated shape: {gen_df.shape}")
     print(f"  Expected shape: {exp_df.shape}")
@@ -58,7 +58,7 @@ def _compare_single_file(generated, expected):
         return True
     except AssertionError:
         print("  ✗ MISMATCH: Files differ")
-        _print_dataframe_differences(gen_df, exp_df)
+        print_dataframe_differences(gen_df, exp_df)
         return False
 
 
