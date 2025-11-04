@@ -41,14 +41,17 @@ fi
 # NOTE: Set output paths in config.yml to /app/output or a relative path that resolves there
 
 echo "\n==================== Running jira-agile-metrics CLI ===================="
-docker run -it --rm \
+docker run --rm \
   -v "$PWD:/app" \
+  -w /app \
   $CONFIG_MOUNT \
   $OUTPUT_MOUNT \
   $ENV_FILE \
   -e JIRA_USERNAME="$JIRA_USERNAME" \
   -e JIRA_PASSWORD="$JIRA_PASSWORD" \
   -e JIRA_URL="$JIRA_URL" \
+  -e PYTHONPATH=/app \
+  -e MPLBACKEND=agg \
   jira-agile-metrics-dev \
   python -m jira_agile_metrics.cli "$@" -vv
 

@@ -24,13 +24,17 @@ def main():
     except OSError:
         long_description = ""
 
-    # Safely read install requirements
+    # Safely read install requirements (production-only)
+    # Reading requirements.txt directly would include "-r requirements-dev.txt",
+    # which is invalid inside install_requires. We only include prod deps here.
     try:
-        with open(os.path.join(here, "requirements.txt"), encoding="utf-8") as f:
+        with open(os.path.join(here, "requirements-prod.txt"), encoding="utf-8") as f:
             install_requires = [
                 line.strip()
                 for line in f.read().splitlines()
-                if line.strip() and not line.strip().startswith("#")
+                if line.strip()
+                and not line.strip().startswith("#")
+                and not line.strip().startswith("-r ")
             ]
     except OSError:
         install_requires = []
