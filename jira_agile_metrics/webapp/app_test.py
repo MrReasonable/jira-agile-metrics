@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 from jira import exceptions as jira_exceptions
 
+from jira_agile_metrics.config import ConfigError
 from jira_agile_metrics.webapp import app as app_module
 from jira_agile_metrics.webapp.app import app as webapp
 from jira_agile_metrics.webapp.test_utils import HTMLOutlineParser
@@ -242,9 +243,9 @@ def test_route_renders_with_empty_placeholder_on_empty(
         for idx in h1_indexes
     )
     # Require chart container div to appear immediately after the <h1>
-    assert has_next_div_after_h1, (
-        "Chart container <div> not found immediately after <h1>"
-    )
+    assert (
+        has_next_div_after_h1
+    ), "Chart container <div> not found immediately after <h1>"
     assert "bk-root" not in resp_text
     # No Bokeh chart scripts should be rendered when empty
     # Check for absence of Bokeh-specific script content rather than all scripts
@@ -254,19 +255,19 @@ def test_route_renders_with_empty_placeholder_on_empty(
     scripts = script_pattern.findall(resp_text)
     for script in scripts:
         assert "Bokeh" not in script, "Bokeh script found when chart should be empty"
-        assert "bk-root" not in script, (
-            "Bokeh root reference found when chart should be empty"
-        )
+        assert (
+            "bk-root" not in script
+        ), "Bokeh root reference found when chart should be empty"
         # Check for Bokeh document initialization patterns
-        assert "document['document']" not in script, (
-            "Bokeh document initialization found when chart should be empty"
-        )
+        assert (
+            "document['document']" not in script
+        ), "Bokeh document initialization found when chart should be empty"
 
 
 @pytest.mark.parametrize(
     "status_code, text, expected_exception",
     [
-        (401, "Unauthorized", app_module.ConfigError),
+        (401, "Unauthorized", ConfigError),
         (403, "Forbidden", jira_exceptions.JIRAError),
         (500, "Internal Server Error", jira_exceptions.JIRAError),
     ],
@@ -275,7 +276,7 @@ def test_get_jira_client_error_mappings(mocker, status_code, text, expected_exce
     """Validate mapping of JIRA HTTP errors to application exceptions."""
     fake_error = jira_exceptions.JIRAError(status_code=status_code, text=text)
     mock_create = mocker.patch(
-        "jira_agile_metrics.webapp.app.create_jira_client",
+        "jira_agile_metrics.webapp.helpers.create_jira_client",
         side_effect=fake_error,
     )
 

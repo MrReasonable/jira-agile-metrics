@@ -4,16 +4,12 @@ This module provides a Flask-based web interface for viewing and generating
 agile metrics from JIRA data.
 """
 
-import contextlib
 import logging
 import os
 import os.path
 import secrets
-import shutil
-import tempfile
 import threading
 import time
-import zipfile
 
 import jinja2
 from bokeh.embed import components
@@ -28,7 +24,6 @@ from flask import (
     session,
     url_for,
 )
-from jira.exceptions import JIRAError
 
 from ..calculator import run_calculators
 from ..calculators.ageingwip import AgeingWIPChartCalculator
@@ -45,10 +40,14 @@ from ..calculators.percentiles import PercentilesCalculator
 from ..calculators.progressreport import ProgressReportCalculator
 from ..calculators.scatterplot import ScatterplotCalculator
 from ..calculators.waste import WasteCalculator
-from ..config import ConfigError, config_to_options
+from ..config import config_to_options
 from ..config_main import CALCULATORS
-from ..jira_client import create_jira_client
 from ..querymanager import QueryManager
+from ..utils import find_backlog_and_done_columns
+from .helpers import (
+    get_jira_client,
+    plot_forecast_fan,
+)
 
 load_dotenv()
 
@@ -82,6 +81,10 @@ logger = logging.getLogger(__name__)
 # In-memory cache for calculator results (thread-safe)
 results_cache = {}
 results_cache_lock = threading.Lock()
+
+# Thread lock to protect os.chdir() operations
+# os.chdir() modifies global process state and is not thread-safe
+_chdir_lock = threading.Lock()
 
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 if not app.secret_key:
@@ -130,19 +133,24 @@ def get_real_results():
 
     # Change to output directory if specified
     # (to write files there, not in project root)
+    # os.chdir() modifies global process state and is protected by a lock
+    # for thread-safety in multi-threaded environments (e.g., Flask's threaded mode)
     output_dir = options.get("output_directory")
     original_cwd = os.getcwd()
-    try:
-        if output_dir:
-            os.makedirs(output_dir, exist_ok=True)
-            os.chdir(output_dir)
 
-        jira = get_jira_client(options["connection"])
-        query_manager = QueryManager(jira, options["settings"])
-        results = run_calculators(CALCULATORS, query_manager, options["settings"])
-    finally:
-        # Always restore the original working directory
-        os.chdir(original_cwd)
+    # Protect os.chdir() operations with a lock for thread safety
+    with _chdir_lock:
+        try:
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+                os.chdir(output_dir)
+
+            jira = get_jira_client(options["connection"])
+            query_manager = QueryManager(jira, options["settings"])
+            results = run_calculators(CALCULATORS, query_manager, options["settings"])
+        finally:
+            # Always restore the original working directory
+            os.chdir(original_cwd)
 
     with results_cache_lock:
         results_cache[cache_key] = (results, now)
@@ -157,28 +165,61 @@ def index():
 
 @app.route("/burnup-forecast")
 def burnup_forecast():
-    """Generate burnup forecast chart."""
+    """Generate burnup forecast chart with Monte Carlo forecast fans."""
     try:
         results = get_real_results()
-        chart_data = results[BurnupForecastCalculator]
-        if chart_data is None or len(chart_data.index) == 0:
+        forecast_data = results[BurnupForecastCalculator]
+        burnup_data = results[BurnupCalculator]
+
+        if forecast_data is None or len(forecast_data.index) == 0:
             flash("No data available for Burnup Forecast Chart.", "warning")
             return render_template("burnup_forecast.html", script="", div="")
-        # Use already imported components and figure
+
+        if burnup_data is None or len(burnup_data.index) == 0:
+            flash("No historical burnup data available.", "warning")
+            return render_template("burnup_forecast.html", script="", div="")
 
         p = figure(
             title="Burnup Forecast Chart",
             x_axis_type="datetime",
-            width=800,
-            height=400,
+            width=1000,
+            height=600,
         )
-        for col in chart_data.columns:
+
+        # Plot historical data
+        backlog_column, done_column = find_backlog_and_done_columns(burnup_data)
+        if backlog_column and backlog_column in burnup_data.columns:
             p.line(
-                chart_data.index,
-                chart_data[col],
-                legend_label=col,
+                burnup_data.index,
+                burnup_data[backlog_column],
+                legend_label="Backlog (historical)",
                 line_width=2,
+                color="blue",
             )
+        elif backlog_column:
+            logger.warning(
+                "Backlog column '%s' not found in burnup_data.columns. "
+                "Skipping backlog plot.",
+                backlog_column,
+            )
+        if done_column and done_column in burnup_data.columns:
+            p.line(
+                burnup_data.index,
+                burnup_data[done_column],
+                legend_label="Done (historical)",
+                line_width=2,
+                color="green",
+            )
+        elif done_column:
+            logger.warning(
+                "Done column '%s' not found in burnup_data.columns. "
+                "Skipping done plot.",
+                done_column,
+            )
+
+        # Calculate and plot forecast fan bands
+        plot_forecast_fan(p, forecast_data)
+
         p.legend.location = "top_left"
         p.xaxis.axis_label = "Date"
         p.yaxis.axis_label = "Items"
@@ -845,90 +886,3 @@ def set_query():
         session.pop("user_query", None)
         flash("Custom JQL query cleared. Using default from config.", "info")
     return redirect(url_for("index"))
-
-
-# Helpers
-
-
-@contextlib.contextmanager
-def capture_log(buffer, level, formatter=None):
-    """Temporarily write log output to the StringIO `buffer` with log level
-    threshold `level`, before returning logging to normal.
-    """
-    root_logger = logging.getLogger()
-
-    old_level = root_logger.getEffectiveLevel()
-    root_logger.setLevel(level)
-
-    handler = logging.StreamHandler(buffer)
-
-    if formatter:
-        formatter = logging.Formatter(formatter)
-        handler.setFormatter(formatter)
-
-    root_logger.addHandler(handler)
-
-    yield
-
-    root_logger.removeHandler(handler)
-    root_logger.setLevel(old_level)
-
-    handler.flush()
-    buffer.flush()
-
-
-def override_options(options, form):
-    """Override options from the configuration files with form data where
-    applicable.
-    """
-    for key in options.keys():
-        if key in form and form[key] != "":
-            options[key] = form[key]
-
-
-def get_jira_client(connection):
-    """Create a JIRA client with the given connection options"""
-    try:
-        return create_jira_client(connection)
-    except JIRAError as e:
-        if e.status_code == 401:
-            raise ConfigError(
-                (
-                    "JIRA authentication failed. "
-                    "Check URL and credentials, "
-                    "and ensure the account is not locked."
-                )
-            ) from e
-        raise
-
-
-def get_archive(calculators, query_manager, settings):
-    """Run all calculators and write outputs to a temporary directory.
-    Create a zip archive of all the files written, and return it as a bytes
-    array. Remove the temporary directory on completion.
-    """
-    zip_data = b""
-
-    cwd = os.getcwd()
-    temp_path = tempfile.mkdtemp()
-
-    try:
-        os.chdir(temp_path)
-        run_calculators(calculators, query_manager, settings)
-
-        with zipfile.ZipFile("metrics.zip", "w", zipfile.ZIP_STORED) as z:
-            for root, _dirs, files in os.walk(temp_path):
-                for file_name in files:
-                    if file_name != "metrics.zip":
-                        z.write(
-                            os.path.join(root, file_name),
-                            os.path.join("metrics", file_name),
-                        )
-        with open("metrics.zip", "rb") as metrics_zip:
-            zip_data = metrics_zip.read()
-
-    finally:
-        os.chdir(cwd)
-        shutil.rmtree(temp_path)
-
-    return zip_data
