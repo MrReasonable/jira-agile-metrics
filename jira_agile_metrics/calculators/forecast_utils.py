@@ -1,7 +1,8 @@
 """Utility functions for forecast calculations."""
 
 import logging
-from typing import Any, Callable, Dict
+from datetime import datetime
+from typing import Any, Callable, Dict, List
 
 import pandas as pd
 
@@ -162,3 +163,115 @@ def run_single_trial(
             "final_backlog": 0,
             "final_done": 0,
         }
+
+
+def find_completion_indices(done_trials: List[List[float]], target: int) -> List[int]:
+    """Find completion indices when done_trial exceeds target.
+
+    Args:
+        done_trials: List of done_trial lists from simulation trials.
+        target: Target value to find when each trial exceeds.
+
+    Returns:
+        List of completion indices. Each index represents the forecast period
+        (0 = first period) where the target was reached. Trials that don't
+        reach the target are skipped.
+    """
+    completion_indices = []
+    for done_trial in done_trials:
+        if not isinstance(done_trial, list) or len(done_trial) < 2:
+            continue
+        # Skip index 0 (initial state) and find where we reach the target
+        for idx in range(1, len(done_trial)):
+            if done_trial[idx] >= target:
+                # idx-1 corresponds to forecast_dates index (0 = first period)
+                completion_indices.append(idx - 1)
+                break
+    return completion_indices
+
+
+def extrapolate_date(idx: int, forecast_dates: List[Any]) -> datetime:
+    """Extrapolate a date beyond the forecast_dates range.
+
+    Args:
+        idx: Index position that may be beyond the forecast_dates range.
+        forecast_dates: List of forecast dates to extrapolate from.
+
+    Returns:
+        Extrapolated datetime based on the interval between forecast dates.
+
+    Raises:
+        ValueError: If forecast_dates is empty or idx is negative.
+    """
+    if not forecast_dates:
+        raise ValueError(
+            "Cannot extrapolate date: forecast_dates is empty. "
+            "At least one forecast date is required to calculate the interval."
+        )
+
+    if not isinstance(idx, int) or idx < 0:
+        raise ValueError(
+            f"Invalid index value: {idx}. " "Index must be a non-negative integer."
+        )
+
+    # Convert dates to pandas Timestamps for consistent handling
+    dates = [pd.Timestamp(d) for d in forecast_dates]
+    last_date = dates[-1]
+
+    # Calculate interval between dates
+    if len(dates) > 1:
+        interval = dates[1] - dates[0]
+    else:
+        interval = pd.Timedelta(days=1)
+
+    # Calculate steps beyond the last date
+    steps_beyond = idx - len(dates) + 1
+    extrapolated = last_date + steps_beyond * interval
+
+    # Convert to datetime if needed
+    if isinstance(extrapolated, pd.Timestamp):
+        return extrapolated.to_pydatetime()
+    return extrapolated
+
+
+def convert_indices_to_dates(
+    completion_indices: List[int], forecast_dates: List[Any]
+) -> List[datetime]:
+    """Convert completion indices to actual dates.
+
+    Args:
+        completion_indices: List of indices where completion occurred.
+        forecast_dates: List of forecast dates to map indices to.
+
+    Returns:
+        List of completion dates. Returns an empty list if forecast_dates
+        is empty or falsy. Handles extrapolation for indices beyond
+        the forecast_dates range.
+    """
+    if not forecast_dates:
+        return []
+
+    # Convert forecast_dates to list if needed
+    if hasattr(forecast_dates, "tolist"):
+        dates_list = forecast_dates.tolist()
+    else:
+        dates_list = list(forecast_dates)
+
+    completion_dates = []
+    for idx in completion_indices:
+        if idx < len(dates_list):
+            # Use the date directly from the list
+            date = dates_list[idx]
+            # Convert to datetime if needed
+            if isinstance(date, pd.Timestamp):
+                completion_dates.append(date.to_pydatetime())
+            elif isinstance(date, datetime):
+                completion_dates.append(date)
+            else:
+                # Try to convert to datetime
+                completion_dates.append(pd.Timestamp(date).to_pydatetime())
+        else:
+            # Extrapolate beyond the forecast range
+            completion_dates.append(extrapolate_date(idx, dates_list))
+
+    return completion_dates

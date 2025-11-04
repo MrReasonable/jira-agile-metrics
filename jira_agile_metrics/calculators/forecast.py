@@ -11,6 +11,11 @@ from ..calculator import Calculator
 from .burnup import BurnupCalculator
 from .burnup_chart_generator import BurnupChartGenerator
 from .cycletime import CycleTimeCalculator
+from .forecast_utils import (
+    convert_indices_to_dates,
+    extrapolate_date,
+    find_completion_indices,
+)
 from .forecast_validator import ForecastDataValidator
 from .monte_carlo_simulator import MonteCarloSimulator
 from .throughput_calculator import ThroughputCalculator
@@ -347,7 +352,13 @@ class BurnupForecastCalculator(Calculator):
             freq_str: Frequency string like 'daily', 'weekly', 'monthly', 'D', 'W', 'ME'
 
         Returns:
-            Pandas frequency code ('D', 'W', 'ME')
+            Pandas frequency code ('D', 'W', 'ME') or the original string if unrecognized.
+            Unknown strings are returned unchanged and will be validated by pandas.
+
+        Note:
+            If the frequency string is not recognized, it is returned as-is and will be
+            validated by pandas when used. This allows custom pandas frequency codes to
+            be passed through directly.
         """
         freq_str_lower = freq_str.lower().strip()
 
@@ -359,6 +370,10 @@ class BurnupForecastCalculator(Calculator):
         if freq_str_lower in ("monthly", "m", "month"):
             return "ME"  # Use 'ME' (Month End) instead of deprecated 'M'
         # Return as-is and let pandas validate
+        logger.debug(
+            "Unrecognized frequency string '%s' passed through for pandas validation",
+            freq_str,
+        )
         return freq_str
 
     def _calculate_throughput_data(self, cycle_data, done_column, forecast_params):
