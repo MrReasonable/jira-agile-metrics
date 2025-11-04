@@ -30,3 +30,28 @@ coverage.xml
 .vscode
 .flake8
 .pytest_cache
+
+# Local virtual environments and caches
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# Build and distribution artifacts
+build/
+dist/
+*.egg
+.eggs/
+
+# IDE/editor and OS files
+.idea/
+.DS_Store
+.ipynb_checkpoints/
+
+# Local environment files
+.env
+.env.*
+
+# Project outputs (if generated locally)
+output/

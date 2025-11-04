@@ -1,7 +1,9 @@
 # Jira Agile Metrics - Makefile
 # Provides common development and deployment tasks
 
-.PHONY: help install install-dev clean test test-functional test-e2e lint format check docker-build docker-run webapp run check-full test-all lint-fix test-coverage pylint
+.PHONY: help install install-dev clean test test-functional test-e2e lint format check docker-build docker-run webapp run check-full test-all lint-fix test-coverage pylint \
+	docker-test docker-test-functional docker-test-e2e docker-test-all docker-lint docker-format docker-check \
+	docker-cli docker-cli-verbose docker-compose-up docker-compose-down docker-build-prod
 
 # Python interpreter
 PYTHON = python3
@@ -51,6 +53,9 @@ help: ## Show this help message
 	@echo "  make lint         # Run linters"
 	@echo "  make format       # Format code with black"
 	@echo "  make docker-build # Build Docker images"
+	@echo "  make docker-test  # Run tests inside Docker"
+	@echo "  make docker-lint  # Run linters inside Docker"
+	@echo "  make docker-cli   # Run CLI via Docker"
 
 ## Development targets
 
@@ -185,6 +190,70 @@ docker-clean: ## Remove Docker images and containers
 	docker rmi $(DOCKER_IMAGE_DEV):latest 2>/dev/null || true
 	docker rmi $(DOCKER_IMAGE_WEBAPP):latest 2>/dev/null || true
 	@echo "$(GREEN)Docker cleanup complete$(NC)"
+
+# Additional Docker helpers for portability
+
+docker-build-prod: ## Build production CLI Docker image
+	@echo "$(GREEN)Building production Docker image...$(NC)"
+	docker build -t $(DOCKER_IMAGE_PROD):latest -f Dockerfile .
+
+docker-test: docker-build-dev ## Run tests inside Docker
+	@echo "$(GREEN)Running tests in Docker...$(NC)"
+	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest pytest -v
+
+docker-test-functional: docker-build-dev ## Run functional tests inside Docker
+	@echo "$(GREEN)Running functional tests in Docker...$(NC)"
+	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest pytest -v jira_agile_metrics/tests/functional
+
+docker-test-e2e: docker-build-dev ## Run e2e tests inside Docker
+	@echo "$(GREEN)Running e2e tests in Docker...$(NC)"
+	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest pytest -v -m e2e jira_agile_metrics/tests/e2e
+
+docker-test-all: ## Run unit, functional, and e2e tests inside Docker
+	@echo "$(GREEN)Running all tests in Docker...$(NC)"
+	$(MAKE) docker-test
+	$(MAKE) docker-test-functional
+	$(MAKE) docker-test-e2e
+
+docker-lint: docker-build-dev ## Run linters (ruff and pylint) inside Docker
+	@echo "$(GREEN)Running ruff and pylint in Docker...$(NC)"
+	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest sh -c "ruff check $(LINT_PATHS) && pylint $(LINT_PATHS)"
+
+docker-format: docker-build-dev ## Format code with black inside Docker
+	@echo "$(GREEN)Formatting with black in Docker...$(NC)"
+	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest black $(LINT_PATHS)
+
+docker-check: docker-build-dev ## Run format-check and linters inside Docker
+	@echo "$(GREEN)Checking formatting and lint in Docker...$(NC)"
+	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest black $(LINT_PATHS) --check
+	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest ruff check $(LINT_PATHS)
+	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest pylint $(LINT_PATHS)
+
+docker-cli: docker-build-prod ## Run CLI with config.yml via Docker
+	@echo "$(GREEN)Running CLI via Docker...$(NC)"
+	@if [ ! -f config.yml ]; then echo "$(RED)Error: config.yml not found$(NC)"; exit 1; fi
+	@if [ -f .env ]; then \
+		docker run --rm -v $(PWD):/data --env-file .env -e MPLBACKEND=agg $(DOCKER_IMAGE_PROD):latest -vv /data/config.yml; \
+	else \
+		docker run --rm -v $(PWD):/data -e MPLBACKEND=agg $(DOCKER_IMAGE_PROD):latest -vv /data/config.yml; \
+	fi
+
+docker-cli-verbose: docker-build-prod ## Run CLI with extra verbose via Docker
+	@echo "$(GREEN)Running CLI via Docker (very verbose)...$(NC)"
+	@if [ ! -f config.yml ]; then echo "$(RED)Error: config.yml not found$(NC)"; exit 1; fi
+	@if [ -f .env ]; then \
+		docker run --rm -v $(PWD):/data --env-file .env -e MPLBACKEND=agg $(DOCKER_IMAGE_PROD):latest -vvv /data/config.yml; \
+	else \
+		docker run --rm -v $(PWD):/data -e MPLBACKEND=agg $(DOCKER_IMAGE_PROD):latest -vvv /data/config.yml; \
+	fi
+
+docker-compose-up: ## Start webapp via docker-compose
+	@echo "$(GREEN)Starting webapp with docker-compose...$(NC)"
+	docker compose up -d
+
+docker-compose-down: ## Stop webapp via docker-compose
+	@echo "$(YELLOW)Stopping webapp with docker-compose...$(NC)"
+	docker compose down
 
 ## CI/CD targets
 

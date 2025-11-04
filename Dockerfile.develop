@@ -45,13 +45,12 @@ RUN apt-get update && apt-get install -y \
     liblapack-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install requirments first to make future rebuilds faster
+# Install requirements first to make future rebuilds faster
 RUN pip install pytest
 COPY ./requirements.txt /requirements.txt
+COPY ./requirements-prod.txt /requirements-prod.txt
+COPY ./requirements-dev.txt /requirements-dev.txt
 RUN pip install --no-cache-dir -r /requirements.txt
-
-COPY . /app
-RUN pip install -e /app
 
 # And allow the host to mount the latest source code on top of it
 VOLUME /app
