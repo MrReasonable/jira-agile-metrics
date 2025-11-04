@@ -57,7 +57,10 @@ class ThroughputCalculator(Calculator):
             elif output_extension == ".xlsx":
                 data.to_excel(output_file, "Throughput", header=True)
             else:
-                data.to_csv(output_file, header=True)
+                # Reset index to convert it to a named column
+                data_to_write = data.reset_index()
+                data_to_write.columns = ["Period starting", "count"]
+                data_to_write.to_csv(output_file, header=True, index=False)
 
     def write_chart(self, data, output_file):
         """Write throughput chart to output file."""
@@ -137,11 +140,14 @@ def calculate_throughput(cycle_data, frequency, window=None):
     if len(completed_data.index) == 0:
         return pd.DataFrame([], columns=["count"], index=[])
 
+    # Normalize frequency: convert deprecated 'M' to 'ME' (Month End)
+    normalized_frequency = frequency if frequency != "M" else "ME"
+
     throughput = (
         completed_data.rename(columns={"key": "count"})
         .groupby("completed_timestamp")
         .count()
-        .resample(frequency)
+        .resample(normalized_frequency)
         .sum()
     )
 
@@ -152,12 +158,14 @@ def calculate_throughput(cycle_data, frequency, window=None):
 
     if window:
         window_start = window_end - (
-            pd.tseries.frequencies.to_offset(frequency) * (window - 1)
+            pd.tseries.frequencies.to_offset(normalized_frequency) * (window - 1)
         )
 
     if window_start is pd.NaT or window_end is pd.NaT:
         return pd.DataFrame([], columns=["count"], index=[])
 
     return throughput.reindex(
-        index=pd.date_range(start=window_start, end=window_end, freq=frequency)
+        index=pd.date_range(
+            start=window_start, end=window_end, freq=normalized_frequency
+        )
     ).fillna(0)

@@ -2,6 +2,7 @@
 
 import logging
 import os
+from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
 import matplotlib.pyplot as plt
@@ -189,19 +190,88 @@ class BurnupChartGenerator:
             backlog_trials = chart_data.get("backlog_trials", [])
             done_trials = chart_data.get("done_trials", [])
 
-            if not forecast_dates or not backlog_trials or not done_trials:
+            if not forecast_dates:
+                logger.warning(
+                    "No forecast dates available. Cannot plot forecast fans."
+                )
                 return
 
-            # Plot backlog fan
-            self.plot_backlog_fan(ax, chart_data, forecast_dates)
+            if not backlog_trials:
+                logger.warning(
+                    "No backlog trials available. Skipping backlog forecast fan."
+                )
+            else:
+                # Plot backlog fan
+                self.plot_backlog_fan(ax, chart_data, forecast_dates)
 
-            # Plot done fan
-            self.plot_done_fan(ax, chart_data, forecast_dates)
+            if not done_trials:
+                logger.warning("No done trials available. Skipping done forecast fan.")
+            else:
+                # Plot done fan
+                self.plot_done_fan(ax, chart_data, forecast_dates)
 
         except (ValueError, TypeError) as e:
             # Catch ValueError/TypeError from matplotlib/numpy operations
             logger.error("Error plotting forecast fans: %s", e)
             raise ChartGenerationError(f"Failed to plot forecast fans: {e}") from e
+
+    def _extract_forecast_trials(self, trials: list, expected_length: int) -> list:
+        """Extract and validate forecast trials from trial data."""
+        forecast_trials = []
+        for idx, trial in enumerate(trials):
+            if not isinstance(trial, list):
+                logger.warning(
+                    "Trial %d skipped: not a list (type=%s, value=%s)",
+                    idx,
+                    type(trial).__name__,
+                    trial,
+                )
+                continue
+
+            # If trial length matches expected_length, assume it's already forecast-only
+            # Otherwise, assume it has initial state at index 0
+            if len(trial) == expected_length:
+                forecast_trial = trial
+            elif len(trial) > expected_length:
+                # Has initial state, skip first element
+                original_trial = trial
+                forecast_trial = trial[1:]
+                logger.debug(
+                    "Trial %d: initial-state-first variant detected (original_len=%d, "
+                    "forecast_len=%d, original=%s, forecast=%s)",
+                    idx,
+                    len(original_trial),
+                    len(forecast_trial),
+                    original_trial,
+                    forecast_trial,
+                )
+            else:
+                # Too short, skip
+                logger.warning(
+                    "Trial %d skipped: too short (length=%d, expected=%d, value=%s)",
+                    idx,
+                    len(trial),
+                    expected_length,
+                    trial,
+                )
+                continue
+
+            if len(forecast_trial) >= expected_length:
+                if len(forecast_trial) > expected_length:
+                    # Truncate if longer than expected
+                    original_forecast = forecast_trial
+                    forecast_trial = forecast_trial[:expected_length]
+                    logger.debug(
+                        "Trial %d truncated (original_len=%d, final_len=%d, "
+                        "original=%s, truncated=%s)",
+                        idx,
+                        len(original_forecast),
+                        len(forecast_trial),
+                        original_forecast,
+                        forecast_trial,
+                    )
+                forecast_trials.append(forecast_trial)
+        return forecast_trials
 
     def _plot_fan(
         self,
@@ -215,47 +285,63 @@ class BurnupChartGenerator:
         Args:
             ax: Matplotlib axes to plot on
             forecast_dates: List of dates for x-axis
-            trials: List of trial data arrays
+            trials: List of trial data arrays (each array has initial state
+                + forecast values)
             style: Dictionary with keys 'colors', 'line_style', 'line_color'
         """
         try:
-            if not trials:
+            if not trials or not forecast_dates:
                 return
 
-            colors = style.get("colors", ["lightblue", "blue"])
-            line_style = style.get("line_style", "--")
-            line_color = style.get("line_color", "b")
-
-            # Convert trials to numpy array for easier manipulation
-            trials_array = np.array(trials)
+            expected_length = len(forecast_dates)
+            forecast_trials = self._extract_forecast_trials(trials, expected_length)
+            if not forecast_trials:
+                return
 
             # Calculate percentiles for fan
+            trials_array = np.array(forecast_trials)
             percentiles = [10, 25, 50, 75, 90]
             fan_data = np.percentile(trials_array, percentiles, axis=0)
 
-            # Plot fan with transparency
-            for i, (p_low, p_high) in enumerate([(10, 90), (25, 75)]):
-                ax.fill_between(
-                    forecast_dates,
-                    fan_data[percentiles.index(p_low)],
-                    fan_data[percentiles.index(p_high)],
-                    alpha=0.3,
-                    color=colors[i],
-                )
-
-            # Plot median line
-            ax.plot(
-                forecast_dates,
-                fan_data[percentiles.index(50)],
-                f"{line_color}{line_style}",
-                alpha=0.7,
-                linewidth=1,
-            )
+            # Plot fan with transparency and median line
+            self._plot_fan_bands(ax, forecast_dates, fan_data, style)
 
         except (ValueError, TypeError) as e:
             # Catch ValueError/TypeError from matplotlib/numpy operations
             logger.error("Error plotting fan: %s", e)
             raise ChartGenerationError(f"Failed to plot fan: {e}") from e
+
+    def _plot_fan_bands(
+        self,
+        ax: plt.Axes,
+        forecast_dates: list,
+        fan_data: np.ndarray,
+        style: Dict[str, Any],
+    ) -> None:
+        """Plot fan bands and median line."""
+        percentiles = [10, 25, 50, 75, 90]
+        colors = style.get("colors", ["lightblue", "blue"])
+        line_style = style.get("line_style", "--")
+        line_color = style.get("line_color", "b")
+
+        # Plot fan with transparency
+        for i, (p_low, p_high) in enumerate([(10, 90), (25, 75)]):
+            ax.fill_between(
+                forecast_dates,
+                fan_data[percentiles.index(p_low)],
+                fan_data[percentiles.index(p_high)],
+                alpha=0.3,
+                color=colors[i],
+            )
+
+        # Plot median line
+        ax.plot(
+            forecast_dates,
+            fan_data[percentiles.index(50)],
+            f"{line_color}{line_style}",
+            alpha=0.7,
+            linewidth=1,
+        )
 
     def plot_backlog_fan(
         self, ax: plt.Axes, chart_data: Dict[str, Any], forecast_dates: list
@@ -323,20 +409,41 @@ class BurnupChartGenerator:
         try:
             quantile_data = chart_data.get("quantile_data", {})
             if not quantile_data:
+                logger.debug("No quantile data available for completion dates")
                 return
 
             # Plot vertical lines for completion dates
             colors = ["orange", "red", "darkred"]
+            quantile_order = ["50%", "75%", "90%"]  # Ensure consistent order
 
-            for i, (quantile, date) in enumerate(quantile_data.items()):
-                if date:
-                    ax.axvline(
-                        x=date,
-                        color=colors[i],
-                        linestyle="--",
-                        alpha=0.7,
-                        label=f"{quantile} completion",
-                    )
+            plotted_count = 0
+            for i, quantile in enumerate(quantile_order):
+                if quantile in quantile_data:
+                    date = quantile_data[quantile]
+                    if date:
+                        try:
+                            ax.axvline(
+                                x=date,
+                                color=colors[i],
+                                linestyle="--",
+                                alpha=0.7,
+                                linewidth=1.5,
+                                label=f"{quantile} completion",
+                            )
+                            plotted_count += 1
+                        except (ValueError, TypeError) as e:
+                            logger.warning(
+                                "Error plotting %s completion date %s: %s",
+                                quantile,
+                                date,
+                                e,
+                            )
+
+            if plotted_count == 0:
+                logger.debug(
+                    "No valid completion dates found in quantile_data: %s",
+                    quantile_data,
+                )
 
         except (ValueError, TypeError) as e:
             # Catch ValueError/TypeError from matplotlib operations
@@ -382,7 +489,13 @@ class BurnupChartGenerator:
             # Create annotation text
             annotation_text = "Trust Metrics:\n"
             for metric, value in trust_metrics.items():
-                if isinstance(value, (int, float)):
+                # Skip the use_dates flag
+                if metric == "use_dates":
+                    continue
+                # Handle datetime objects (from date-based percentiles)
+                if isinstance(value, datetime):
+                    annotation_text += f"{metric}: {value.strftime('%Y-%m-%d')}\n"
+                elif isinstance(value, (int, float)):
                     annotation_text += f"{metric}: {value:.2f}\n"
 
             # Add annotation to chart

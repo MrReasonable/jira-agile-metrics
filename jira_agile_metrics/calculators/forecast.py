@@ -43,8 +43,8 @@ class ForecastResults(TypedDict, total=False):
     """
 
     trust_metrics: Dict[str, Any]
-    backlog_trials: List[Dict[str, Any]]
-    done_trials: List[Dict[str, Any]]
+    backlog_trials: List[List[float]]
+    done_trials: List[List[float]]
     forecast_horizon_end: Optional[datetime]
     target: int
 
@@ -107,6 +107,21 @@ class BurnupForecastCalculator(Calculator):
                 sim_params,
             ) = validation_result
 
+            # Store target and forecast_horizon_end before running simulation
+            # (in case simulation fails)
+            # Ensure we always have a target value (default to 0 if missing)
+            self._forecast_results["target"] = (
+                sim_params.get("target", 0) if sim_params else 0
+            )
+            # forecast_params should always have forecast_horizon_end from validator,
+            # but handle case where it might be missing (e.g., in tests)
+            if forecast_params:
+                self._forecast_results["forecast_horizon_end"] = forecast_params.get(
+                    "forecast_horizon_end"
+                )
+            else:
+                self._forecast_results["forecast_horizon_end"] = None
+
             # Run Monte Carlo simulation
             simulation_result = self._monte_carlo_simulator.run_simulation(sim_params)
 
@@ -114,16 +129,14 @@ class BurnupForecastCalculator(Calculator):
             self._forecast_results["trust_metrics"] = simulation_result.get(
                 "trust_metrics", {}
             )
-            self._forecast_results["backlog_trials"] = list(
-                simulation_result.get("trials", [])
-            )
-            self._forecast_results["done_trials"] = list(
-                simulation_result.get("trials", [])
-            )
-            self._forecast_results["forecast_horizon_end"] = forecast_params[
-                "forecast_horizon_end"
+            # Extract backlog_trial and done_trial arrays from each trial dictionary
+            trials = simulation_result.get("trials", [])
+            self._forecast_results["backlog_trials"] = [
+                trial.get("backlog_trial", []) for trial in trials
             ]
-            self._forecast_results["target"] = sim_params.get("target", 0)
+            self._forecast_results["done_trials"] = [
+                trial.get("done_trial", []) for trial in trials
+            ]
 
             # Convert trials to DataFrame for return
             trials = simulation_result.get("trials", [])
@@ -132,10 +145,17 @@ class BurnupForecastCalculator(Calculator):
 
             # Convert trials list to DataFrame with trial columns
             trials_df = self._convert_trials_to_dataframe(trials)
+            # Return None if conversion failed (empty DataFrame indicates failure)
+            if trials_df.empty:
+                return None
             return trials_df
 
         except (ValueError, TypeError, KeyError, AttributeError) as e:
             logger.error("Error running burnup forecast: %s", e)
+            # Ensure target is set even if there's an error
+            # (it may have been set before the error occurred)
+            if self._forecast_results["target"] is None:
+                self._forecast_results["target"] = 0
             return None
 
     def _get_last_burnup_date(self):
@@ -208,12 +228,14 @@ class BurnupForecastCalculator(Calculator):
         if not trials:
             return pd.DataFrame()
 
-        if self._forecast_results.get("forecast_horizon_end") is None:
+        forecast_horizon_end = self._forecast_results.get("forecast_horizon_end")
+        if forecast_horizon_end is None:
             logger.warning("No forecast horizon available for trials conversion")
             return pd.DataFrame()
 
         last_date = self._get_last_burnup_date()
         if last_date is None:
+            logger.warning("No last date available for trials conversion")
             return pd.DataFrame()
 
         series_list = [
@@ -289,9 +311,55 @@ class BurnupForecastCalculator(Calculator):
         self, burnup_data, horizon_months: int = 6, freq: str = "D"
     ):
         """Setup forecast parameters."""
-        return self._validator.setup_forecast_parameters(
+        # Get frequency from config if available
+        throughput_frequency = self.settings.get(
+            "burnup_forecast_chart_throughput_frequency", None
+        )
+        if throughput_frequency:
+            # Convert frequency string to pandas frequency
+            freq = self._convert_frequency_string(throughput_frequency)
+
+        forecast_params = self._validator.setup_forecast_parameters(
             burnup_data, horizon_months=horizon_months, freq=freq
         )
+
+        if forecast_params:
+            # Add throughput window and smart_window settings
+            forecast_params["throughput_window"] = self.settings.get(
+                "burnup_forecast_chart_throughput_window", None
+            )
+            forecast_params["throughput_window_end"] = self.settings.get(
+                "burnup_forecast_chart_throughput_window_end", None
+            )
+            forecast_params["smart_window"] = self.settings.get(
+                "burnup_forecast_chart_smart_window", True
+            )
+            forecast_params["backlog_growth_window"] = self.settings.get(
+                "burnup_forecast_chart_backlog_growth_window", None
+            )
+
+        return forecast_params
+
+    def _convert_frequency_string(self, freq_str: str) -> str:
+        """Convert frequency string from config to pandas frequency code.
+
+        Args:
+            freq_str: Frequency string like 'daily', 'weekly', 'monthly', 'D', 'W', 'ME'
+
+        Returns:
+            Pandas frequency code ('D', 'W', 'ME')
+        """
+        freq_str_lower = freq_str.lower().strip()
+
+        # Map common strings to pandas frequencies
+        if freq_str_lower in ("daily", "d", "day"):
+            return "D"
+        if freq_str_lower in ("weekly", "w", "week"):
+            return "W"
+        if freq_str_lower in ("monthly", "m", "month"):
+            return "ME"  # Use 'ME' (Month End) instead of deprecated 'M'
+        # Return as-is and let pandas validate
+        return freq_str
 
     def _calculate_throughput_data(self, cycle_data, done_column, forecast_params):
         """Calculate throughput data."""
@@ -330,11 +398,13 @@ class BurnupForecastCalculator(Calculator):
             initial_done = burnup_data[self.settings["done_column"]].iloc[-1]
 
             # Generate forecast dates
-            forecast_horizon_end = forecast_params["forecast_horizon_end"]
+            # Normalize frequency: convert deprecated 'M' to 'ME' (Month End)
+            freq = forecast_params["freq"]
+            normalized_freq = freq if freq != "M" else "ME"
             forecast_dates = pd.date_range(
                 start=last_date + pd.Timedelta(days=1),
-                end=forecast_horizon_end,
-                freq=forecast_params["freq"],
+                end=forecast_params["forecast_horizon_end"],
+                freq=normalized_freq,
             ).tolist()
 
             # Setup samplers
@@ -347,6 +417,22 @@ class BurnupForecastCalculator(Calculator):
                 )
             )
 
+            # Calculate target - ensure it's greater than initial_done
+            target = self.settings.get("burnup_forecast_chart_target", None)
+            if target is None:
+                # Default to backlog + done, but ensure it exceeds current done
+                target = initial_backlog + initial_done
+            elif target <= initial_done:
+                # If target is set but already reached, use backlog + done
+                logger.warning(
+                    "Target %d is already reached (current done: %d). "
+                    "Using backlog + done (%d) as target instead.",
+                    target,
+                    initial_done,
+                    initial_backlog + initial_done,
+                )
+                target = initial_backlog + initial_done
+
             return {
                 "trials": self.settings.get("burnup_forecast_chart_trials", 1000),
                 "forecast_dates": forecast_dates,
@@ -354,9 +440,7 @@ class BurnupForecastCalculator(Calculator):
                 "backlog_growth_sampler": backlog_growth_sampler_func,
                 "initial_backlog": initial_backlog,
                 "initial_done": initial_done,
-                "target": self.settings.get(
-                    "burnup_forecast_chart_target", initial_backlog + initial_done
-                ),
+                "target": target,
             }
 
         except (ValueError, TypeError, KeyError, AttributeError) as e:
@@ -375,13 +459,22 @@ class BurnupForecastCalculator(Calculator):
                 logger.warning("No burnup data available for chart generation")
                 return
 
+            # Check if forecast results are available
+            backlog_trials = self._forecast_results.get("backlog_trials")
+            done_trials = self._forecast_results.get("done_trials")
+            if not backlog_trials and not done_trials:
+                logger.warning(
+                    "No forecast trial data available. "
+                    "Chart will show historical data only."
+                )
+
             # Prepare chart data
             chart_data = {
                 "forecast_dates": self._get_forecast_dates(),
-                "backlog_trials": self._forecast_results["backlog_trials"],
-                "done_trials": self._forecast_results["done_trials"],
-                "trust_metrics": self._forecast_results["trust_metrics"],
-                "target": self._forecast_results["target"],
+                "backlog_trials": backlog_trials or [],
+                "done_trials": done_trials or [],
+                "trust_metrics": self._forecast_results.get("trust_metrics", {}),
+                "target": self._forecast_results.get("target", 0),
                 "quantile_data": self._calculate_quantile_data(),
             }
 
@@ -426,21 +519,96 @@ class BurnupForecastCalculator(Calculator):
             logger.error("Error getting forecast dates: %s", e)
             return []
 
+    def _find_completion_indices(self, done_trials: list, target: int) -> list:
+        """Find completion indices when done_trial exceeds target."""
+        completion_indices = []
+        for done_trial in done_trials:
+            if not isinstance(done_trial, list) or len(done_trial) < 2:
+                continue
+            # Skip index 0 (initial state) and find where we reach the target
+            for idx in range(1, len(done_trial)):
+                if done_trial[idx] >= target:
+                    # idx-1 corresponds to forecast_dates index
+                    completion_indices.append(idx - 1)
+                    break
+        return completion_indices
+
+    def _extrapolate_date(self, idx: int, forecast_dates: list) -> datetime:
+        """Extrapolate a date beyond the forecast_dates range.
+
+        Args:
+            idx: Index position that is beyond the forecast_dates range.
+            forecast_dates: List of forecast dates to extrapolate from.
+
+        Returns:
+            Extrapolated datetime based on the interval between forecast dates.
+
+        Raises:
+            ValueError: If forecast_dates is empty or idx is negative.
+        """
+        # Validate forecast_dates is not empty
+        if not forecast_dates:
+            raise ValueError(
+                "Cannot extrapolate date: forecast_dates is empty. "
+                "At least one forecast date is required to calculate the interval."
+            )
+
+        # Validate idx is non-negative
+        if not isinstance(idx, int) or idx < 0:
+            raise ValueError(
+                f"Invalid index value: {idx}. " "Index must be a non-negative integer."
+            )
+
+        last_date = forecast_dates[-1]
+        interval = (
+            forecast_dates[1] - forecast_dates[0]
+            if len(forecast_dates) > 1
+            else pd.Timedelta(days=1)
+        )
+        steps_beyond = idx - len(forecast_dates) + 1
+        return last_date + steps_beyond * interval
+
+    def _convert_indices_to_dates(
+        self, completion_indices: list, forecast_dates: list
+    ) -> list:
+        """Convert completion indices to actual dates.
+
+        Args:
+            completion_indices: List of indices where completion occurred.
+            forecast_dates: List of forecast dates to map indices to.
+
+        Returns:
+            List of completion dates. Returns an empty list if forecast_dates
+            is empty or falsy.
+        """
+        if not forecast_dates:
+            return []
+
+        completion_dates = []
+        for idx in completion_indices:
+            if idx < len(forecast_dates):
+                completion_dates.append(forecast_dates[idx])
+            else:
+                completion_dates.append(self._extrapolate_date(idx, forecast_dates))
+        return completion_dates
+
     def _calculate_quantile_data(self) -> Dict[str, Any]:
         """Calculate quantile data for completion dates."""
         try:
-            val = self._forecast_results["done_trials"]
-            if not isinstance(val, list) or not val:
+            done_trials = self._forecast_results.get("done_trials", [])
+            target = self._forecast_results.get("target", 0)
+            forecast_dates = self._get_forecast_dates()
+
+            if not done_trials or not target or not forecast_dates:
                 return {}
 
-            # Create defensive copy to avoid mutation side-effects
-            done_trials = val.copy()
+            completion_indices = self._find_completion_indices(done_trials, target)
+            if not completion_indices:
+                return {}
 
-            # Extract completion dates from trials
-            completion_dates = []
-            for trial in done_trials:
-                if isinstance(trial, dict) and "completion_date" in trial:
-                    completion_dates.append(trial["completion_date"])
+            completion_dates = self._convert_indices_to_dates(
+                completion_indices, forecast_dates
+            )
 
             if not completion_dates:
                 return {}

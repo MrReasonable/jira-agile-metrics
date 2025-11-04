@@ -176,6 +176,9 @@ class BottleneckChartsCalculator(Calculator):
 
     def write(self):
         results = self.get_result()
+        if results is None:
+            logger.warning("No results available for bottleneck charts, skipping write")
+            return
         durations_columns = results["columns"]
         output_settings = self.settings
         logger.debug(
@@ -246,6 +249,13 @@ class BottleneckChartsCalculator(Calculator):
         try:
             logger.info("Writing bottleneck stacked per issue chart to %s", output_file)
             plot_data = durations.dropna(how="all").iloc[:max_issues]
+            if plot_data.empty:
+                logger.warning(
+                    "No data available for bottleneck stacked per issue chart, "
+                    "skipping %s",
+                    output_file,
+                )
+                return
             fig, ax = plt.subplots(figsize=(12, 6))
             plot_data.plot(kind="bar", stacked=True, ax=ax)
             ax.set_xlabel("Issue key")
@@ -258,7 +268,7 @@ class BottleneckChartsCalculator(Calculator):
             fig.savefig(output_file, bbox_inches="tight", dpi=300)
             plt.close(fig)
             logger.info("Successfully wrote %s", output_file)
-        except (IOError, OSError, ValueError, TypeError) as e:
+        except (IOError, OSError, ValueError, TypeError, IndexError) as e:
             logger.error(
                 "Error writing bottleneck stacked per issue chart to %s: %s\n%s",
                 output_file,
@@ -270,6 +280,13 @@ class BottleneckChartsCalculator(Calculator):
         """Write stacked aggregate bottleneck chart to file."""
         try:
             logger.info("Writing bottleneck stacked aggregate chart to %s", output_file)
+            if durations.empty:
+                logger.warning(
+                    "No data available for bottleneck stacked aggregate chart, "
+                    "skipping %s",
+                    output_file,
+                )
+                return
             if aggfunc == "mean":
                 agg = durations.mean(skipna=True)
                 title = "Average time spent in each column (all issues)"
@@ -291,7 +308,7 @@ class BottleneckChartsCalculator(Calculator):
             fig.savefig(output_file, bbox_inches="tight", dpi=300)
             plt.close(fig)
             logger.info("Successfully wrote %s", output_file)
-        except (IOError, OSError, ValueError, TypeError) as e:
+        except (IOError, OSError, ValueError, TypeError, IndexError) as e:
             logger.error(
                 "Error writing bottleneck stacked aggregate chart to %s: %s\n%s",
                 output_file,
@@ -303,6 +320,12 @@ class BottleneckChartsCalculator(Calculator):
         """Write bottleneck boxplot chart to file."""
         try:
             logger.info("Writing bottleneck boxplot chart to %s", output_file)
+            if durations.empty:
+                logger.warning(
+                    "No data available for bottleneck boxplot chart, skipping %s",
+                    output_file,
+                )
+                return
             fig, ax = plt.subplots(figsize=(10, 5))
             sns.boxplot(data=durations, ax=ax)
             ax.set_xlabel("Column")
@@ -313,7 +336,7 @@ class BottleneckChartsCalculator(Calculator):
             fig.savefig(output_file, bbox_inches="tight", dpi=300)
             plt.close(fig)
             logger.info("Successfully wrote %s", output_file)
-        except (IOError, OSError, ValueError, TypeError) as e:
+        except (IOError, OSError, ValueError, TypeError, IndexError) as e:
             logger.error(
                 "Error writing bottleneck boxplot chart to %s: %s\n%s",
                 output_file,
@@ -325,6 +348,12 @@ class BottleneckChartsCalculator(Calculator):
         """Write violin plot chart for bottleneck analysis."""
         try:
             logger.info("Writing bottleneck violin chart to %s", output_file)
+            if durations.empty:
+                logger.warning(
+                    "No data available for bottleneck violin chart, skipping %s",
+                    output_file,
+                )
+                return
             fig, ax = plt.subplots(figsize=(10, 5))
             sns.violinplot(data=durations, ax=ax, cut=0)
             ax.set_xlabel("Column")
@@ -335,7 +364,7 @@ class BottleneckChartsCalculator(Calculator):
             fig.savefig(output_file, bbox_inches="tight", dpi=300)
             plt.close(fig)
             logger.info("Successfully wrote %s", output_file)
-        except (IOError, OSError, ValueError, TypeError) as e:
+        except (IOError, OSError, ValueError, TypeError, IndexError) as e:
             logger.error(
                 "Error writing bottleneck violin chart to %s: %s\n%s",
                 output_file,

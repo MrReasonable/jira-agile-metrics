@@ -62,7 +62,11 @@ class CFDCalculator(Calculator):
             elif output_extension == ".xlsx":
                 data.to_excel(output_file, "CFD")
             else:
-                data.to_csv(output_file)
+                # Reset index to convert it to a named column
+                column_names = list(data.columns)
+                data_to_write = data.reset_index()
+                data_to_write.columns = ["Date"] + column_names
+                data_to_write.to_csv(output_file, header=True, index=False)
 
     def write_chart(self, data, output_file):
         """Write CFD chart to output file."""

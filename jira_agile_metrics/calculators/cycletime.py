@@ -162,8 +162,21 @@ def calculate_cycle_times(params):
         params.config.config["query_attribute"],
     )
 
+    total_issues_found = 0
     for criteria in params.queries:
-        for issue in params.query_manager.find_issues(criteria["jql"]):
+        issues = params.query_manager.find_issues(criteria["jql"])
+        issues_count = len(issues)
+        total_issues_found += issues_count
+
+        if issues_count == 0:
+            logger.warning(
+                "No issues found for query: %s. "
+                "Check your JQL query, authentication, "
+                "and ensure there are matching issues in JIRA.",
+                criteria["jql"],
+            )
+
+        for issue in issues:
             processing_params = IssueProcessingParams(
                 {
                     "criteria": criteria,
@@ -177,6 +190,16 @@ def calculate_cycle_times(params):
             item = _process_single_issue(issue, processing_params)
             for k, v in item.items():
                 series[k]["data"].append(v)
+
+    if total_issues_found == 0:
+        logger.warning(
+            "No issues were found for any query. "
+            "This will result in empty CSV files and no charts. "
+            "Please verify: "
+            "1. JIRA credentials are correct (check .env file or config.yml) "
+            "2. The JQL query matches issues in your JIRA instance "
+            "3. You have permission to view the issues"
+        )
 
     if len(unmapped_statuses) > 0:
         logger.warning(

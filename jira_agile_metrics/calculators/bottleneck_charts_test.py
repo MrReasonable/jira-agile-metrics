@@ -274,3 +274,131 @@ def test_calculate_column_durations_per_column_invalid_negative_handling():
         calculate_column_durations_per_column(
             cycle_data, cycle_names, negative_duration_handling="invalid_option"
         )
+
+
+def test_write_stacked_per_issue_empty(query_manager, settings, tmp_path):
+    """Test write_stacked_per_issue handles empty data gracefully."""
+    empty_data = pd.DataFrame(columns=["Backlog", "Next", "Build"])
+    empty_results = {CycleTimeCalculator: pd.DataFrame(columns=["key"])}
+
+    calculator = BottleneckChartsCalculator(query_manager, settings, empty_results)
+    calculator.run()
+
+    # Create a temporary file for the chart
+    output_file = tmp_path / "test_chart.png"
+
+    # This should not raise an error, but return early with a warning
+    calculator.write_stacked_per_issue(empty_data, output_file, max_issues=30)
+
+    # File should not be created when data is empty
+    assert not output_file.exists()
+
+
+def test_write_stacked_aggregate_empty(query_manager, settings, tmp_path):
+    """Test write_stacked_aggregate handles empty data gracefully."""
+    empty_data = pd.DataFrame(columns=["Backlog", "Next", "Build"])
+    empty_results = {CycleTimeCalculator: pd.DataFrame(columns=["key"])}
+
+    calculator = BottleneckChartsCalculator(query_manager, settings, empty_results)
+    calculator.run()
+
+    output_file = tmp_path / "test_chart.png"
+
+    # Should not raise an error
+    calculator.write_stacked_aggregate(empty_data, output_file, aggfunc="mean")
+    calculator.write_stacked_aggregate(empty_data, output_file, aggfunc="median")
+
+    # File should not be created when data is empty
+    assert not output_file.exists()
+
+
+def test_write_boxplot_empty(query_manager, settings, tmp_path):
+    """Test write_boxplot handles empty data gracefully."""
+    empty_data = pd.DataFrame(columns=["Backlog", "Next", "Build"])
+    empty_results = {CycleTimeCalculator: pd.DataFrame(columns=["key"])}
+
+    calculator = BottleneckChartsCalculator(query_manager, settings, empty_results)
+    calculator.run()
+
+    output_file = tmp_path / "test_chart.png"
+
+    # Should not raise an error
+    calculator.write_boxplot(empty_data, output_file)
+
+    # File should not be created when data is empty
+    assert not output_file.exists()
+
+
+def test_write_violin_empty(query_manager, settings, tmp_path):
+    """Test write_violin handles empty data gracefully."""
+    empty_data = pd.DataFrame(columns=["Backlog", "Next", "Build"])
+    empty_results = {CycleTimeCalculator: pd.DataFrame(columns=["key"])}
+
+    calculator = BottleneckChartsCalculator(query_manager, settings, empty_results)
+    calculator.run()
+
+    output_file = tmp_path / "test_chart.png"
+
+    # Should not raise an error
+    calculator.write_violin(empty_data, output_file)
+
+    # File should not be created when data is empty
+    assert not output_file.exists()
+
+
+def test_bottleneck_calculator_write_no_results(query_manager, settings, tmp_path):
+    """Test bottleneck calculator write() method when run() hasn't been called."""
+    settings.update(
+        {
+            "bottleneck_stacked_per_issue_chart": str(
+                tmp_path / "stacked_per_issue.png"
+            ),
+        }
+    )
+
+    calculator = BottleneckChartsCalculator(query_manager, settings, {})
+    # Don't call run() - results will be None
+
+    # Should not raise an error, but return early
+    calculator.write()
+
+    # No files should be created
+    assert not (tmp_path / "stacked_per_issue.png").exists()
+
+
+def test_bottleneck_calculator_write_empty_data(query_manager, settings, tmp_path):
+    """Test bottleneck calculator write() method with empty data."""
+    empty_data = pd.DataFrame(columns=["key", "Backlog", "Next", "Build", "Done"])
+    empty_results = {CycleTimeCalculator: empty_data}
+
+    settings.update(
+        {
+            "bottleneck_stacked_per_issue_chart": str(
+                tmp_path / "stacked_per_issue.png"
+            ),
+            "bottleneck_stacked_aggregate_mean_chart": str(
+                tmp_path / "aggregate_mean.png"
+            ),
+            "bottleneck_stacked_aggregate_median_chart": str(
+                tmp_path / "aggregate_median.png"
+            ),
+            "bottleneck_boxplot_chart": str(tmp_path / "boxplot.png"),
+            "bottleneck_violin_chart": str(tmp_path / "violin.png"),
+        }
+    )
+
+    calculator = BottleneckChartsCalculator(query_manager, settings, empty_results)
+    result = calculator.run()
+    # Store result in the results dict (normally done by run_calculators framework)
+    # This allows get_result() to find it without accessing protected members
+    empty_results[BottleneckChartsCalculator] = result
+
+    # Should not raise an error even with empty data
+    calculator.write()
+
+    # No files should be created when data is empty
+    assert not (tmp_path / "stacked_per_issue.png").exists()
+    assert not (tmp_path / "aggregate_mean.png").exists()
+    assert not (tmp_path / "aggregate_median.png").exists()
+    assert not (tmp_path / "boxplot.png").exists()
+    assert not (tmp_path / "violin.png").exists()

@@ -42,4 +42,7 @@ class PercentilesCalculator(Calculator):
                     output_file, "Percentiles", header=True
                 )
             else:
-                file_data.to_csv(output_file, header=True)
+                # Reset index to convert it to a named column
+                file_data_to_write = file_data.reset_index()
+                file_data_to_write.columns = ["Quantile", "cycle_time"]
+                file_data_to_write.to_csv(output_file, header=True, index=False)

@@ -57,13 +57,42 @@ class ThroughputCalculator:
             freq = forecast_params.get("freq", "D")
             freq_label = forecast_params.get("freq_label", "day")
 
-            # Default window size based on frequency
+            # Get window size from forecast_params if available, otherwise use defaults
+            throughput_window = forecast_params.get("throughput_window")
+
+            # Calculate default window size based on frequency
             if freq == "D":
-                window_size = 30  # 30 days
+                default_window_size = 30  # 30 days
             elif freq == "W":
-                window_size = 4  # 4 weeks
+                default_window_size = 4  # 4 weeks
+            elif freq in ("M", "ME"):  # Support both old 'M' and new 'ME' codes
+                default_window_size = 1  # 1 month
             else:
-                window_size = 1  # 1 month
+                default_window_size = 1  # Default to 1 period
+
+            if throughput_window is not None:
+                # Validate throughput_window: must be an integer greater than zero
+                try:
+                    # Attempt to convert string to int if needed
+                    window_size = int(throughput_window)
+                    if window_size <= 0:
+                        raise ValueError(
+                            f"throughput_window must be greater than zero, "
+                            f"got {window_size}"
+                        )
+                except (ValueError, TypeError) as e:
+                    # Fall back to frequency-based default and log warning
+                    logger.warning(
+                        "Invalid throughput_window value '%s' "
+                        "(expected integer > 0): %s. "
+                        "Falling back to frequency-based default: %s",
+                        throughput_window,
+                        e,
+                        default_window_size,
+                    )
+                    window_size = default_window_size
+            else:
+                window_size = default_window_size
 
             # Read smart_window from forecast_params with validation
             smart_window_raw = forecast_params.get("smart_window", True)
@@ -312,7 +341,7 @@ class ThroughputCalculator:
                     min_window // 7, min(data_driven_window // 7, max_window // 7)
                 )
                 return max(2, weeks)  # At least 2 weeks
-            if freq == "M":
+            if freq in ("M", "ME"):  # Support both old 'M' and new 'ME' codes
                 # Convert days to months
                 months = max(1, min(data_driven_window // 30, 3))
                 return months
@@ -333,7 +362,7 @@ class ThroughputCalculator:
                 return end_date - pd.Timedelta(days=periods)
             if freq == "W":
                 return end_date - pd.Timedelta(weeks=periods)
-            if freq == "M":
+            if freq in ("M", "ME"):  # Support both old 'M' and new 'ME' codes
                 return end_date - pd.DateOffset(months=periods)
             return end_date - pd.Timedelta(days=periods)
 

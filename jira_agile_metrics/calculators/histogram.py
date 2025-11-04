@@ -104,7 +104,10 @@ class HistogramCalculator(Calculator):
                     output_file, "Histogram", header=True
                 )
             else:
-                file_data.to_csv(output_file, header=True)
+                # Reset index to convert it to a named column
+                file_data_to_write = file_data.reset_index()
+                file_data_to_write.columns = ["Range", "Items"]
+                file_data_to_write.to_csv(output_file, header=True, index=False)
 
     def write_chart(self, _data, output_file):
         """Write histogram chart to output file.
@@ -233,7 +236,10 @@ class HistogramCalculator(Calculator):
                     output_file, "LeadTimeHistogram", header=True
                 )
             else:
-                file_data.to_csv(output_file, header=True)
+                # Reset index to convert it to a named column
+                file_data_to_write = file_data.reset_index()
+                file_data_to_write.columns = ["Range", "Items"]
+                file_data_to_write.to_csv(output_file, header=True, index=False)
 
     def write_lead_time_chart(self, _data, output_file):
         """Write lead time histogram chart to output file.
