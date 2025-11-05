@@ -169,6 +169,27 @@ def _is_path_key(key):
     return False
 
 
+def _transform_list_item(item, base_path, is_path, validate_paths, key):
+    """Transform a single list item for path conversion.
+
+    Args:
+        item: List item to transform (string, dict, or other type)
+        base_path: Base directory to resolve relative paths against
+        is_path: Whether the item should be treated as a file path
+        validate_paths: If True, validate that converted paths exist
+        key: Parent key for nested structures (used for propagation)
+
+    Returns:
+        Transformed item: os.path.join(base_path, item) for relative strings when
+        is_path is True, _make_paths_absolute(...) for dicts, or item otherwise
+    """
+    if isinstance(item, str) and not os.path.isabs(item) and is_path:
+        return os.path.join(base_path, item)
+    if isinstance(item, dict):
+        return _make_paths_absolute(item, base_path, validate_paths, key)
+    return item
+
+
 def _make_paths_absolute(settings, base_path, validate_paths=False, parent_key=None):
     """Recursively convert relative file paths in settings to absolute paths.
 
@@ -212,15 +233,7 @@ def _make_paths_absolute(settings, base_path, validate_paths=False, parent_key=N
             # Handle lists that may contain file paths
             # For list elements, use the list's key to determine if elements are paths
             result[key] = [
-                (
-                    os.path.join(base_path, item)
-                    if isinstance(item, str) and not os.path.isabs(item) and is_path
-                    else (
-                        _make_paths_absolute(item, base_path, validate_paths, key)
-                        if isinstance(item, dict)
-                        else item
-                    )
-                )
+                _transform_list_item(item, base_path, is_path, validate_paths, key)
                 for item in value
             ]
         elif isinstance(value, dict):
