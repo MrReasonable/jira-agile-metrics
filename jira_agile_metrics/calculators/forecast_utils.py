@@ -199,6 +199,8 @@ def extrapolate_date(idx: int, forecast_dates: List[Any]) -> datetime:
 
     Returns:
         Extrapolated datetime based on the interval between forecast dates.
+        If idx is within the forecast_dates range, returns the corresponding
+        forecast date converted to datetime.
 
     Raises:
         ValueError: If forecast_dates is empty or idx is negative.
@@ -206,14 +208,22 @@ def extrapolate_date(idx: int, forecast_dates: List[Any]) -> datetime:
     if not forecast_dates:
         raise ValueError(
             "Cannot extrapolate date: forecast_dates is empty. "
-            "At least one forecast date is required to calculate the interval."
+            "At least one forecast date is required."
         )
 
     if not isinstance(idx, int) or idx < 0:
         raise ValueError(
-            f"Invalid index value: {idx}. " "Index must be a non-negative integer."
+            f"Invalid index value: {idx}. Index must be a non-negative integer."
         )
 
+    # If idx is within the forecast_dates range, return the corresponding date
+    if idx < len(forecast_dates):
+        date = pd.Timestamp(forecast_dates[idx])
+        if isinstance(date, pd.Timestamp):
+            return date.to_pydatetime()
+        return date
+
+    # Only extrapolate when idx >= len(forecast_dates)
     # Convert dates to pandas Timestamps for consistent handling
     dates = [pd.Timestamp(d) for d in forecast_dates]
     last_date = dates[-1]
@@ -269,7 +279,16 @@ def convert_indices_to_dates(
                 completion_dates.append(date)
             else:
                 # Try to convert to datetime
-                completion_dates.append(pd.Timestamp(date).to_pydatetime())
+                try:
+                    completion_dates.append(pd.Timestamp(date).to_pydatetime())
+                except Exception as e:
+                    error_msg = (
+                        f"Failed to convert date to datetime at index {idx}: "
+                        f"value={repr(date)}, type={type(date).__name__}, "
+                        f"error={str(e)}"
+                    )
+                    logger.error(error_msg)
+                    raise ValueError(error_msg) from e
         else:
             # Extrapolate beyond the forecast range
             completion_dates.append(extrapolate_date(idx, dates_list))

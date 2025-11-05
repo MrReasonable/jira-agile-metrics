@@ -8,12 +8,12 @@ from typing import Any, Dict, List, Optional, TypedDict
 import pandas as pd
 
 from ..calculator import Calculator
+from ..utils import get_extension
 from .burnup import BurnupCalculator
 from .burnup_chart_generator import BurnupChartGenerator
 from .cycletime import CycleTimeCalculator
 from .forecast_utils import (
     convert_indices_to_dates,
-    extrapolate_date,
     find_completion_indices,
 )
 from .forecast_validator import ForecastDataValidator
@@ -21,6 +21,14 @@ from .monte_carlo_simulator import MonteCarloSimulator
 from .throughput_calculator import ThroughputCalculator
 
 logger = logging.getLogger(__name__)
+
+# Frequency mapping: common names to pandas frequency codes
+# Note: 'ME' (Month End) is used instead of deprecated 'M' (pandas 2.1+)
+FREQUENCY_MAP = {
+    "daily": "D",
+    "weekly": "W",
+    "monthly": "ME",
+}
 
 
 @dataclass
@@ -71,10 +79,13 @@ class BurnupForecastCalculator(Calculator):
         # Initialize service dependencies
         self._validator = ForecastDataValidator()
         self._throughput_calculator = ThroughputCalculator()
-        self._monte_carlo_simulator = MonteCarloSimulator()
-        # Set number of trials from settings (default 1000 for production)
-        self._monte_carlo_simulator.trials = self.settings.get(
-            "burnup_forecast_chart_trials", 1000
+        # Initialize Monte Carlo simulator with configurable parameters
+        # Note: random_seed is primarily for testing/debugging; in production
+        # it should typically be None to ensure true randomness in simulations
+        self._monte_carlo_simulator = MonteCarloSimulator(
+            trials=self.settings.get("burnup_forecast_chart_trials", 1000),
+            random_seed=self.settings.get("burnup_forecast_chart_random_seed", None),
+            confidence=self.settings.get("burnup_forecast_chart_confidence", 0.8),
         )
 
     def get_forecast_data(self):
@@ -348,32 +359,40 @@ class BurnupForecastCalculator(Calculator):
     def _convert_frequency_string(self, freq_str: str) -> str:
         """Convert frequency string from config to pandas frequency code.
 
+        Accepts canonical pandas frequency codes ('D', 'W', 'ME') or common names
+        ('daily', 'weekly', 'monthly'). All other values are returned unchanged for
+        pandas validation.
+
         Args:
-            freq_str: Frequency string like 'daily', 'weekly', 'monthly', 'D', 'W', 'ME'
+            freq_str: Frequency string (e.g., 'daily', 'weekly', 'monthly',
+                'D', 'W', 'ME')
 
         Returns:
-            Pandas frequency code ('D', 'W', 'ME') or the original string if unrecognized.
-            Unknown strings are returned unchanged and will be validated by pandas.
+            Pandas frequency code ('D', 'W', 'ME') or the original string
+            if unrecognized.
 
         Note:
-            If the frequency string is not recognized, it is returned as-is and will be
-            validated by pandas when used. This allows custom pandas frequency codes to
-            be passed through directly.
+            'ME' (Month End) is used instead of deprecated 'M'. This change was
+            introduced in pandas 2.1 where 'M' was deprecated in favor of 'ME' to
+            clarify that 'M' represents month-end frequency. Unknown strings are
+            returned as-is and will be validated by pandas, allowing custom pandas
+            frequency codes to be passed through directly.
         """
-        freq_str_lower = freq_str.lower().strip()
+        if not freq_str:
+            return freq_str
 
-        # Map common strings to pandas frequencies
-        if freq_str_lower in ("daily", "d", "day"):
-            return "D"
-        if freq_str_lower in ("weekly", "w", "week"):
-            return "W"
-        if freq_str_lower in ("monthly", "m", "month"):
-            return "ME"  # Use 'ME' (Month End) instead of deprecated 'M'
-        # Return as-is and let pandas validate
-        logger.debug(
-            "Unrecognized frequency string '%s' passed through for pandas validation",
-            freq_str,
-        )
+        freq_str_normalized = freq_str.lower().strip()
+
+        # Check if it's a common name
+        if freq_str_normalized in FREQUENCY_MAP:
+            return FREQUENCY_MAP[freq_str_normalized]
+
+        # If it's already a canonical pandas code, return as-is
+        if freq_str in ("D", "W", "ME"):
+            return freq_str
+
+        # Unrecognized value - return as-is for pandas validation
+        logger.debug("Unrecognized frequency string '%s' passed through", freq_str)
         return freq_str
 
     def _calculate_throughput_data(self, cycle_data, done_column, forecast_params):
@@ -463,8 +482,12 @@ class BurnupForecastCalculator(Calculator):
             return None
 
     def write(self):
-        """Write the burnup forecast chart to file."""
+        """Write the burnup forecast chart and data files to disk."""
         try:
+            # Write data files if configured
+            self._write_data_files()
+
+            # Write chart if configured
             if not self.settings.get("burnup_forecast_chart"):
                 return
 
@@ -510,6 +533,72 @@ class BurnupForecastCalculator(Calculator):
         except (ValueError, TypeError, KeyError, AttributeError) as e:
             logger.error("Error writing burnup forecast chart: %s", e)
 
+    def _write_data_files(self):
+        """Write forecast data to CSV/JSON/XLSX files if configured."""
+        output_files = self.settings.get("burnup_forecast_chart_data")
+        if not output_files:
+            logger.debug("No output file specified for burnup forecast chart data")
+            return
+
+        # Support both single file path (string) and list of files
+        if not isinstance(output_files, list):
+            output_files = [output_files]
+
+        # Get forecast trials data
+        trials_df = self.get_result()
+        if trials_df is None or trials_df.empty:
+            logger.warning(
+                "No forecast trial data available to write. "
+                "Forecast may not have been calculated successfully."
+            )
+            return
+
+        for output_file in output_files:
+            output_extension = get_extension(output_file)
+            logger.info("Writing burnup forecast data to %s", output_file)
+
+            try:
+                # Reset index to make date a column
+                # reset_index() creates a column from the index (dates)
+                # If index has no name, the column will be named "index"
+                # We'll rename it to "Date" for clarity
+                trials_df_reset = trials_df.reset_index()
+                # Get the name of the first column (the date column created from index)
+                date_col_name = trials_df_reset.columns[0]
+                if date_col_name != "Date":
+                    trials_df_reset.rename(
+                        columns={date_col_name: "Date"}, inplace=True
+                    )
+
+                if output_extension == ".json":
+                    # Convert to JSON with date as column
+                    trials_df_reset.to_json(
+                        output_file, date_format="iso", orient="records", index=False
+                    )
+                elif output_extension == ".xlsx":
+                    # Write to Excel
+                    trials_df_reset.to_excel(
+                        output_file,
+                        sheet_name="Forecast Trials",
+                        header=True,
+                        index=False,
+                    )
+                else:
+                    # Default to CSV
+                    trials_df_reset.to_csv(
+                        output_file,
+                        header=True,
+                        index=False,
+                        date_format="%Y-%m-%d",
+                    )
+
+            except (IOError, OSError, ValueError, TypeError) as e:
+                logger.error(
+                    "Error writing burnup forecast data to %s: %s",
+                    output_file,
+                    e,
+                )
+
     def _get_forecast_dates(self) -> list:
         """Get forecast dates for chart generation."""
         try:
@@ -534,79 +623,6 @@ class BurnupForecastCalculator(Calculator):
             logger.error("Error getting forecast dates: %s", e)
             return []
 
-    def _find_completion_indices(self, done_trials: list, target: int) -> list:
-        """Find completion indices when done_trial exceeds target."""
-        completion_indices = []
-        for done_trial in done_trials:
-            if not isinstance(done_trial, list) or len(done_trial) < 2:
-                continue
-            # Skip index 0 (initial state) and find where we reach the target
-            for idx in range(1, len(done_trial)):
-                if done_trial[idx] >= target:
-                    # idx-1 corresponds to forecast_dates index
-                    completion_indices.append(idx - 1)
-                    break
-        return completion_indices
-
-    def _extrapolate_date(self, idx: int, forecast_dates: list) -> datetime:
-        """Extrapolate a date beyond the forecast_dates range.
-
-        Args:
-            idx: Index position that is beyond the forecast_dates range.
-            forecast_dates: List of forecast dates to extrapolate from.
-
-        Returns:
-            Extrapolated datetime based on the interval between forecast dates.
-
-        Raises:
-            ValueError: If forecast_dates is empty or idx is negative.
-        """
-        # Validate forecast_dates is not empty
-        if not forecast_dates:
-            raise ValueError(
-                "Cannot extrapolate date: forecast_dates is empty. "
-                "At least one forecast date is required to calculate the interval."
-            )
-
-        # Validate idx is non-negative
-        if not isinstance(idx, int) or idx < 0:
-            raise ValueError(
-                f"Invalid index value: {idx}. " "Index must be a non-negative integer."
-            )
-
-        last_date = forecast_dates[-1]
-        interval = (
-            forecast_dates[1] - forecast_dates[0]
-            if len(forecast_dates) > 1
-            else pd.Timedelta(days=1)
-        )
-        steps_beyond = idx - len(forecast_dates) + 1
-        return last_date + steps_beyond * interval
-
-    def _convert_indices_to_dates(
-        self, completion_indices: list, forecast_dates: list
-    ) -> list:
-        """Convert completion indices to actual dates.
-
-        Args:
-            completion_indices: List of indices where completion occurred.
-            forecast_dates: List of forecast dates to map indices to.
-
-        Returns:
-            List of completion dates. Returns an empty list if forecast_dates
-            is empty or falsy.
-        """
-        if not forecast_dates:
-            return []
-
-        completion_dates = []
-        for idx in completion_indices:
-            if idx < len(forecast_dates):
-                completion_dates.append(forecast_dates[idx])
-            else:
-                completion_dates.append(self._extrapolate_date(idx, forecast_dates))
-        return completion_dates
-
     def _calculate_quantile_data(self) -> Dict[str, Any]:
         """Calculate quantile data for completion dates."""
         try:
@@ -617,11 +633,11 @@ class BurnupForecastCalculator(Calculator):
             if not done_trials or not target or not forecast_dates:
                 return {}
 
-            completion_indices = self._find_completion_indices(done_trials, target)
+            completion_indices = find_completion_indices(done_trials, target)
             if not completion_indices:
                 return {}
 
-            completion_dates = self._convert_indices_to_dates(
+            completion_dates = convert_indices_to_dates(
                 completion_indices, forecast_dates
             )
 

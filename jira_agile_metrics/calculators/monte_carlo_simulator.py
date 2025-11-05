@@ -2,13 +2,16 @@
 
 import logging
 import random
-from datetime import datetime
 from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
 
-from .forecast_utils import run_single_trial
+from .forecast_utils import (
+    convert_indices_to_dates,
+    find_completion_indices,
+    run_single_trial,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -140,17 +143,9 @@ class MonteCarloSimulator:
                 return {}
 
             # Calculate completion indices based on when done_trial exceeds target
-            # Note: done_trial[0] is initial state, so we skip it and look from index 1
-            completion_indices = []
-            for trial in trials:
-                done_trial = trial.get("done_trial", [])
-                if done_trial and len(done_trial) > 1:
-                    # Skip index 0 (initial state) and find where we reach the target
-                    for idx in range(1, len(done_trial)):
-                        if done_trial[idx] >= target:
-                            # idx-1 is forecast period index (0 = first period)
-                            completion_indices.append(idx - 1)
-                            break
+            # Extract done_trials from trial dictionaries
+            done_trials = [trial.get("done_trial", []) for trial in trials]
+            completion_indices = find_completion_indices(done_trials, target)
 
             if not completion_indices:
                 logger.warning(
@@ -188,9 +183,7 @@ class MonteCarloSimulator:
             Dictionary with date-based percentile metrics
         """
         # Convert completion indices to dates
-        completion_dates = self._convert_indices_to_dates(
-            completion_indices, forecast_dates
-        )
+        completion_dates = convert_indices_to_dates(completion_indices, forecast_dates)
 
         # Convert dates to numeric values (timestamps) for percentile
         # Use pandas Timestamp for conversion to ensure consistent handling
@@ -294,90 +287,6 @@ class MonteCarloSimulator:
 
         except (ValueError, TypeError, AttributeError):
             return False
-
-    def _extrapolate_date(self, idx: int, forecast_dates: List[Any]) -> datetime:
-        """Extrapolate a date beyond the forecast_dates range.
-
-        Args:
-            idx: Index position that may be beyond the forecast_dates range.
-            forecast_dates: List of forecast dates to extrapolate from.
-
-        Returns:
-            Extrapolated datetime based on the interval between forecast dates.
-
-        Raises:
-            ValueError: If forecast_dates is empty or idx is negative.
-        """
-        if not forecast_dates:
-            raise ValueError(
-                "Cannot extrapolate date: forecast_dates is empty. "
-                "At least one forecast date is required."
-            )
-
-        if not isinstance(idx, int) or idx < 0:
-            raise ValueError(
-                f"Invalid index value: {idx}. " "Index must be a non-negative integer."
-            )
-
-        # Convert dates to pandas Timestamps for consistent handling
-        dates = [pd.Timestamp(d) for d in forecast_dates]
-        last_date = dates[-1]
-
-        # Calculate interval between dates
-        if len(dates) > 1:
-            interval = dates[1] - dates[0]
-        else:
-            interval = pd.Timedelta(days=1)
-
-        # Calculate steps beyond the last date
-        steps_beyond = idx - len(dates) + 1
-        extrapolated = last_date + steps_beyond * interval
-
-        # Convert to datetime if needed
-        if isinstance(extrapolated, pd.Timestamp):
-            return extrapolated.to_pydatetime()
-        return extrapolated
-
-    def _convert_indices_to_dates(
-        self, completion_indices: List[int], forecast_dates: List[Any]
-    ) -> List[datetime]:
-        """Convert completion indices to actual dates.
-
-        Args:
-            completion_indices: List of indices where completion occurred.
-            forecast_dates: List of forecast dates to map indices to.
-
-        Returns:
-            List of completion dates. Handles extrapolation for indices beyond
-            the forecast_dates range.
-        """
-        if not forecast_dates:
-            return []
-
-        # Convert forecast_dates to list if needed
-        if hasattr(forecast_dates, "tolist"):
-            dates_list = forecast_dates.tolist()
-        else:
-            dates_list = list(forecast_dates)
-
-        completion_dates = []
-        for idx in completion_indices:
-            if idx < len(dates_list):
-                # Use the date directly from the list
-                date = dates_list[idx]
-                # Convert to datetime if needed
-                if isinstance(date, pd.Timestamp):
-                    completion_dates.append(date.to_pydatetime())
-                elif isinstance(date, datetime):
-                    completion_dates.append(date)
-                else:
-                    # Try to convert to datetime
-                    completion_dates.append(pd.Timestamp(date).to_pydatetime())
-            else:
-                # Extrapolate beyond the forecast range
-                completion_dates.append(self._extrapolate_date(idx, dates_list))
-
-        return completion_dates
 
     def setup_backlog_growth_sampler(
         self,
