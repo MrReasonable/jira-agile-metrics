@@ -228,8 +228,9 @@ class BurnupChartGenerator:
                 )
                 continue
 
+            # Extract forecast trial based on length
             # If trial length matches expected_length, assume it's already forecast-only
-            # Otherwise, assume it has initial state at index 0
+            # If longer, assume it has initial state at index 0 and skip first element
             if len(trial) == expected_length:
                 forecast_trial = trial
             elif len(trial) > expected_length:
@@ -256,21 +257,22 @@ class BurnupChartGenerator:
                 )
                 continue
 
-            if len(forecast_trial) >= expected_length:
-                if len(forecast_trial) > expected_length:
-                    # Truncate if longer than expected
-                    original_forecast = forecast_trial
-                    forecast_trial = forecast_trial[:expected_length]
-                    logger.debug(
-                        "Trial %d truncated (original_len=%d, final_len=%d, "
-                        "original=%s, truncated=%s)",
-                        idx,
-                        len(original_forecast),
-                        len(forecast_trial),
-                        original_forecast,
-                        forecast_trial,
-                    )
-                forecast_trials.append(forecast_trial)
+            # Truncate if longer than expected
+            # (shouldn't happen after skipping first element)
+            if len(forecast_trial) > expected_length:
+                original_forecast = forecast_trial
+                forecast_trial = forecast_trial[:expected_length]
+                logger.warning(
+                    "Trial %d truncated (original_len=%d, final_len=%d, "
+                    "original=%s, truncated=%s). "
+                    "This may indicate upstream data issues.",
+                    idx,
+                    len(original_forecast),
+                    len(forecast_trial),
+                    original_forecast,
+                    forecast_trial,
+                )
+            forecast_trials.append(forecast_trial)
         return forecast_trials
 
     def _plot_fan(
@@ -440,7 +442,7 @@ class BurnupChartGenerator:
                             )
 
             if plotted_count == 0:
-                logger.debug(
+                logger.warning(
                     "No valid completion dates found in quantile_data: %s",
                     quantile_data,
                 )

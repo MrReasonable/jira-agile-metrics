@@ -179,6 +179,22 @@ class BottleneckChartsCalculator(Calculator):
         if results is None:
             logger.warning("No results available for bottleneck charts, skipping write")
             return
+        # Validate results structure
+        if not isinstance(results, dict):
+            logger.warning(
+                "Invalid results structure for bottleneck charts: expected dict, "
+                "got %s (type: %s). Skipping write.",
+                results,
+                type(results).__name__,
+            )
+            return
+        if "columns" not in results:
+            logger.warning(
+                "Invalid results structure for bottleneck charts: "
+                "missing 'columns' key. Available keys: %s. Skipping write.",
+                list(results.keys()) if results else "none",
+            )
+            return
         durations_columns = results["columns"]
         output_settings = self.settings
         logger.debug(
