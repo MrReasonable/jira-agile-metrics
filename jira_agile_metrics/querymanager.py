@@ -256,13 +256,15 @@ class QueryManager:
                 found_item = next(
                     filter(
                         lambda h, f=field: h.field == f,
-                        itertools.chain.from_iterable([
-                            c.items
-                            for c in sorted(
-                                issue.changelog.histories,
-                                key=lambda c: dateutil.parser.parse(c.created),
+                        itertools.chain.from_iterable(
+                            (
+                                c.items
+                                for c in sorted(
+                                    issue.changelog.histories,
+                                    key=lambda c: dateutil.parser.parse(c.created),
+                                )
                             )
-                        ]),
+                        ),
                     )
                 )
                 # Support both real JIRA PropertyHolder attributes and test aliases
