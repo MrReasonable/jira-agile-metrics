@@ -79,10 +79,13 @@ def _create_default_options():
             "burnup_forecast_window": None,
             "burnup_forecast_chart": None,
             "burnup_forecast_chart_title": None,
+            "burnup_forecast_chart_data": None,
             "burnup_forecast_chart_target": None,
             "burnup_forecast_chart_deadline": None,
             "burnup_forecast_chart_deadline_confidence": None,
             "burnup_forecast_chart_trials": 1000,
+            "burnup_forecast_chart_confidence": 0.8,
+            "burnup_forecast_chart_random_seed": None,
             "burnup_forecast_chart_max_iterations": 9999,
             "burnup_forecast_chart_throughput_window": 60,
             "burnup_forecast_chart_throughput_window_end": None,
@@ -230,6 +233,7 @@ def _parse_int_values(output_config, settings):
         "burnup_forecast_chart_target",
         "burnup_forecast_chart_trials",
         "burnup_forecast_chart_max_iterations",
+        "burnup_forecast_chart_random_seed",
         "impediments_window",
         "defects_window",
         "debt_window",
@@ -239,12 +243,20 @@ def _parse_int_values(output_config, settings):
 
     for key in int_keys:
         if expand_key(key) in output_config:
-            settings[key] = force_int(key, output_config[expand_key(key)])
+            value = output_config[expand_key(key)]
+            # Special handling for random_seed which can be None
+            if key == "burnup_forecast_chart_random_seed" and value is None:
+                settings[key] = None
+            else:
+                settings[key] = force_int(key, value)
 
 
 def _parse_float_values(output_config, settings):
     """Parse float values from output config."""
-    float_keys = ["burnup_forecast_chart_deadline_confidence"]
+    float_keys = [
+        "burnup_forecast_chart_deadline_confidence",
+        "burnup_forecast_chart_confidence",
+    ]
 
     for key in float_keys:
         if expand_key(key) in output_config:
