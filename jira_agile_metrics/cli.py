@@ -197,21 +197,15 @@ def run_command_line(parser, args):
     try:
         config_path = os.path.abspath(args.config)
         config_dir = os.path.dirname(config_path)
-    except (FileNotFoundError, OSError):
-        print(
-            f"Error: Configuration file '{args.config}' not found. "
-            "Please provide a valid config file."
-        )
-        return
 
-    logger.debug("Parsing options from %s", config_path)
-    try:
+        logger.debug("Parsing options from %s", config_path)
         with open(config_path, encoding="utf-8") as config:
             options = config_to_options(
                 config.read(),
                 cwd=config_dir,
             )
-    except FileNotFoundError:
+    except (FileNotFoundError, OSError):
+        config_path = args.config  # Use original path for error message
         print(
             f"Error: Configuration file '{config_path}' not found. "
             "Please provide a valid config file."
