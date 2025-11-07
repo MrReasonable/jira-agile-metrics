@@ -38,11 +38,11 @@ class BurnupCalculator(Calculator):
 
         chart_data = self.get_result()
 
-        if len(chart_data.index) == 0:
+        if chart_data is None or len(chart_data.index) == 0:
             logger.warning("Unable to draw burnup chart with no data items")
             return
 
-        window = self.settings["burnup_window"]
+        window = self.settings.get("burnup_window")
         if window:
             start = chart_data.index.max() - pd.Timedelta(window, "D")
             chart_data = chart_data[start:]
@@ -54,7 +54,7 @@ class BurnupCalculator(Calculator):
 
         fig, ax = plt.subplots()
 
-        if self.settings["burnup_chart_title"]:
+        if self.settings.get("burnup_chart_title"):
             ax.set_title(self.settings["burnup_chart_title"])
 
         fig.autofmt_xdate()

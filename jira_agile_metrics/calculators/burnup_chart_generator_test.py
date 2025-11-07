@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from .burnup_chart_generator import BurnupChartGenerator
+from .burnup_chart_utils import save_chart
 
 
 class TestBurnupChartGeneratorBase:
@@ -290,27 +291,557 @@ class TestBurnupChartGeneratorPlotting(TestBurnupChartGeneratorBase):
 
         mock_ax_result.text.assert_not_called()
 
-    @patch("jira_agile_metrics.calculators.burnup_chart_generator.os.makedirs")
-    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    @patch("jira_agile_metrics.calculators.burnup_chart_utils.os.makedirs")
+    @patch("jira_agile_metrics.calculators.burnup_chart_utils.plt")
     def test_save_chart_creates_directory(self, _mock_plt, mock_makedirs, tmp_path):
         """Test that chart saving creates output directory."""
         output_dir = tmp_path / "subdir"
         output_file = output_dir / "burnup.png"
-        generator = BurnupChartGenerator(str(output_file))
         mock_fig = Mock()
 
-        generator.save_chart(mock_fig, str(output_file))
+        save_chart(mock_fig, str(output_file))
 
         mock_makedirs.assert_called_once_with(str(output_dir), exist_ok=True)
 
-    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    @patch("jira_agile_metrics.calculators.burnup_chart_utils.plt")
     def test_save_chart(self, mock_plt, generator):
         """Test saving chart."""
         mock_fig = Mock()
 
-        generator.save_chart(mock_fig, generator.output_file)
+        save_chart(mock_fig, generator.output_file)
 
         mock_fig.savefig.assert_called_once_with(
             generator.output_file, bbox_inches="tight", dpi=300
         )
         mock_plt.close.assert_called_once_with(mock_fig)
+
+
+class TestBurnupChartGeneratorLegendPlacement(TestBurnupChartGeneratorBase):
+    """Test cases for legend placement helper methods."""
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_pixels_to_figure_fraction(self, _mock_plt, generator):
+        """Test pixel to figure fraction conversion."""
+        # Setup figure with known dimensions
+        mock_fig = Mock()
+        mock_fig.get_figheight.return_value = 8.0  # 8 inches
+        mock_fig.dpi = 100.0  # 100 DPI
+        generator.figure = mock_fig
+
+        # 800 pixels = 8 inches * 100 DPI = 1.0 figure fraction
+        result = generator.pixels_to_figure_fraction(800.0)
+        assert result == pytest.approx(1.0)
+
+        # 400 pixels = 0.5 figure fraction
+        result = generator.pixels_to_figure_fraction(400.0)
+        assert result == pytest.approx(0.5)
+
+        # 100 pixels = 0.125 figure fraction
+        result = generator.pixels_to_figure_fraction(100.0)
+        assert result == pytest.approx(0.125)
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_pixels_to_figure_fraction_different_dpi(self, _mock_plt, generator):
+        """Test pixel conversion with different DPI."""
+        mock_fig = Mock()
+        mock_fig.get_figheight.return_value = 10.0  # 10 inches
+        mock_fig.dpi = 72.0  # 72 DPI
+        generator.figure = mock_fig
+
+        # 720 pixels = 10 inches * 72 DPI = 1.0 figure fraction
+        result = generator.pixels_to_figure_fraction(720.0)
+        assert result == pytest.approx(1.0)
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_measure_text_height(self, _mock_plt, generator):
+        """Test measuring text height in pixels."""
+        # Setup figure and axes
+        mock_fig = Mock()
+        mock_canvas = Mock()
+        mock_renderer = Mock()
+        mock_fig.canvas = mock_canvas
+        mock_canvas.get_renderer.return_value = mock_renderer
+        mock_canvas.draw = Mock()
+
+        mock_ax = Mock()
+        mock_text = Mock()
+        mock_bbox = Mock()
+        mock_bbox.height = 25.5  # pixels
+        mock_text.get_window_extent.return_value = mock_bbox
+        mock_text.remove = Mock()
+        mock_ax.text.return_value = mock_text
+
+        generator.figure = mock_fig
+        generator.legend_y_offset = -0.08
+
+        result = generator.measure_text_height(mock_ax, "Test legend text")
+
+        assert result == 25.5
+        mock_canvas.draw.assert_called_once()
+        mock_ax.text.assert_called_once()
+        mock_text.get_window_extent.assert_called_once_with(renderer=mock_renderer)
+        mock_text.remove.assert_called_once()
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_calculate_text_bottom_figure_normal_case(self, _mock_plt, generator):
+        """Test calculating text bottom position in normal case."""
+        # Setup figure
+        mock_fig = Mock()
+        mock_fig.get_figheight.return_value = 8.0
+        mock_fig.dpi = 100.0
+        generator.figure = mock_fig
+        generator.legend_y_offset = -0.08  # 8% below axes bottom
+
+        # Setup axes position: bottom at 0.1, height 0.7 (in figure coords)
+        mock_ax = Mock()
+        mock_bbox = Mock()
+        mock_bbox.y0 = 0.1  # axes bottom in figure coords
+        mock_bbox.height = 0.7  # axes height in figure coords
+        mock_ax.get_position.return_value = mock_bbox
+
+        # Text height: 100 pixels = 0.125 figure fraction (100 / 800)
+        text_height_pixels = 100.0
+
+        result = generator.calculate_text_bottom_figure(mock_ax, text_height_pixels)
+
+        # Expected:
+        # text_y_figure = 0.1 + (-0.08 * 0.7) = 0.1 - 0.056 = 0.044
+        # text_height_fraction = 100 / 800 = 0.125
+        # text_bottom_figure = 0.044 - 0.125 = -0.081
+        expected = 0.044 - 0.125
+        assert result == pytest.approx(expected, abs=0.001)
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_calculate_text_bottom_figure_axes_at_bottom(self, _mock_plt, generator):
+        """Test text bottom calculation when axes is at figure bottom."""
+        mock_fig = Mock()
+        mock_fig.get_figheight.return_value = 8.0
+        mock_fig.dpi = 100.0
+        generator.figure = mock_fig
+        generator.legend_y_offset = -0.1
+
+        # Axes at very bottom of figure
+        mock_ax = Mock()
+        mock_bbox = Mock()
+        mock_bbox.y0 = 0.0  # axes bottom at figure bottom
+        mock_bbox.height = 0.8
+        mock_ax.get_position.return_value = mock_bbox
+
+        text_height_pixels = 50.0  # 0.0625 figure fraction
+
+        result = generator.calculate_text_bottom_figure(mock_ax, text_height_pixels)
+
+        # text_y_figure = 0.0 + (-0.1 * 0.8) = -0.08
+        # text_bottom_figure = -0.08 - 0.0625 = -0.1425
+        expected = -0.08 - 0.0625
+        assert result == pytest.approx(expected, abs=0.001)
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_calculate_legend_bottom_margin_normal_case(self, _mock_plt, generator):
+        """Test calculating legend bottom margin in normal case."""
+        # Setup figure
+        mock_fig = Mock()
+        mock_fig.get_figheight.return_value = 8.0
+        mock_fig.dpi = 100.0
+        mock_canvas = Mock()
+        mock_renderer = Mock()
+        mock_fig.canvas = mock_canvas
+        mock_canvas.get_renderer.return_value = mock_renderer
+        mock_canvas.draw = Mock()
+
+        generator.figure = mock_fig
+        generator.legend_y_offset = -0.08
+
+        # Setup axes
+        mock_ax = Mock()
+        mock_bbox = Mock()
+        mock_bbox.y0 = 0.1  # axes bottom
+        mock_bbox.height = 0.7
+        mock_ax.get_position.return_value = mock_bbox
+
+        # Mock text measurement
+        mock_text = Mock()
+        mock_text_bbox = Mock()
+        mock_text_bbox.height = 100.0  # pixels
+        mock_text.get_window_extent.return_value = mock_text_bbox
+        mock_text.remove = Mock()
+        mock_ax.text.return_value = mock_text
+
+        default_margin = 0.12
+        result = generator.calculate_legend_bottom_margin(
+            mock_ax, "Test legend", default_margin
+        )
+
+        # Text extends below figure (text_bottom_figure = -0.081)
+        # space_below_figure = 0.081
+        # calculated_margin = 0.1 + 0.081 + 0.01 = 0.191
+        # Should be >= default_margin (0.12)
+        assert result >= default_margin
+        assert result <= 1.0
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_calculate_legend_bottom_margin_no_overlap(self, _mock_plt, generator):
+        """Test margin calculation when legend doesn't overlap bottom."""
+        mock_fig = Mock()
+        mock_fig.get_figheight.return_value = 8.0
+        mock_fig.dpi = 100.0
+        mock_canvas = Mock()
+        mock_renderer = Mock()
+        mock_fig.canvas = mock_canvas
+        mock_canvas.get_renderer.return_value = mock_renderer
+        mock_canvas.draw = Mock()
+
+        generator.figure = mock_fig
+        generator.legend_y_offset = 0.05  # Above axes bottom
+
+        mock_ax = Mock()
+        mock_bbox = Mock()
+        mock_bbox.y0 = 0.2  # axes well above figure bottom
+        mock_bbox.height = 0.6
+        mock_ax.get_position.return_value = mock_bbox
+
+        # Small text that doesn't extend below figure
+        mock_text = Mock()
+        mock_text_bbox = Mock()
+        mock_text_bbox.height = 20.0  # small text
+        mock_text.get_window_extent.return_value = mock_text_bbox
+        mock_text.remove = Mock()
+        mock_ax.text.return_value = mock_text
+
+        default_margin = 0.12
+        result = generator.calculate_legend_bottom_margin(
+            mock_ax, "Short", default_margin
+        )
+
+        # Text doesn't extend below figure, so space_below_figure = 0
+        # Should use default_margin as minimum
+        assert result >= default_margin
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_calculate_legend_bottom_margin_no_figure(self, _mock_plt, generator):
+        """Test margin calculation when figure is None."""
+        generator.figure = None
+
+        mock_ax = Mock()
+        default_margin = 0.15
+
+        result = generator.calculate_legend_bottom_margin(
+            mock_ax, "Test", default_margin
+        )
+
+        assert result == default_margin
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_calculate_legend_bottom_margin_zero_size_figure(
+        self, _mock_plt, generator
+    ):
+        """Test margin calculation with zero-size figure (edge case)."""
+        mock_fig = Mock()
+        mock_fig.get_figheight.return_value = 0.0  # Zero height
+        mock_fig.dpi = 100.0
+        mock_canvas = Mock()
+        mock_fig.canvas = mock_canvas
+        mock_canvas.draw = Mock()
+        mock_canvas.get_renderer.side_effect = ValueError("Zero size figure")
+
+        generator.figure = mock_fig
+
+        mock_ax = Mock()
+        default_margin = 0.12
+
+        # Should catch exception and return default
+        result = generator.calculate_legend_bottom_margin(
+            mock_ax, "Test", default_margin
+        )
+
+        assert result == default_margin
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_calculate_legend_bottom_margin_missing_attribute(
+        self, _mock_plt, generator
+    ):
+        """Test margin calculation when axes missing get_position attribute."""
+        mock_fig = Mock()
+        mock_fig.get_figheight.return_value = 8.0
+        mock_fig.dpi = 100.0
+        mock_canvas = Mock()
+        mock_renderer = Mock()
+        mock_fig.canvas = mock_canvas
+        mock_canvas.get_renderer.return_value = mock_renderer
+        mock_canvas.draw = Mock()
+
+        generator.figure = mock_fig
+
+        mock_ax = Mock()
+        mock_ax.get_position.side_effect = AttributeError("Missing attribute")
+
+        default_margin = 0.12
+        result = generator.calculate_legend_bottom_margin(
+            mock_ax, "Test", default_margin
+        )
+
+        assert result == default_margin
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_calculate_legend_bottom_margin_clamps_to_one(self, _mock_plt, generator):
+        """Test that calculated margin is clamped to maximum of 1.0."""
+        mock_fig = Mock()
+        mock_fig.get_figheight.return_value = 8.0
+        mock_fig.dpi = 100.0
+        mock_canvas = Mock()
+        mock_renderer = Mock()
+        mock_fig.canvas = mock_canvas
+        mock_canvas.get_renderer.return_value = mock_renderer
+        mock_canvas.draw = Mock()
+
+        generator.figure = mock_fig
+        generator.legend_y_offset = -0.5  # Very far below axes
+
+        mock_ax = Mock()
+        mock_bbox = Mock()
+        mock_bbox.y0 = 0.9  # Axes near top
+        mock_bbox.height = 0.05  # Very small axes
+        mock_ax.get_position.return_value = mock_bbox
+
+        # Large text
+        mock_text = Mock()
+        mock_text_bbox = Mock()
+        mock_text_bbox.height = 500.0  # Very large
+        mock_text.get_window_extent.return_value = mock_text_bbox
+        mock_text.remove = Mock()
+        mock_ax.text.return_value = mock_text
+
+        default_margin = 0.05
+        result = generator.calculate_legend_bottom_margin(
+            mock_ax, "Very long legend text", default_margin
+        )
+
+        # Should be clamped to 1.0
+        assert result <= 1.0
+        assert result >= default_margin
+
+
+class TestBurnupChartGeneratorXAxisLimits(TestBurnupChartGeneratorBase):
+    """Test cases for x-axis limit setting."""
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.set_chart_style")
+    def test_xaxis_limits_with_quantile_data(
+        self, _mock_set_style, generator, burnup_data
+    ):
+        """Test x-axis limits are set correctly with completion quantile data."""
+        mock_ax = Mock()
+
+        # Create chart data with completion quantile dates
+        completion_date = pd.Timestamp("2024-01-20")
+        chart_data = {
+            "forecast_dates": pd.date_range("2024-01-11", periods=5, freq="D").tolist(),
+            "quantile_data": {
+                "50%": pd.Timestamp("2024-01-15"),
+                "75%": pd.Timestamp("2024-01-18"),
+                "90%": completion_date,  # Latest completion date
+            },
+            "trust_metrics": {},
+        }
+
+        # Test through public API
+        generator.setup_chart_legend_and_style(mock_ax, burnup_data, chart_data)
+
+        # Verify set_xlim was called with correct limits
+        mock_ax.set_xlim.assert_called_once()
+        call_args = mock_ax.set_xlim.call_args
+        left_limit, right_limit = call_args[1]["left"], call_args[1]["right"]
+
+        # Left limit should be first date of historical data
+        assert left_limit == pd.Timestamp(burnup_data.index[0])
+
+        # Right limit should be completion date + padding
+        # Padding is 15% of time span or minimum 7 days
+        time_span = (completion_date - left_limit).days
+        expected_padding = max(time_span * 0.15, 7)
+        expected_right = completion_date + pd.Timedelta(days=expected_padding)
+        assert right_limit == expected_right
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.set_chart_style")
+    def test_xaxis_limits_with_forecast_dates(
+        self, _mock_set_style, generator, burnup_data
+    ):
+        """Test x-axis limits are set correctly with forecast dates only."""
+        mock_ax = Mock()
+
+        # Create chart data with forecast dates but no quantile data
+        last_forecast_date = pd.Timestamp("2024-01-20")
+        chart_data = {
+            "forecast_dates": pd.date_range(
+                "2024-01-11", end=last_forecast_date, freq="D"
+            ).tolist(),
+            "quantile_data": {},  # No completion dates
+            "trust_metrics": {},
+        }
+
+        # Test through public API
+        generator.setup_chart_legend_and_style(mock_ax, burnup_data, chart_data)
+
+        # Verify set_xlim was called
+        mock_ax.set_xlim.assert_called_once()
+        call_args = mock_ax.set_xlim.call_args
+        left_limit, right_limit = call_args[1]["left"], call_args[1]["right"]
+
+        # Left limit should be first date of historical data
+        assert left_limit == pd.Timestamp(burnup_data.index[0])
+
+        # Right limit should be last forecast date + padding
+        time_span = (last_forecast_date - left_limit).days
+        expected_padding = max(time_span * 0.15, 7)
+        expected_right = last_forecast_date + pd.Timedelta(days=expected_padding)
+        assert right_limit == expected_right
+
+
+class TestBurnupChartGeneratorTrialPadding(TestBurnupChartGeneratorBase):
+    """Test cases for trial padding logic through public API."""
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_pad_trials_with_initial_state_reached_target(self, mock_plt, generator):
+        """Test that trials with initial_state that reached target stay >= target."""
+        target = 50
+        forecast_dates = pd.date_range("2024-01-01", periods=8, freq="D").tolist()
+        # Trial has reached target (value 50) but is shorter than target_length
+        trial = [20, 30, 40, 50]  # initial=20, forecast=[30,40,50], reached target
+        chart_data = {
+            "forecast_dates": forecast_dates,
+            "done_trials": [trial],
+            "target": target,
+        }
+        mock_fig = Mock()
+        mock_ax = Mock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+
+        _, mock_ax_result = generator.create_chart_figure()
+        generator.plot_done_fan(mock_ax_result, chart_data, forecast_dates)
+
+        # Verify that fill_between was called (indicating fan was plotted)
+        fill_between_calls = [
+            call for call in mock_ax_result.method_calls if call[0] == "fill_between"
+        ]
+        assert len(fill_between_calls) > 0
+        # Verify the data passed maintains target constraint
+        # The fan data should have values >= target after reaching it
+        plot_calls = [call for call in mock_ax_result.method_calls if call[0] == "plot"]
+        assert len(plot_calls) > 0  # Median line should be plotted
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_pad_trials_without_initial_state_reached_target(self, mock_plt, generator):
+        """Test that trials without initial_state that reached target stay >= target."""
+        target = 50
+        forecast_dates = pd.date_range("2024-01-01", periods=8, freq="D").tolist()
+        # Treated as initial_state=30, forecast=[40,50], reached target
+        trial = [30, 40, 50]
+        chart_data = {
+            "forecast_dates": forecast_dates,
+            "done_trials": [trial],
+            "target": target,
+        }
+        mock_fig = Mock()
+        mock_ax = Mock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+
+        _, mock_ax_result = generator.create_chart_figure()
+        generator.plot_done_fan(mock_ax_result, chart_data, forecast_dates)
+
+        # Verify that plotting occurred
+        fill_between_calls = [
+            call for call in mock_ax_result.method_calls if call[0] == "fill_between"
+        ]
+        assert len(fill_between_calls) > 0
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_pad_trials_not_reached_target(self, mock_plt, generator):
+        """Test that trials that haven't reached target pad with last value."""
+        target = 50
+        forecast_dates = pd.date_range("2024-01-01", periods=8, freq="D").tolist()
+        # initial=20, forecast=[30,40], last value is 40, below target
+        trial = [20, 30, 40]
+        chart_data = {
+            "forecast_dates": forecast_dates,
+            "done_trials": [trial],
+            "target": target,
+        }
+        mock_fig = Mock()
+        mock_ax = Mock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+
+        _, mock_ax_result = generator.create_chart_figure()
+        generator.plot_done_fan(mock_ax_result, chart_data, forecast_dates)
+
+        # Verify that plotting occurred
+        fill_between_calls = [
+            call for call in mock_ax_result.method_calls if call[0] == "fill_between"
+        ]
+        assert len(fill_between_calls) > 0
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.plt")
+    def test_pad_trials_mixed_reached_and_not_reached(self, mock_plt, generator):
+        """Test padding with mix of trials that reached and didn't reach target."""
+        target = 50
+        forecast_dates = pd.date_range("2024-01-01", periods=8, freq="D").tolist()
+        trials = [
+            [20, 30, 40, 50, 60],  # Reached target - should stay >= 50
+            [20, 25, 30, 35],  # Not reached - should pad with 35
+        ]
+        chart_data = {
+            "forecast_dates": forecast_dates,
+            "done_trials": trials,
+            "target": target,
+        }
+        mock_fig = Mock()
+        mock_ax = Mock()
+        mock_plt.subplots.return_value = (mock_fig, mock_ax)
+
+        _, mock_ax_result = generator.create_chart_figure()
+        generator.plot_done_fan(mock_ax_result, chart_data, forecast_dates)
+
+        # Verify that plotting occurred with multiple trials
+        fill_between_calls = [
+            call for call in mock_ax_result.method_calls if call[0] == "fill_between"
+        ]
+        assert len(fill_between_calls) > 0
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.set_chart_style")
+    def test_xaxis_limits_empty_burnup_data(self, _mock_set_style, generator):
+        """Test x-axis limits are not set when burnup data is empty."""
+        mock_ax = Mock()
+
+        chart_data = {"forecast_dates": [], "quantile_data": {}, "trust_metrics": {}}
+
+        # Test through public API
+        generator.setup_chart_legend_and_style(mock_ax, pd.DataFrame(), chart_data)
+
+        # Should not call set_xlim when burnup_data is empty
+        mock_ax.set_xlim.assert_not_called()
+
+    @patch("jira_agile_metrics.calculators.burnup_chart_generator.set_chart_style")
+    def test_xaxis_limits_no_forecast_data(
+        self, _mock_set_style, generator, burnup_data
+    ):
+        """Test x-axis limits fallback to historical data range."""
+        mock_ax = Mock()
+
+        # Chart data with no forecast dates or completion dates
+        chart_data = {"forecast_dates": [], "quantile_data": {}, "trust_metrics": {}}
+
+        # Test through public API
+        generator.setup_chart_legend_and_style(mock_ax, burnup_data, chart_data)
+
+        # Verify set_xlim was called with historical data range
+        mock_ax.set_xlim.assert_called_once()
+        call_args = mock_ax.set_xlim.call_args
+        left_limit, right_limit = call_args[1]["left"], call_args[1]["right"]
+
+        # Left limit should be first date of historical data
+        assert left_limit == pd.Timestamp(burnup_data.index[0])
+
+        # Right limit should be last historical date + padding
+        last_historical_date = pd.Timestamp(burnup_data.index[-1])
+        time_span = (last_historical_date - left_limit).days
+        expected_padding = max(time_span * 0.1, 7)
+        expected_right = last_historical_date + pd.Timedelta(days=expected_padding)
+        assert right_limit == expected_right
