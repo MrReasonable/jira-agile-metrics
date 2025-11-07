@@ -55,7 +55,7 @@ class ThroughputCalculator(Calculator):
             if output_extension == ".json":
                 data.to_json(output_file, date_format="iso")
             elif output_extension == ".xlsx":
-                data.to_excel(output_file, "Throughput", header=True)
+                data.to_excel(output_file, sheet_name="Throughput", header=True)
             else:
                 # Reset index to convert it to a named column
                 data_to_write = data.reset_index()

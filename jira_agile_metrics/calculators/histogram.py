@@ -101,7 +101,7 @@ class HistogramCalculator(Calculator):
                 file_data.to_json(output_file, date_format="iso")
             elif output_extension == ".xlsx":
                 file_data.to_frame(name="histogram").to_excel(
-                    output_file, "Histogram", header=True
+                    output_file, sheet_name="Histogram", header=True
                 )
             else:
                 # Reset index to convert it to a named column
@@ -233,7 +233,7 @@ class HistogramCalculator(Calculator):
                 file_data.to_json(output_file, date_format="iso")
             elif output_extension == ".xlsx":
                 file_data.to_frame(name="lead_time_histogram").to_excel(
-                    output_file, "LeadTimeHistogram", header=True
+                    output_file, sheet_name="LeadTimeHistogram", header=True
                 )
             else:
                 # Reset index to convert it to a named column

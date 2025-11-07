@@ -116,7 +116,7 @@ class CycleTimeCalculator(Calculator):
             elif output_extension == ".xlsx":
                 cycle_data.to_excel(
                     output_file,
-                    "Cycle data",
+                    sheet_name="Cycle data",
                     columns=columns,
                     header=header,
                     index=False,

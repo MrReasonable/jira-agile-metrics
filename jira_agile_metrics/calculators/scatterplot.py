@@ -54,7 +54,7 @@ class ScatterplotCalculator(BaseCalculator):
             if output_extension == ".json":
                 file_data.to_json(output_file, date_format="iso")
             elif output_extension == ".xlsx":
-                file_data.to_excel(output_file, "Scatter", index=False)
+                file_data.to_excel(output_file, sheet_name="Scatter", index=False)
             else:
                 file_data.to_csv(output_file, index=False)
 

@@ -60,7 +60,7 @@ class CFDCalculator(Calculator):
             if output_extension == ".json":
                 data.to_json(output_file, date_format="iso")
             elif output_extension == ".xlsx":
-                data.to_excel(output_file, "CFD")
+                data.to_excel(output_file, sheet_name="CFD")
             else:
                 # Reset index to convert it to a named column
                 column_names = list(data.columns)
