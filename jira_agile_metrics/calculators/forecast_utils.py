@@ -137,8 +137,11 @@ def run_single_trial(
             )
 
             # Update state
+            # Backlog and Done are independent cumulative metrics
+            # Backlog grows by backlog_growth only (not affected by throughput)
+            current_backlog += backlog_growth
+            # Done grows by throughput only (not affected by backlog)
             current_done += throughput
-            current_backlog += backlog_growth - throughput
 
             # Ensure backlog doesn't go negative
             current_backlog = max(0, current_backlog)

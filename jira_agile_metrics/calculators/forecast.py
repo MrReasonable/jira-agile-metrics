@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict, Union
 
 import pandas as pd
 
@@ -16,7 +16,7 @@ from .forecast_utils import (
     convert_indices_to_dates,
     find_completion_indices,
 )
-from .forecast_validator import ForecastDataValidator
+from .forecast_validator import ForecastDataValidator, ForecastParameters
 from .monte_carlo_simulator import MonteCarloSimulator
 from .throughput_calculator import ThroughputCalculator
 
@@ -74,10 +74,15 @@ class BurnupForecastCalculator(Calculator):
             "done_trials": None,
             "forecast_horizon_end": None,
             "target": None,
+            "freq": None,  # Store frequency for consistent date generation
         }
 
         # Initialize service dependencies
-        self._validator = ForecastDataValidator()
+        self._validator = ForecastDataValidator(
+            fallback_items_per_month=self.settings.get(
+                "burnup_forecast_chart_fallback_items_per_month", None
+            )
+        )
         self._throughput_calculator = ThroughputCalculator()
         # Initialize Monte Carlo simulator with configurable parameters
         # Note: random_seed is primarily for testing/debugging; in production
@@ -135,8 +140,10 @@ class BurnupForecastCalculator(Calculator):
                 self._forecast_results["forecast_horizon_end"] = forecast_params.get(
                     "forecast_horizon_end"
                 )
+                self._forecast_results["freq"] = forecast_params.get("freq", "D")
             else:
                 self._forecast_results["forecast_horizon_end"] = None
+                self._forecast_results["freq"] = "D"
 
             # Run Monte Carlo simulation
             simulation_result = self._monte_carlo_simulator.run_simulation(sim_params)
@@ -204,10 +211,44 @@ class BurnupForecastCalculator(Calculator):
                 )
                 return None
 
-            num_points = len(done_values)
-            forecast_dates = pd.date_range(
-                start=last_date, periods=num_points, freq="D"
-            )
+            # Get forecast horizon to pad trial to full length
+            forecast_horizon_end = self._forecast_results.get("forecast_horizon_end")
+            freq = self._forecast_results.get("freq", "D")
+            # Normalize frequency: convert deprecated 'M' to 'ME' (Month End)
+            normalized_freq = freq if freq != "M" else "ME"
+            if forecast_horizon_end is None:
+                logger.warning(
+                    "No forecast horizon available for trial %s, using trial length",
+                    trial_idx,
+                )
+                num_points = len(done_values)
+                forecast_dates = pd.date_range(
+                    start=last_date, periods=num_points, freq=normalized_freq
+                )
+            else:
+                # Generate full forecast date range starting from last_date
+                # The simulation produces [initial_done] + values for dates
+                # after last_date. So we prepend last_date to the dates to
+                # align with trial structure
+                forecast_dates = pd.date_range(
+                    start=last_date,
+                    end=forecast_horizon_end,
+                    freq=normalized_freq,
+                )
+                # Pad trial values to match full forecast horizon
+                # If trial completes early, repeat the last value
+                num_points = len(done_values)
+                if num_points < len(forecast_dates):
+                    # Pad with last value to reach target
+                    last_value = numeric_values[-1] if len(numeric_values) > 0 else 0
+                    padded_values = list(numeric_values) + [last_value] * (
+                        len(forecast_dates) - num_points
+                    )
+                    numeric_values = padded_values
+                elif num_points > len(forecast_dates):
+                    # Truncate if somehow longer than forecast horizon
+                    numeric_values = numeric_values[: len(forecast_dates)]
+
             return pd.Series(
                 numeric_values, index=forecast_dates, name=f"Trial {trial_idx}"
             )
@@ -323,6 +364,71 @@ class BurnupForecastCalculator(Calculator):
         """Validate data and get column names."""
         return self._validator.validate_data(burnup_data, cycle_data)
 
+    def _normalize_target(
+        self,
+        target: Union[int, float],
+        done_value: Union[int, float],
+        backlog_value: Union[int, float],
+        context: Optional[str] = "",
+    ) -> Union[int, float]:
+        """Normalize target value when it's already reached.
+
+        If target <= done_value, reset to backlog-only semantics (backlog_value)
+        and log an informational message.
+
+        Args:
+            target: The target value to normalize
+            done_value: Current done value to compare against
+            backlog_value: Backlog value to use as fallback
+            context: Optional context string for logging
+
+        Returns:
+            Normalized target value (backlog_value if target <= done_value, else target)
+        """
+        if target <= done_value:
+            original_target = target
+            normalized_target = backlog_value
+            logger.info(
+                "Target %s <= current_done %s, resetting to backlog-only target %s "
+                "(backlog=%s, done=%s)%s",
+                original_target,
+                done_value,
+                normalized_target,
+                backlog_value,
+                done_value,
+                f" ({context})" if context else "",
+            )
+            return normalized_target
+        return target
+
+    def _calculate_target_info(self, burnup_data):
+        """Calculate target information from burnup data.
+
+        Returns:
+            Dict with 'target' and 'initial_done' keys, or None if unavailable
+        """
+        if burnup_data.empty:
+            return None
+
+        backlog_column, done_column = self._validator.validate_data(burnup_data, None)
+        if not backlog_column or not done_column:
+            return None
+
+        # Latest historical point used as the initial state for the forecast
+        current_backlog = burnup_data[backlog_column].iloc[-1]
+        current_done = burnup_data[done_column].iloc[-1]
+        # Calculate target (defaults to backlog only - work remaining to be completed)
+        target = self.settings.get("burnup_forecast_chart_target", None)
+        if target is None:
+            # Default to backlog only (work remaining), not backlog + done
+            target = current_backlog
+        else:
+            target = self._normalize_target(
+                target, current_done, current_backlog, context="target info calculation"
+            )
+
+        return {"target": target, "initial_done": current_done}
+
     def _setup_forecast_parameters(
         self, burnup_data, horizon_months: int = 6, freq: str = "D"
     ):
@@ -332,11 +438,24 @@ class BurnupForecastCalculator(Calculator):
             "burnup_forecast_chart_throughput_frequency", None
         )
         if throughput_frequency:
-            # Convert frequency string to pandas frequency
             freq = self._convert_frequency_string(throughput_frequency)
 
+        # Calculate target info for horizon estimation
+        target_info = self._calculate_target_info(burnup_data)
+
+        # Get horizon multiplier from settings (default: 1.5)
+        horizon_multiplier = self.settings.get(
+            "burnup_forecast_chart_horizon_multiplier", 1.5
+        )
+
         forecast_params = self._validator.setup_forecast_parameters(
-            burnup_data, horizon_months=horizon_months, freq=freq
+            ForecastParameters(
+                burnup_data=burnup_data,
+                horizon_months=horizon_months,
+                freq=freq,
+                target_info=target_info,
+                horizon_multiplier=horizon_multiplier,
+            )
         )
 
         if forecast_params:
@@ -344,9 +463,52 @@ class BurnupForecastCalculator(Calculator):
             forecast_params["throughput_window"] = self.settings.get(
                 "burnup_forecast_chart_throughput_window", None
             )
-            forecast_params["throughput_window_end"] = self.settings.get(
+            throughput_window_end = self.settings.get(
                 "burnup_forecast_chart_throughput_window_end", None
             )
+            forecast_params["throughput_window_end"] = throughput_window_end
+
+            # If throughput_window_end is provided, use it to limit forecast horizon
+            # (This parameter actually limits how far the forecast projects)
+            if throughput_window_end is not None:
+                try:
+                    # Convert to datetime (handles both string and datetime types)
+                    forecast_horizon_end = pd.to_datetime(throughput_window_end)
+
+                    # Ensure it's after the last historical date
+                    last_date = forecast_params.get("last_date")
+                    calculated_horizon = forecast_params.get("forecast_horizon_end")
+                    if last_date and forecast_horizon_end > last_date:
+                        # Check if calculated horizon is longer than
+                        # user-specified limit
+                        if (
+                            calculated_horizon
+                            and forecast_horizon_end < calculated_horizon
+                        ):
+                            logger.warning(
+                                "Forecast horizon limited to %s by "
+                                "throughput_window_end, "
+                                "but calculated horizon suggests %s may be "
+                                "needed to reach "
+                                "target. Completion dates may be extrapolated "
+                                "beyond the "
+                                "forecast horizon.",
+                                forecast_horizon_end,
+                                calculated_horizon,
+                            )
+                        forecast_params["forecast_horizon_end"] = forecast_horizon_end
+                        logger.debug(
+                            "Forecast horizon limited to %s by throughput_window_end",
+                            forecast_horizon_end,
+                        )
+                except (ValueError, TypeError) as e:
+                    logger.warning(
+                        "Invalid throughput_window_end value '%s': %s. "
+                        "Using calculated forecast_horizon_end instead.",
+                        throughput_window_end,
+                        e,
+                    )
+
             forecast_params["smart_window"] = self.settings.get(
                 "burnup_forecast_chart_smart_window", True
             )
@@ -431,7 +593,11 @@ class BurnupForecastCalculator(Calculator):
             initial_backlog = burnup_data[backlog_column].iloc[-1]
             initial_done = burnup_data[self.settings["done_column"]].iloc[-1]
 
-            # Generate forecast dates
+            # Generate forecast dates for simulation.
+            # last_date is used only as the initial state: initial_done is computed
+            # for last_date. The simulation steps/dates start the day after
+            # last_date, hence forecast_dates are generated from last_date + 1 to
+            # forecast_horizon_end.
             # Normalize frequency: convert deprecated 'M' to 'ME' (Month End)
             freq = forecast_params["freq"]
             normalized_freq = freq if freq != "M" else "ME"
@@ -454,18 +620,15 @@ class BurnupForecastCalculator(Calculator):
             # Calculate target - ensure it's greater than initial_done
             target = self.settings.get("burnup_forecast_chart_target", None)
             if target is None:
-                # Default to backlog + done, but ensure it exceeds current done
-                target = initial_backlog + initial_done
-            elif target <= initial_done:
-                # If target is set but already reached, use backlog + done
-                logger.warning(
-                    "Target %d is already reached (current done: %d). "
-                    "Using backlog + done (%d) as target instead.",
+                # Default to backlog only (work remaining), not backlog + done
+                target = initial_backlog
+            else:
+                target = self._normalize_target(
                     target,
                     initial_done,
-                    initial_backlog + initial_done,
+                    initial_backlog,
+                    context="simulation parameters setup",
                 )
-                target = initial_backlog + initial_done
 
             return {
                 "trials": self.settings.get("burnup_forecast_chart_trials", 1000),
@@ -500,15 +663,38 @@ class BurnupForecastCalculator(Calculator):
             # Check if forecast results are available
             backlog_trials = self._forecast_results.get("backlog_trials")
             done_trials = self._forecast_results.get("done_trials")
+            forecast_dates = self._get_forecast_dates()
+
+            # Log diagnostic information
             if not backlog_trials and not done_trials:
                 logger.warning(
                     "No forecast trial data available. "
                     "Chart will show historical data only."
                 )
+            elif not forecast_dates:
+                logger.warning(
+                    "No forecast dates available (forecast_horizon_end=%s). "
+                    "Chart will show historical data only.",
+                    self._forecast_results.get("forecast_horizon_end"),
+                )
+            else:
+                logger.info(
+                    "Forecast data: %d dates, %d backlog trials, %d done trials",
+                    len(forecast_dates),
+                    len(backlog_trials) if backlog_trials else 0,
+                    len(done_trials) if done_trials else 0,
+                )
+
+            # The simulation produces trials with [initial_value] +
+            # [simulated_values]. If forecast_dates includes last_date,
+            # the trials have initial_value for last_date plus simulated
+            # values. The chart generator expects trials to have
+            # expected_length + 1 values (initial + forecast), which
+            # matches our structure.
 
             # Prepare chart data
             chart_data = {
-                "forecast_dates": self._get_forecast_dates(),
+                "forecast_dates": forecast_dates,
                 "backlog_trials": backlog_trials or [],
                 "done_trials": done_trials or [],
                 "trust_metrics": self._forecast_results.get("trust_metrics", {}),
@@ -611,10 +797,17 @@ class BurnupForecastCalculator(Calculator):
                 return []
 
             last_date = burnup_data.index[-1]
+            # Use the same frequency as the simulation
+            freq = self._forecast_results.get("freq", "D")
+            # Normalize frequency: convert deprecated 'M' to 'ME' (Month End)
+            normalized_freq = freq if freq != "M" else "ME"
+            # Generate dates starting from last_date to connect to
+            # historical data. The simulation dates start from
+            # last_date+1, but we prepend last_date for chart
             forecast_dates = pd.date_range(
-                start=last_date + pd.Timedelta(days=1),
+                start=last_date,
                 end=self._forecast_results["forecast_horizon_end"],
-                freq="D",
+                freq=normalized_freq,
             ).tolist()
 
             return forecast_dates
@@ -645,13 +838,15 @@ class BurnupForecastCalculator(Calculator):
                 return {}
 
             # Calculate quantiles
-            quantiles = [0.5, 0.75, 0.9]
+            quantiles = [0.5, 0.75, 0.85, 0.9, 0.99]
             quantile_values = pd.Series(completion_dates).quantile(quantiles)
 
             return {
                 "50%": quantile_values.get(0.5),
                 "75%": quantile_values.get(0.75),
+                "85%": quantile_values.get(0.85),
                 "90%": quantile_values.get(0.9),
+                "99%": quantile_values.get(0.99),
             }
 
         except (ValueError, TypeError, KeyError, AttributeError) as e:

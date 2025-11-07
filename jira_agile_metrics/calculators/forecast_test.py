@@ -171,9 +171,11 @@ def test_convert_trials_to_dataframe(
         {
             "trial_num": i,
             "done_trial": [2.0 + j * 0.5 for j in range(25)],
-            "backlog_trial": [5.0 - j * 0.2 for j in range(25)],
-            "final_backlog": 0.0,
-            "final_done": 14.5,
+            "backlog_trial": [
+                5.0 + j * 0.2 for j in range(25)
+            ],  # Cumulative growth, not shrinking
+            "final_backlog": 9.8,  # 5.0 + 24*0.2 = 9.8 (initial + 24 periods)
+            "final_done": 14.0,  # 2.0 + 24*0.5 = 14.0 (initial + 24 periods)
         }
         for i in range(10)
     ]
@@ -417,7 +419,8 @@ class TestForecastConfigurationVariations:
             return
 
         # Calculate default target from burnup data
-        default_target = burnup_data["Backlog"].iloc[-1] + burnup_data["Done"].iloc[-1]
+        # (should be backlog only, not backlog + done)
+        default_target = burnup_data["Backlog"].iloc[-1]
 
         # Test with different target values
         test_cases = [
