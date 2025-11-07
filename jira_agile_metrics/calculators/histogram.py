@@ -24,13 +24,16 @@ class HistogramCalculator(Calculator):
     """
 
     CSV_HISTOGRAM_COLUMNS = ["Range", "Items"]
+    ITEMS_COLUMN_INDEX = 1
 
     def run(self):
         cycle_data = self.get_result(CycleTimeCalculator)
 
         # Check if cycle_time column exists and has timedelta data
         if "cycle_time" not in cycle_data.columns:
-            return pd.Series([], name=self.CSV_HISTOGRAM_COLUMNS[1], index=[])
+            return pd.Series(
+                [], name=self.CSV_HISTOGRAM_COLUMNS[self.ITEMS_COLUMN_INDEX], index=[]
+            )
 
         cycle_time_series = cycle_data["cycle_time"]
 
@@ -38,7 +41,9 @@ class HistogramCalculator(Calculator):
         if cycle_time_series.empty or not pd.api.types.is_timedelta64_dtype(
             cycle_time_series
         ):
-            return pd.Series([], name=self.CSV_HISTOGRAM_COLUMNS[1], index=[])
+            return pd.Series(
+                [], name=self.CSV_HISTOGRAM_COLUMNS[self.ITEMS_COLUMN_INDEX], index=[]
+            )
 
         cycle_times = cycle_time_series.dt.days.dropna().tolist()
 
@@ -55,7 +60,11 @@ class HistogramCalculator(Calculator):
                 continue
             index.append(f"{edges[i - 1]:.01f} to {edges[i]:.01f}")
 
-        return pd.Series(values, name=self.CSV_HISTOGRAM_COLUMNS[1], index=index)
+        return pd.Series(
+            values,
+            name=self.CSV_HISTOGRAM_COLUMNS[self.ITEMS_COLUMN_INDEX],
+            index=index,
+        )
 
     def write(self):
         data = self.get_result()
@@ -237,7 +246,11 @@ class HistogramCalculator(Calculator):
             if i == 0:
                 continue
             index.append(f"{edges[i - 1]:.01f} to {edges[i]:.01f}")
-        file_data = pd.Series(values, name=self.CSV_HISTOGRAM_COLUMNS[1], index=index)
+        file_data = pd.Series(
+            values,
+            name=self.CSV_HISTOGRAM_COLUMNS[self.ITEMS_COLUMN_INDEX],
+            index=index,
+        )
         for output_file in output_files:
             output_extension = get_extension(output_file)
             logger.info("Writing lead time histogram data to %s", output_file)

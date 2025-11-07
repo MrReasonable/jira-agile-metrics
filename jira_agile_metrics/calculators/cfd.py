@@ -87,7 +87,7 @@ class CFDCalculator(Calculator):
         fig, ax = plt.subplots()
 
         if self.settings.get("cfd_chart_title"):
-            ax.set_title(self.settings["cfd_chart_title"])
+            ax.set_title(self.settings.get("cfd_chart_title"))
 
         fig.autofmt_xdate()
 
