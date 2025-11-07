@@ -53,6 +53,28 @@ class ImpedimentsCalculator(BaseCalculator):
             return any(value)
         return True
 
+    def _write_chart_if_configured(self, data, setting_name, write_method):
+        """Write a chart if the setting is configured with a non-empty output file.
+
+        Args:
+            data: The data to write.
+            setting_name: The name of the setting to check for output file.
+            write_method: The method to call with (data, output_file) if configured.
+        """
+        if self.settings.get(setting_name):
+            output_file = self.settings[setting_name]
+            if output_file:  # Ensure it's not empty string
+                # Convert setting name to human-friendly label
+                # (e.g., "impediments_chart" -> "impediments chart")
+                label = setting_name.replace("_", " ")
+                logger.debug(
+                    "Writing %s to: %s (cwd: %s)",
+                    label,
+                    output_file,
+                    os.getcwd(),
+                )
+                write_method(data, output_file)
+
     def run(self):
         # This calculation is expensive.
         # Only run it if we are going to write something
@@ -114,45 +136,20 @@ class ImpedimentsCalculator(BaseCalculator):
             if output_files:
                 self.write_data(data, output_files)
 
-        if self.settings.get("impediments_chart"):
-            output_file = self.settings["impediments_chart"]
-            if output_file:  # Ensure it's not empty string
-                logger.debug(
-                    "Writing impediments chart to: %s (cwd: %s)",
-                    output_file,
-                    os.getcwd(),
-                )
-                self.write_impediments_chart(data, output_file)
-
-        if self.settings.get("impediments_days_chart"):
-            output_file = self.settings["impediments_days_chart"]
-            if output_file:  # Ensure it's not empty string
-                logger.debug(
-                    "Writing impediments days chart to: %s (cwd: %s)",
-                    output_file,
-                    os.getcwd(),
-                )
-                self.write_impediments_days_chart(data, output_file)
-
-        if self.settings.get("impediments_status_chart"):
-            output_file = self.settings["impediments_status_chart"]
-            if output_file:  # Ensure it's not empty string
-                logger.debug(
-                    "Writing impediments status chart to: %s (cwd: %s)",
-                    output_file,
-                    os.getcwd(),
-                )
-                self.write_impediments_status_chart(data, output_file)
-
-        if self.settings.get("impediments_status_days_chart"):
-            output_file = self.settings["impediments_status_days_chart"]
-            if output_file:  # Ensure it's not empty string
-                logger.debug(
-                    "Writing impediments status days chart to: %s (cwd: %s)",
-                    output_file,
-                    os.getcwd(),
-                )
-                self.write_impediments_status_days_chart(data, output_file)
+        self._write_chart_if_configured(
+            data, "impediments_chart", self.write_impediments_chart
+        )
+        self._write_chart_if_configured(
+            data, "impediments_days_chart", self.write_impediments_days_chart
+        )
+        self._write_chart_if_configured(
+            data, "impediments_status_chart", self.write_impediments_status_chart
+        )
+        self._write_chart_if_configured(
+            data,
+            "impediments_status_days_chart",
+            self.write_impediments_status_days_chart,
+        )
 
     def write_data(self, data, output_files):
         """Write impediments data to output files."""
