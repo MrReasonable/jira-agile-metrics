@@ -85,6 +85,7 @@ def _create_default_options():
             "burnup_forecast_chart_deadline_confidence": None,
             "burnup_forecast_chart_trials": 1000,
             "burnup_forecast_chart_confidence": 0.8,
+            "burnup_forecast_chart_horizon_multiplier": 1.5,
             "burnup_forecast_chart_random_seed": None,
             "burnup_forecast_chart_max_iterations": 9999,
             "burnup_forecast_chart_throughput_window": 60,
@@ -256,6 +257,7 @@ def _parse_float_values(output_config, settings):
     float_keys = [
         "burnup_forecast_chart_deadline_confidence",
         "burnup_forecast_chart_confidence",
+        "burnup_forecast_chart_horizon_multiplier",
     ]
 
     for key in float_keys:

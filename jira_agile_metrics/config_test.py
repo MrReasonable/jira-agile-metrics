@@ -306,6 +306,7 @@ ABC AND type = Outcome AND resolution IS EMPTY"
         "burnup_forecast_chart_random_seed": None,
         "burnup_forecast_chart_max_iterations": 9999,
         "burnup_forecast_chart_backlog_growth_window": None,
+        "burnup_forecast_chart_horizon_multiplier": 1.5,
         "cfd_window": 30,
         "cfd_chart": "cfd.png",
         "cfd_chart_title": "Cumulative Flow Diagram",
