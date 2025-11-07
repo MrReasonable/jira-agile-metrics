@@ -82,7 +82,11 @@ class ImpedimentsCalculator(BaseCalculator):
             return
 
         if self.settings["impediments_data"]:
-            self.write_data(data, self.settings["impediments_data"])
+            output_files = self.settings["impediments_data"]
+            # Handle both string and list formats
+            if isinstance(output_files, str):
+                output_files = [output_files]
+            self.write_data(data, output_files)
 
         if self.settings["impediments_chart"]:
             self.write_impediments_chart(data, self.settings["impediments_chart"])
@@ -111,7 +115,7 @@ class ImpedimentsCalculator(BaseCalculator):
             if output_extension == ".json":
                 data.to_json(output_file, date_format="iso")
             elif output_extension == ".xlsx":
-                data.to_excel(output_file, "Impediments", header=True)
+                data.to_excel(output_file, sheet_name="Impediments", header=True)
             else:
                 data.to_csv(
                     output_file,
@@ -126,7 +130,7 @@ class ImpedimentsCalculator(BaseCalculator):
             logger.warning("Cannot draw impediments chart with zero items")
             return
 
-        window = self.settings["impediments_window"]
+        window = self.settings.get("impediments_window")
         breakdown = breakdown_by_month(
             chart_data,
             {
@@ -148,7 +152,7 @@ class ImpedimentsCalculator(BaseCalculator):
 
         breakdown.plot.bar(ax=ax, stacked=True)
 
-        if self.settings["impediments_chart_title"]:
+        if self.settings.get("impediments_chart_title"):
             ax.set_title(self.settings["impediments_chart_title"])
 
         ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
@@ -175,7 +179,7 @@ class ImpedimentsCalculator(BaseCalculator):
             logger.warning("Cannot draw impediments days chart with zero items")
             return
 
-        window = self.settings["impediments_window"]
+        window = self.settings.get("impediments_window")
         breakdown = breakdown_by_month_sum_days(
             chart_data,
             {"start_column": "start", "end_column": "end", "value_column": "flag"},
@@ -192,7 +196,7 @@ class ImpedimentsCalculator(BaseCalculator):
 
         breakdown.plot.bar(ax=ax, stacked=True)
 
-        if self.settings["impediments_days_chart_title"]:
+        if self.settings.get("impediments_days_chart_title"):
             ax.set_title(self.settings["impediments_days_chart_title"])
 
         ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
@@ -219,7 +223,7 @@ class ImpedimentsCalculator(BaseCalculator):
             logger.warning("Cannot draw impediments status chart with zero items")
             return
 
-        window = self.settings["impediments_window"]
+        window = self.settings.get("impediments_window")
         cycle_names = [s["name"] for s in self.settings["cycle"]]
 
         breakdown = breakdown_by_month(
@@ -244,7 +248,7 @@ class ImpedimentsCalculator(BaseCalculator):
 
         breakdown.plot.bar(ax=ax, stacked=True)
 
-        if self.settings["impediments_status_chart_title"]:
+        if self.settings.get("impediments_status_chart_title"):
             ax.set_title(self.settings["impediments_status_chart_title"])
 
         ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
@@ -271,7 +275,7 @@ class ImpedimentsCalculator(BaseCalculator):
             logger.warning("Cannot draw impediments status days chart with zero items")
             return
 
-        window = self.settings["impediments_window"]
+        window = self.settings.get("impediments_window")
         cycle_names = [s["name"] for s in self.settings["cycle"]]
 
         breakdown = breakdown_by_month_sum_days(
@@ -295,7 +299,7 @@ class ImpedimentsCalculator(BaseCalculator):
 
         breakdown.plot.bar(ax=ax, stacked=True)
 
-        if self.settings["impediments_status_days_chart_title"]:
+        if self.settings.get("impediments_status_days_chart_title"):
             ax.set_title(self.settings["impediments_status_days_chart_title"])
 
         ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))

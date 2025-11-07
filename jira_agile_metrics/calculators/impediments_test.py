@@ -3,6 +3,8 @@
 This module contains unit tests for the impediments calculator.
 """
 
+import os
+
 import pytest
 from pandas import DataFrame, NaT, Timestamp
 
@@ -229,3 +231,278 @@ def test_different_done_column(query_manager, settings, cycle_time_results):
             "end": NaT,
         },
     ]
+
+
+class TestImpedimentsWrite:
+    """Test cases for ImpedimentsCalculator write methods."""
+
+    def test_write_data_csv(
+        self, query_manager, settings, cycle_time_results, tmp_path
+    ):
+        """Test write_data() with CSV format."""
+        output_file = str(tmp_path / "impediments.csv")
+        test_settings = extend_dict(settings, {"impediments_data": [output_file]})
+
+        calculator = ImpedimentsCalculator(
+            query_manager, test_settings, cycle_time_results
+        )
+        data = calculator.run()
+        assert data is not None and len(data) > 0, "Data should not be empty"
+        # Store result so write() can retrieve it
+        cycle_time_results[ImpedimentsCalculator] = data
+        calculator.write()
+
+        assert os.path.exists(output_file)
+
+    def test_write_data_json(
+        self, query_manager, settings, cycle_time_results, tmp_path
+    ):
+        """Test write_data() with JSON format."""
+        output_file = str(tmp_path / "impediments.json")
+        test_settings = extend_dict(settings, {"impediments_data": [output_file]})
+
+        calculator = ImpedimentsCalculator(
+            query_manager, test_settings, cycle_time_results
+        )
+        data = calculator.run()
+        assert data is not None and len(data) > 0, "Data should not be empty"
+        # Store result so write() can retrieve it
+        cycle_time_results[ImpedimentsCalculator] = data
+        calculator.write()
+
+        assert os.path.exists(output_file)
+
+    def test_write_data_xlsx(
+        self, query_manager, settings, cycle_time_results, tmp_path
+    ):
+        """Test write_data() with XLSX format."""
+        output_file = str(tmp_path / "impediments.xlsx")
+        test_settings = extend_dict(settings, {"impediments_data": [output_file]})
+
+        calculator = ImpedimentsCalculator(
+            query_manager, test_settings, cycle_time_results
+        )
+        data = calculator.run()
+        assert data is not None and len(data) > 0, "Data should not be empty"
+        # Store result so write() can retrieve it
+        cycle_time_results[ImpedimentsCalculator] = data
+        calculator.write()
+
+        assert os.path.exists(output_file)
+
+    def test_write_impediments_chart(
+        self, query_manager, settings, cycle_time_results, tmp_path
+    ):
+        """Test write_impediments_chart()."""
+        output_file = str(tmp_path / "impediments.png")
+        test_settings = extend_dict(
+            settings,
+            {
+                "impediments_chart": output_file,
+                "impediments_chart_title": "Test Impediments Chart",
+            },
+        )
+
+        calculator = ImpedimentsCalculator(
+            query_manager, test_settings, cycle_time_results
+        )
+        data = calculator.run()
+        assert data is not None and len(data) > 0, "Data should not be empty"
+        # Store result so write() can retrieve it
+        cycle_time_results[ImpedimentsCalculator] = data
+        calculator.write()
+
+        assert os.path.exists(output_file)
+
+    def test_write_impediments_chart_empty_data(
+        self, query_manager, settings, columns, tmp_path
+    ):
+        """Test write_impediments_chart() with empty data."""
+        results = {CycleTimeCalculator: DataFrame([], columns=columns)}
+        output_file = str(tmp_path / "impediments.png")
+        test_settings = extend_dict(settings, {"impediments_chart": output_file})
+
+        calculator = ImpedimentsCalculator(query_manager, test_settings, results)
+        calculator.run()
+        calculator.write()
+
+        # File should not be created when data is empty
+        assert not os.path.exists(output_file)
+
+    def test_write_impediments_chart_with_window(
+        self, query_manager, settings, cycle_time_results, tmp_path
+    ):
+        """Test write_impediments_chart() with window filtering."""
+        output_file = str(tmp_path / "impediments.png")
+        test_settings = extend_dict(
+            settings,
+            {
+                "impediments_chart": output_file,
+                "impediments_window": 3,
+            },
+        )
+
+        calculator = ImpedimentsCalculator(
+            query_manager, test_settings, cycle_time_results
+        )
+        data = calculator.run()
+        assert data is not None and len(data) > 0, "Data should not be empty"
+        # Store result so write() can retrieve it
+        cycle_time_results[ImpedimentsCalculator] = data
+        calculator.write()
+
+        assert os.path.exists(output_file)
+
+    def test_write_impediments_days_chart(
+        self, query_manager, settings, cycle_time_results, tmp_path
+    ):
+        """Test write_impediments_days_chart()."""
+        output_file = str(tmp_path / "impediments-days.png")
+        test_settings = extend_dict(
+            settings,
+            {
+                "impediments_days_chart": output_file,
+                "impediments_days_chart_title": "Test Impediments Days Chart",
+            },
+        )
+
+        calculator = ImpedimentsCalculator(
+            query_manager, test_settings, cycle_time_results
+        )
+        data = calculator.run()
+        assert data is not None and len(data) > 0, "Data should not be empty"
+        # Store result so write() can retrieve it
+        cycle_time_results[ImpedimentsCalculator] = data
+        calculator.write()
+
+        assert os.path.exists(output_file)
+
+    def test_write_impediments_days_chart_empty_data(
+        self, query_manager, settings, columns, tmp_path
+    ):
+        """Test write_impediments_days_chart() with empty data."""
+        results = {CycleTimeCalculator: DataFrame([], columns=columns)}
+        output_file = str(tmp_path / "impediments-days.png")
+        test_settings = extend_dict(settings, {"impediments_days_chart": output_file})
+
+        calculator = ImpedimentsCalculator(query_manager, test_settings, results)
+        calculator.run()
+        calculator.write()
+
+        # File should not be created when data is empty
+        assert not os.path.exists(output_file)
+
+    def test_write_impediments_status_chart(
+        self, query_manager, settings, cycle_time_results, tmp_path
+    ):
+        """Test write_impediments_status_chart()."""
+        output_file = str(tmp_path / "impediments-status.png")
+        test_settings = extend_dict(
+            settings,
+            {
+                "impediments_status_chart": output_file,
+                "impediments_status_chart_title": "Test Impediments Status Chart",
+            },
+        )
+
+        calculator = ImpedimentsCalculator(
+            query_manager, test_settings, cycle_time_results
+        )
+        data = calculator.run()
+        assert data is not None and len(data) > 0, "Data should not be empty"
+        # Store result so write() can retrieve it
+        cycle_time_results[ImpedimentsCalculator] = data
+        calculator.write()
+
+        assert os.path.exists(output_file)
+
+    def test_write_impediments_status_chart_empty_data(
+        self, query_manager, settings, columns, tmp_path
+    ):
+        """Test write_impediments_status_chart() with empty data."""
+        results = {CycleTimeCalculator: DataFrame([], columns=columns)}
+        output_file = str(tmp_path / "impediments-status.png")
+        test_settings = extend_dict(settings, {"impediments_status_chart": output_file})
+
+        calculator = ImpedimentsCalculator(query_manager, test_settings, results)
+        calculator.run()
+        calculator.write()
+
+        # File should not be created when data is empty
+        assert not os.path.exists(output_file)
+
+    def test_write_impediments_status_days_chart(
+        self, query_manager, settings, cycle_time_results, tmp_path
+    ):
+        """Test write_impediments_status_days_chart()."""
+        output_file = str(tmp_path / "impediments-status-days.png")
+        test_settings = extend_dict(
+            settings,
+            {
+                "impediments_status_days_chart": output_file,
+                "impediments_status_days_chart_title": (
+                    "Test Impediments Status Days Chart"
+                ),
+            },
+        )
+
+        calculator = ImpedimentsCalculator(
+            query_manager, test_settings, cycle_time_results
+        )
+        data = calculator.run()
+        assert data is not None and len(data) > 0, "Data should not be empty"
+        # Store result so write() can retrieve it
+        cycle_time_results[ImpedimentsCalculator] = data
+        calculator.write()
+
+        assert os.path.exists(output_file)
+
+    def test_write_impediments_status_days_chart_empty_data(
+        self, query_manager, settings, columns, tmp_path
+    ):
+        """Test write_impediments_status_days_chart() with empty data."""
+        results = {CycleTimeCalculator: DataFrame([], columns=columns)}
+        output_file = str(tmp_path / "impediments-status-days.png")
+        test_settings = extend_dict(
+            settings, {"impediments_status_days_chart": output_file}
+        )
+
+        calculator = ImpedimentsCalculator(query_manager, test_settings, results)
+        calculator.run()
+        calculator.write()
+
+        # File should not be created when data is empty
+        assert not os.path.exists(output_file)
+
+    def test_write_all_outputs(
+        self, query_manager, settings, cycle_time_results, tmp_path
+    ):
+        """Test writing all output types at once."""
+        test_settings = extend_dict(
+            settings,
+            {
+                "impediments_data": [str(tmp_path / "impediments.csv")],
+                "impediments_chart": str(tmp_path / "impediments.png"),
+                "impediments_days_chart": str(tmp_path / "impediments-days.png"),
+                "impediments_status_chart": str(tmp_path / "impediments-status.png"),
+                "impediments_status_days_chart": str(
+                    tmp_path / "impediments-status-days.png"
+                ),
+            },
+        )
+
+        calculator = ImpedimentsCalculator(
+            query_manager, test_settings, cycle_time_results
+        )
+        data = calculator.run()
+        assert data is not None and len(data) > 0, "Data should not be empty"
+        # Store result so write() can retrieve it
+        cycle_time_results[ImpedimentsCalculator] = data
+        calculator.write()
+
+        # All files should be created
+        assert os.path.exists(tmp_path / "impediments.csv")
+        assert os.path.exists(tmp_path / "impediments.png")
+        assert os.path.exists(tmp_path / "impediments-days.png")
+        assert os.path.exists(tmp_path / "impediments-status.png")
+        assert os.path.exists(tmp_path / "impediments-status-days.png")

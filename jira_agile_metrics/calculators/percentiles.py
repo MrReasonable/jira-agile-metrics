@@ -39,7 +39,7 @@ class PercentilesCalculator(Calculator):
                 file_data.to_json(output_file, date_format="iso")
             elif output_extension == ".xlsx":
                 file_data.to_frame(name="percentiles").to_excel(
-                    output_file, "Percentiles", header=True
+                    output_file, sheet_name="Percentiles", header=True
                 )
             else:
                 # Reset index to convert it to a named column
