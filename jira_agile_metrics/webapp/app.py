@@ -229,7 +229,7 @@ def burnup_forecast():
         p.yaxis.axis_label = "Items"
         script, div = components(p)
         return render_template("burnup_forecast.html", script=script, div=div)
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating burnup forecast: %s", e)
         flash(str(e), "danger")
         return render_template("burnup_forecast.html", script="", div="")
@@ -261,7 +261,7 @@ def burnup_chart():
         return render_template(
             "bokeh_chart.html", title="Burnup Chart", script=script, div=div
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating burnup chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -306,7 +306,7 @@ def cfd_chart():
             script=script,
             div=div,
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating CFD chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -347,7 +347,7 @@ def histogram_chart():
             script=script,
             div=div,
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating histogram chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -370,7 +370,7 @@ def scatterplot_chart():
                 div="",
             )
         p = figure(title="Cycle Time Scatterplot", width=800, height=400)
-        p.circle(chart_data["x"], chart_data["y"], size=8, color="navy", alpha=0.5)
+        p.scatter(chart_data["x"], chart_data["y"], size=8, color="navy", alpha=0.5)
         p.xaxis.axis_label = "X"
         p.yaxis.axis_label = "Y"
         script, div = components(p)
@@ -380,7 +380,7 @@ def scatterplot_chart():
             script=script,
             div=div,
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating scatterplot chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -422,7 +422,7 @@ def netflow_chart():
         return render_template(
             "bokeh_chart.html", title="Net Flow Chart", script=script, div=div
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating netflow chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -461,7 +461,7 @@ def ageingwip_chart():
             script=script,
             div=div,
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating ageing WIP chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -504,7 +504,7 @@ def debt_chart():
             script=script,
             div=div,
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating debt chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -540,7 +540,7 @@ def debt_age_chart():
         return render_template(
             "bokeh_chart.html", title="Debt Age Chart", script=script, div=div
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating debt age chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -582,7 +582,7 @@ def defects_priority_chart():
             script=script,
             div=div,
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating defects priority chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -618,7 +618,7 @@ def defects_type_chart():
         return render_template(
             "bokeh_chart.html", title="Defects by Type", script=script, div=div
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating defects type chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -660,7 +660,7 @@ def defects_environment_chart():
             script=script,
             div=div,
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating defects environment chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -705,7 +705,7 @@ def impediments_chart():
             script=script,
             div=div,
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating impediments chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -741,7 +741,7 @@ def waste_chart():
         return render_template(
             "bokeh_chart.html", title="Waste Chart", script=script, div=div
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating waste chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -778,7 +778,7 @@ def progress_chart():
             script=script,
             div=div,
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating progress chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -823,7 +823,7 @@ def percentiles_chart():
             script=script,
             div=div,
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating percentiles chart: %s", e)
         flash(str(e), "danger")
         return render_template(
@@ -862,7 +862,7 @@ def cycletime_chart():
             script=script,
             div=div,
         )
-    except (ValueError, AttributeError, KeyError, ImportError) as e:
+    except (ValueError, AttributeError, KeyError, ImportError, RuntimeError) as e:
         logger.error("Error generating cycle time chart: %s", e)
         flash(str(e), "danger")
         return render_template(
