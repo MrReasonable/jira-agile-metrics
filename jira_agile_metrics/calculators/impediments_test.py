@@ -135,8 +135,12 @@ def test_only_runs_if_charts_set(
 def test_empty(query_manager, settings, columns):
     """Test impediments calculator with empty data."""
     results = {CycleTimeCalculator: DataFrame([], columns=columns)}
+    # Configure output so calculator runs
+    settings_with_output = extend_dict(
+        settings, {"impediments_data": "impediments.csv"}
+    )
 
-    calculator = ImpedimentsCalculator(query_manager, settings, results)
+    calculator = ImpedimentsCalculator(query_manager, settings_with_output, results)
 
     data = calculator.run()
     assert len(data.index) == 0
@@ -144,7 +148,13 @@ def test_empty(query_manager, settings, columns):
 
 def test_columns(query_manager, settings, cycle_time_results):
     """Test impediments calculator column structure."""
-    calculator = ImpedimentsCalculator(query_manager, settings, cycle_time_results)
+    # Configure output so calculator runs
+    settings_with_output = extend_dict(
+        settings, {"impediments_data": "impediments.csv"}
+    )
+    calculator = ImpedimentsCalculator(
+        query_manager, settings_with_output, cycle_time_results
+    )
 
     data = calculator.run()
 
@@ -153,7 +163,13 @@ def test_columns(query_manager, settings, cycle_time_results):
 
 def test_calculate_impediments(query_manager, settings, cycle_time_results):
     """Test impediments calculator functionality."""
-    calculator = ImpedimentsCalculator(query_manager, settings, cycle_time_results)
+    # Configure output so calculator runs
+    settings_with_output = extend_dict(
+        settings, {"impediments_data": "impediments.csv"}
+    )
+    calculator = ImpedimentsCalculator(
+        query_manager, settings_with_output, cycle_time_results
+    )
 
     data = calculator.run()
 
@@ -189,6 +205,8 @@ def test_different_backlog_column(query_manager, settings, cycle_time_results):
         {
             "backlog_column": "Committed",
             "committed_column": "Build",
+            # Configure output so calculator runs
+            "impediments_data": "impediments.csv",
         },
     )
     calculator = ImpedimentsCalculator(query_manager, settings, cycle_time_results)
@@ -212,6 +230,8 @@ def test_different_done_column(query_manager, settings, cycle_time_results):
         settings,
         {
             "done_column": "Build",
+            # Configure output so calculator runs
+            "impediments_data": "impediments.csv",
         },
     )
     calculator = ImpedimentsCalculator(query_manager, settings, cycle_time_results)

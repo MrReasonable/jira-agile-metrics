@@ -264,9 +264,9 @@ def test_write_defects_by_priority_chart(jira, settings, tmp_path):
     if result is not None and len(result) > 0:
         # Only check file exists if we have data
         # Note: breakdown_by_month may still return empty if dates don't align
-        assert os.path.exists(
-            output_file
-        ), "Output file should exist when result is non-empty"
+        assert os.path.exists(output_file), (
+            "Output file should exist when result is non-empty"
+        )
 
 
 def test_write_defects_by_type_chart(jira, settings, tmp_path):
@@ -277,6 +277,9 @@ def test_write_defects_by_type_chart(jira, settings, tmp_path):
         {
             "defects_by_type_chart": output_file,
             "defects_by_type_chart_title": "Test Defects by Type",
+            # Override type field to use Defect type for the chart
+            # (which has values matching defects_type_values)
+            "defects_type_field": "Defect type",
         },
     )
 
@@ -293,9 +296,9 @@ def test_write_defects_by_type_chart(jira, settings, tmp_path):
     if result is not None and len(result) > 0:
         # Only check file exists if we have data
         # Note: breakdown_by_month may still return empty if dates don't align
-        assert os.path.exists(
-            output_file
-        ), "Output file should exist when result is non-empty"
+        assert os.path.exists(output_file), (
+            "Output file should exist when result is non-empty"
+        )
 
 
 def test_write_defects_by_environment_chart(jira, settings, tmp_path):
@@ -322,9 +325,9 @@ def test_write_defects_by_environment_chart(jira, settings, tmp_path):
     if result is not None and len(result) > 0:
         # Only check file exists if we have data
         # Note: breakdown_by_month may still return empty if dates don't align
-        assert os.path.exists(
-            output_file
-        ), "Output file should exist when result is non-empty"
+        assert os.path.exists(output_file), (
+            "Output file should exist when result is non-empty"
+        )
 
 
 def test_write_all_charts(jira, settings, tmp_path):
@@ -403,6 +406,6 @@ def test_write_with_window(jira, settings, tmp_path):
     if result is not None and len(result) > 0:
         # Only check file exists if we have data
         # Note: breakdown_by_month may still return empty if dates don't align
-        assert os.path.exists(
-            output_file
-        ), "Output file should exist when result is non-empty"
+        assert os.path.exists(output_file), (
+            "Output file should exist when result is non-empty"
+        )

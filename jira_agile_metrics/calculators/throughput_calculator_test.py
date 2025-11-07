@@ -52,12 +52,10 @@ class TestableThroughputCalculator(ThroughputCalculator):
 def cycle_data_fixture():
     """Create sample cycle data for testing."""
     dates = pd.date_range(start="2024-01-01", periods=60, freq="D")
-    return pd.DataFrame(
-        {
-            "completed_timestamp": dates,
-            "key": [f"ISSUE-{i}" for i in range(60)],
-        }
-    )
+    return pd.DataFrame({
+        "completed_timestamp": dates,
+        "key": [f"ISSUE-{i}" for i in range(60)],
+    })
 
 
 @pytest.fixture(name="calc_instance")
@@ -131,16 +129,16 @@ def test_calculate_throughput_no_window_params(calc_instance, cycle_data):
     # With 30-day window, should start from 2024-01-31 (window_end - 29 days)
     expected_start = pd.Timestamp("2024-01-31")
     actual_start = result.index.min()
-    assert (
-        actual_start == expected_start
-    ), f"Expected window start date {expected_start}, got {actual_start}"
+    assert actual_start == expected_start, (
+        f"Expected window start date {expected_start}, got {actual_start}"
+    )
 
     # Verify the end date is the last date in the data
     expected_end = pd.Timestamp("2024-02-29")
     actual_end = result.index.max()
-    assert (
-        actual_end == expected_end
-    ), f"Expected window end date {expected_end}, got {actual_end}"
+    assert actual_end == expected_end, (
+        f"Expected window end date {expected_end}, got {actual_end}"
+    )
 
     # Verify all values are non-negative integers (counts)
     assert (result["count"] >= 0).all(), "All count values should be non-negative"
@@ -316,7 +314,7 @@ def test_calculate_fixed_window_throughput(calc_instance, cycle_data):
     assert (result["count"] >= 0).all()
     # Counts may be float64 due to fillna(0), but values should be integers
     assert (result["count"] % 1 == 0).all()  # All values are whole numbers
-    # With cycle_data having 60 issues (one per day from 2024-01-01 to 2024-03-01),
+    # With cycle_data having 60 issues (one per day from 2024-01-01 to 2024-02-29),
     # a 30-day window should capture 30 issues, so sum should be 30
     assert result["count"].sum() == 30
     # Verify index is properly sorted and continuous (daily frequency)

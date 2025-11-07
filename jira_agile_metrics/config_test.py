@@ -352,6 +352,10 @@ ABC AND type = Outcome AND resolution IS EMPTY"
         "defects_priority_field": "Priority",
         "defects_priority_values": ["Low", "Medium", "High"],
         **create_common_defect_test_settings(),
+        # Override chart paths with actual values from YAML config
+        "defects_by_priority_chart": "defects-by-priority.png",
+        "defects_by_type_chart": "defects-by-type.png",
+        "defects_by_environment_chart": "defects-by-environment.png",
         "debt_query": 'issueType = "Tech debt"',
         "debt_window": 3,
         "debt_priority_field": "Priority",
