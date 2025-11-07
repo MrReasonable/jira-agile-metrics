@@ -159,7 +159,9 @@ def run_command_line(parser, args):
     log_level = (
         logging.DEBUG
         if args.very_verbose
-        else logging.INFO if args.verbose else logging.WARNING
+        else logging.INFO
+        if args.verbose
+        else logging.WARNING
     )
 
     if _should_use_colors():
@@ -192,8 +194,15 @@ def run_command_line(parser, args):
 
     # Resolve config file path to absolute before changing directories
     # This ensures relative paths in the config are resolved correctly
-    config_path = os.path.abspath(args.config)
-    config_dir = os.path.dirname(config_path)
+    try:
+        config_path = os.path.abspath(args.config)
+        config_dir = os.path.dirname(config_path)
+    except (FileNotFoundError, OSError):
+        print(
+            f"Error: Configuration file '{args.config}' not found. "
+            "Please provide a valid config file."
+        )
+        return
 
     logger.debug("Parsing options from %s", config_path)
     try:
@@ -216,20 +225,19 @@ def run_command_line(parser, args):
     # Set charting context, which determines how charts are rendered
     set_chart_context("paper")
 
-    # Set output directory if required
-    # Default to "output/" to prevent writing files to project root
+    # Set output directory if explicitly specified
+    # Only change directory when an output directory is provided
     output_dir = None
     if "output_directory" in options:
         output_dir = options["output_directory"]
     if args.output_directory:
         output_dir = args.output_directory
-    # If no output directory specified, default to "output/" to prevent
-    # writing files to the project root
-    if not output_dir:
-        output_dir = "output"
-    logger.info("Changing working directory to %s", output_dir)
-    os.makedirs(output_dir, exist_ok=True)
-    os.chdir(output_dir)
+
+    # Only create and change to output directory if explicitly specified
+    if output_dir:
+        logger.info("Changing working directory to %s", output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+        os.chdir(output_dir)
     logger.debug("[DEBUG] Config file path: %s", config_path)
     logger.debug(
         "[DEBUG] Initial output_directory in options: %s",
@@ -316,14 +324,12 @@ def get_trello_client(connection, type_mapping):
     if not token:
         token = getpass.getpass("Token: ")
 
-    return TrelloClient(
-        {
-            "member": username,
-            "key": key,
-            "token": token,
-            "type_mapping": type_mapping,
-        }
-    )
+    return TrelloClient({
+        "member": username,
+        "key": key,
+        "token": token,
+        "type_mapping": type_mapping,
+    })
 
 
 if __name__ == "__main__":
