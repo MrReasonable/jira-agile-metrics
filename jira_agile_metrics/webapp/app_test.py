@@ -258,9 +258,9 @@ def test_route_renders_with_empty_placeholder_on_empty(
         for idx in h1_indexes
     )
     # Require chart container div to appear immediately after the <h1>
-    assert has_next_div_after_h1, (
-        "Chart container <div> not found immediately after <h1>"
-    )
+    assert (
+        has_next_div_after_h1
+    ), "Chart container <div> not found immediately after <h1>"
     assert "bk-root" not in resp_text
     # No Bokeh chart scripts should be rendered when empty
     # Check for absence of Bokeh-specific script content rather than all scripts
@@ -270,13 +270,13 @@ def test_route_renders_with_empty_placeholder_on_empty(
     scripts = script_pattern.findall(resp_text)
     for script in scripts:
         assert "Bokeh" not in script, "Bokeh script found when chart should be empty"
-        assert "bk-root" not in script, (
-            "Bokeh root reference found when chart should be empty"
-        )
+        assert (
+            "bk-root" not in script
+        ), "Bokeh root reference found when chart should be empty"
         # Check for Bokeh document initialization patterns
-        assert "document['document']" not in script, (
-            "Bokeh document initialization found when chart should be empty"
-        )
+        assert (
+            "document['document']" not in script
+        ), "Bokeh document initialization found when chart should be empty"
 
 
 @pytest.mark.parametrize(
@@ -436,17 +436,21 @@ class TestChartRenderingWithData:
                 },
                 index=dates,
             ),
-            "cycle": pd.DataFrame({
-                "key": [f"KEY-{i}" for i in range(5)],
-                "cycle_time": pd.to_timedelta([i + 1 for i in range(5)], unit="D"),
-            }),
+            "cycle": pd.DataFrame(
+                {
+                    "key": [f"KEY-{i}" for i in range(5)],
+                    "cycle_time": pd.to_timedelta([i + 1 for i in range(5)], unit="D"),
+                }
+            ),
             "histogram": pd.Series(
                 [1, 2, 3, 4, 5], index=["0-1", "1-2", "2-3", "3-4", "4-5"]
             ),
-            "scatterplot": pd.DataFrame({
-                "x": range(5),
-                "y": range(5, 10),
-            }),
+            "scatterplot": pd.DataFrame(
+                {
+                    "x": range(5),
+                    "y": range(5, 10),
+                }
+            ),
             "forecast": pd.DataFrame(
                 {
                     "trial_0": range(10),
