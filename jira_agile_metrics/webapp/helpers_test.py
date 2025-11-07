@@ -35,9 +35,10 @@ from .helpers import (
 def test_plot_forecast_fan_normal_data():
     """Test plot_forecast_fan with normal data."""
     mock_figure = MagicMock()
+    rng = np.random.default_rng(42)  # Local RNG for reproducible test results
     dates = pd.date_range(start="2024-01-01", periods=10, freq="D")
     forecast_data = pd.DataFrame(
-        {f"trial_{i}": np.random.rand(10) * 100 for i in range(20)},
+        {f"trial_{i}": rng.random(10) * 100 for i in range(20)},
         index=dates,
     )
 
@@ -95,21 +96,20 @@ def test_plot_forecast_fan_infinite_values():
 def test_capture_log():
     """Test capture_log context manager."""
     buffer = io.StringIO()
-    logger = MagicMock()
+    logger = logging.getLogger("test")
 
-    with patch(
-        "jira_agile_metrics.webapp.helpers.logging.getLogger", return_value=logger
-    ):
-        with capture_log(buffer, logging.INFO):
-            logger.info("Test message")
+    with capture_log(buffer, logging.INFO):
+        logger.setLevel(logging.INFO)
+        logger.info("Test message")
 
-    assert "Test message" in buffer.getvalue() or logger.info.called
+    assert "Test message" in buffer.getvalue()
 
 
 def test_override_options():
     """Test override_options function."""
     options = {"key1": "value1", "key2": "value2", "key3": "value3"}
     form = {"key2": "new_value2", "key4": "value4"}
+    original = options.copy()
 
     result = override_options(options, form)
 
@@ -117,6 +117,7 @@ def test_override_options():
     assert result["key2"] == "new_value2"
     assert result["key3"] == "value3"
     assert "key4" not in result  # Only override existing keys
+    assert options == original  # Ensure original options dict is not mutated
 
 
 def test_override_options_empty_form():
@@ -441,8 +442,29 @@ def test_get_archive_cleanup_on_error():
 
     calculators = [FailingCalculator]
 
-    # Should not raise an error, should handle cleanup
+    # Capture the temp directory path created by get_archive
+    temp_path = None
+
+    # Patch tempfile.mkdtemp to capture the path it returns
+    original_mkdtemp = tempfile.mkdtemp
+
+    def capture_mkdtemp(*args, **kwargs):
+        nonlocal temp_path
+        temp_path = original_mkdtemp(*args, **kwargs)
+        return temp_path
+
+    # Should raise ValueError, and temp directory should be cleaned up
     try:
-        get_archive(calculators, query_manager, settings)
+        with patch(
+            "jira_agile_metrics.webapp.helpers.tempfile.mkdtemp",
+            side_effect=capture_mkdtemp,
+        ):
+            get_archive(calculators, query_manager, settings)
     except ValueError:
         pass  # Expected to fail, but temp directory should be cleaned up
+    finally:
+        # Assert that the temp directory was removed, even if exception was raised
+        assert temp_path is not None, "temp_path should have been captured"
+        assert not os.path.exists(
+            temp_path
+        ), f"Temp directory {temp_path} should have been removed"

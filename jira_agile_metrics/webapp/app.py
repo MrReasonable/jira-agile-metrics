@@ -133,17 +133,21 @@ def get_real_results():
 
     # Change to output directory if specified
     # (to write files there, not in project root)
+    # Default to "output/" to prevent writing files to project root
     # os.chdir() modifies global process state and is protected by a lock
     # for thread-safety in multi-threaded environments (e.g., Flask's threaded mode)
     output_dir = options.get("output_directory")
+    # If no output directory specified, default to "output/" to prevent
+    # writing files to the project root
+    if not output_dir:
+        output_dir = "output"
     original_cwd = os.getcwd()
 
     # Protect os.chdir() operations with a lock for thread safety
     with _chdir_lock:
         try:
-            if output_dir:
-                os.makedirs(output_dir, exist_ok=True)
-                os.chdir(output_dir)
+            os.makedirs(output_dir, exist_ok=True)
+            os.chdir(output_dir)
 
             jira = get_jira_client(options["connection"])
             query_manager = QueryManager(jira, options["settings"])

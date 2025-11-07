@@ -159,7 +159,9 @@ def run_command_line(parser, args):
     log_level = (
         logging.DEBUG
         if args.very_verbose
-        else logging.INFO if args.verbose else logging.WARNING
+        else logging.INFO
+        if args.verbose
+        else logging.WARNING
     )
 
     if _should_use_colors():
@@ -217,15 +219,19 @@ def run_command_line(parser, args):
     set_chart_context("paper")
 
     # Set output directory if required
+    # Default to "output/" to prevent writing files to project root
     output_dir = None
     if "output_directory" in options:
         output_dir = options["output_directory"]
     if args.output_directory:
         output_dir = args.output_directory
-    if output_dir:
-        logger.info("Changing working directory to %s", output_dir)
-        os.makedirs(output_dir, exist_ok=True)
-        os.chdir(output_dir)
+    # If no output directory specified, default to "output/" to prevent
+    # writing files to the project root
+    if not output_dir:
+        output_dir = "output"
+    logger.info("Changing working directory to %s", output_dir)
+    os.makedirs(output_dir, exist_ok=True)
+    os.chdir(output_dir)
     logger.debug("[DEBUG] Config file path: %s", config_path)
     logger.debug(
         "[DEBUG] Initial output_directory in options: %s",
@@ -312,14 +318,12 @@ def get_trello_client(connection, type_mapping):
     if not token:
         token = getpass.getpass("Token: ")
 
-    return TrelloClient(
-        {
-            "member": username,
-            "key": key,
-            "token": token,
-            "type_mapping": type_mapping,
-        }
-    )
+    return TrelloClient({
+        "member": username,
+        "key": key,
+        "token": token,
+        "type_mapping": type_mapping,
+    })
 
 
 if __name__ == "__main__":
