@@ -11,6 +11,17 @@ from pathlib import Path
 import pandas as pd
 
 
+def _assert_forecast_file_structure(df: pd.DataFrame, format_name: str) -> None:
+    """Assert that a forecast DataFrame has the expected structure.
+
+    Args:
+        df: The DataFrame to validate
+        format_name: The format name (e.g., "CSV", "JSON", "XLSX") for error messages
+    """
+    assert "Date" in df.columns, f"{format_name} should have Date column"
+    assert len(df.columns) > 1, f"{format_name} should have trial columns"
+
+
 def assert_forecast_csv_file_valid(file_path: Path) -> pd.DataFrame:
     """Assert that a forecast CSV file exists and has the expected columns.
 
@@ -20,8 +31,7 @@ def assert_forecast_csv_file_valid(file_path: Path) -> pd.DataFrame:
     assert file_path.stat().st_size > 0, "CSV file should not be empty"
 
     df = pd.read_csv(file_path, parse_dates=["Date"])
-    assert "Date" in df.columns, "CSV should have Date column"
-    assert len(df.columns) > 1, "CSV should have trial columns"
+    _assert_forecast_file_structure(df, "CSV")
     return df
 
 
@@ -34,8 +44,7 @@ def assert_forecast_json_file_valid(file_path: Path) -> pd.DataFrame:
     assert file_path.stat().st_size > 0, "JSON file should not be empty"
 
     df = pd.read_json(file_path, orient="records")
-    assert "Date" in df.columns, "JSON should have Date column"
-    assert len(df.columns) > 1, "JSON should have trial columns"
+    _assert_forecast_file_structure(df, "JSON")
     return df
 
 
@@ -48,6 +57,5 @@ def assert_forecast_xlsx_file_valid(file_path: Path) -> pd.DataFrame:
     assert file_path.stat().st_size > 0, "XLSX file should not be empty"
 
     df = pd.read_excel(file_path, sheet_name="Forecast Trials")
-    assert "Date" in df.columns, "XLSX should have Date column"
-    assert len(df.columns) > 1, "XLSX should have trial columns"
+    _assert_forecast_file_structure(df, "XLSX")
     return df

@@ -5,6 +5,8 @@ across test files.
 """
 
 import datetime as dt
+import json
+import os
 
 import pandas as pd
 import pytest
@@ -720,3 +722,25 @@ def assert_common_d1_d2_record_values_no_priority(valid_records):
     assert d2_record["priority"] is None
     assert d2_record["created"] == Timestamp("2018-01-01 01:01:01")
     assert d2_record["resolved"] == Timestamp("2018-03-20 02:02:02")
+
+
+def assert_calculator_wrote_json_file(calculator, output_file, results_dict):
+    """Helper function to run calculator, write output, and verify JSON file.
+
+    This function eliminates duplicate code across test files by providing
+    a common pattern for testing calculator write operations to JSON files.
+
+    Args:
+        calculator: Calculator instance to run and write
+        output_file: Path to the expected output JSON file
+        results_dict: Dictionary to store calculator results (will be updated)
+    """
+    result = calculator.run()
+    results_dict[type(calculator)] = result
+    calculator.write()
+
+    assert os.path.exists(output_file)
+    with open(output_file, encoding="utf-8") as f:
+        data = json.load(f)
+    assert isinstance(data, dict)
+    return data

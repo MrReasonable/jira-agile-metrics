@@ -1,6 +1,7 @@
 """Helper functions for the web application."""
 
 import contextlib
+import copy
 import logging
 import os
 import os.path
@@ -19,6 +20,8 @@ from ..common_constants import (
 )
 from ..config import ConfigError
 from ..jira_client import create_jira_client
+
+logger = logging.getLogger(__name__)
 
 
 def plot_forecast_fan(p, forecast_data):
@@ -117,11 +120,22 @@ def capture_log(buffer, level, formatter=None):
 def override_options(options, form):
     """Override options from the configuration files with form data where
     applicable.
+
+    Args:
+        options: Dictionary of configuration options to override
+        form: Dictionary-like object (e.g., Flask request.form) containing
+            override values
+
+    Returns:
+        A new dictionary with overrides applied. The original options dict
+        is not modified.
     """
+    result = copy.deepcopy(options)
     for key in options.keys():
         value = form.get(key)
         if value is not None and value != "":
-            options[key] = value
+            result[key] = value
+    return result
 
 
 def get_jira_client(connection):
@@ -184,7 +198,18 @@ def _transform_list_item(item, base_path, is_path, validate_paths, key):
         is_path is True, _make_paths_absolute(...) for dicts, or item otherwise
     """
     if isinstance(item, str) and not os.path.isabs(item) and is_path:
-        return os.path.join(base_path, item)
+        converted_path = os.path.join(base_path, item)
+        # Optionally validate the path exists
+        if validate_paths and not os.path.exists(converted_path):
+            logger.warning(
+                "Path validation failed: path does not exist: %s (key: %s)",
+                converted_path,
+                key,
+            )
+            raise FileNotFoundError(
+                f"Path does not exist: {converted_path} (key: {key})"
+            )
+        return converted_path
     if isinstance(item, dict):
         return _make_paths_absolute(item, base_path, validate_paths, key)
     return item
@@ -223,9 +248,14 @@ def _make_paths_absolute(settings, base_path, validate_paths=False, parent_key=N
                 converted_path = os.path.join(base_path, value)
                 # Optionally validate the path exists
                 if validate_paths and not os.path.exists(converted_path):
-                    # For new files that will be created, we don't require existence
-                    # Only validate if it's a directory or file that should exist
-                    pass  # Could add logging here if needed
+                    logger.warning(
+                        "Path validation failed: path does not exist: %s (key: %s)",
+                        converted_path,
+                        key,
+                    )
+                    raise FileNotFoundError(
+                        f"Path does not exist: {converted_path} (key: {key})"
+                    )
                 result[key] = converted_path
             else:
                 result[key] = value
