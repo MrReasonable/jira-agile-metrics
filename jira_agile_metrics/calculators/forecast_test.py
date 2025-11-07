@@ -53,12 +53,12 @@ def fixture_query_manager(minimal_query_manager):
 def fixture_results(query_manager, settings, large_cycle_time_results):
     """Create results fixture with CFD data for forecast tests."""
     results = large_cycle_time_results.copy()
-    results.update({
-        CFDCalculator: CFDCalculator(query_manager, settings, results).run()
-    })
-    results.update({
-        BurnupCalculator: BurnupCalculator(query_manager, settings, results).run()
-    })
+    results.update(
+        {CFDCalculator: CFDCalculator(query_manager, settings, results).run()}
+    )
+    results.update(
+        {BurnupCalculator: BurnupCalculator(query_manager, settings, results).run()}
+    )
     return results
 
 
@@ -214,23 +214,25 @@ def test_convert_trials_to_dataframe(
 
 def test_calculate_forecast_settings(query_manager, settings, results):
     """Test burnup forecast with different settings."""
-    settings.update({
-        "backlog_column": "Committed",
-        "done_column": "Test",
-        "burnup_forecast_chart_throughput_window_end": None,
-        "burnup_forecast_chart_throughput_window": 4,
-        "burnup_forecast_chart_target": None,
-        "burnup_forecast_chart_trials": 10,
-        "burnup_forecast_chart_deadline": datetime.date(2018, 1, 30),
-        "burnup_forecast_chart_deadline_confidence": 0.85,
-        "quantiles": [0.1, 0.3, 0.5],
-    })
-    results.update({
-        CFDCalculator: CFDCalculator(query_manager, settings, results).run()
-    })
-    results.update({
-        BurnupCalculator: BurnupCalculator(query_manager, settings, results).run()
-    })
+    settings.update(
+        {
+            "backlog_column": "Committed",
+            "done_column": "Test",
+            "burnup_forecast_chart_throughput_window_end": None,
+            "burnup_forecast_chart_throughput_window": 4,
+            "burnup_forecast_chart_target": None,
+            "burnup_forecast_chart_trials": 10,
+            "burnup_forecast_chart_deadline": datetime.date(2018, 1, 30),
+            "burnup_forecast_chart_deadline_confidence": 0.85,
+            "quantiles": [0.1, 0.3, 0.5],
+        }
+    )
+    results.update(
+        {CFDCalculator: CFDCalculator(query_manager, settings, results).run()}
+    )
+    results.update(
+        {BurnupCalculator: BurnupCalculator(query_manager, settings, results).run()}
+    )
     calculator = BurnupForecastCalculator(query_manager, settings, results)
     data = calculator.run()
     if data is None:
@@ -325,12 +327,12 @@ class TestForecastConfigurationVariations:
                 "burnup_forecast_chart_trials": 10,
             },
         )
-        results.update({
-            CFDCalculator: CFDCalculator(query_manager, settings, results).run()
-        })
-        results.update({
-            BurnupCalculator: BurnupCalculator(query_manager, settings, results).run()
-        })
+        results.update(
+            {CFDCalculator: CFDCalculator(query_manager, settings, results).run()}
+        )
+        results.update(
+            {BurnupCalculator: BurnupCalculator(query_manager, settings, results).run()}
+        )
         return results, settings
 
     def test_different_trial_counts(self, query_manager, base_results):
@@ -787,23 +789,25 @@ class TestForecastConfigurationVariations:
 
 def _setup_forecast_for_write_tests(query_manager, settings, results, output_path):
     """Helper to setup forecast calculator with known working settings."""
-    settings.update({
-        "backlog_column": "Committed",
-        "done_column": "Test",
-        "burnup_forecast_chart_throughput_window_end": None,
-        "burnup_forecast_chart_throughput_window": 4,
-        "burnup_forecast_chart_target": None,
-        "burnup_forecast_chart_trials": 10,
-        "burnup_forecast_chart_deadline": datetime.date(2018, 1, 30),
-        "burnup_forecast_chart_deadline_confidence": 0.85,
-        "quantiles": [0.1, 0.3, 0.5],
-    })
-    results.update({
-        CFDCalculator: CFDCalculator(query_manager, settings, results).run()
-    })
-    results.update({
-        BurnupCalculator: BurnupCalculator(query_manager, settings, results).run()
-    })
+    settings.update(
+        {
+            "backlog_column": "Committed",
+            "done_column": "Test",
+            "burnup_forecast_chart_throughput_window_end": None,
+            "burnup_forecast_chart_throughput_window": 4,
+            "burnup_forecast_chart_target": None,
+            "burnup_forecast_chart_trials": 10,
+            "burnup_forecast_chart_deadline": datetime.date(2018, 1, 30),
+            "burnup_forecast_chart_deadline_confidence": 0.85,
+            "quantiles": [0.1, 0.3, 0.5],
+        }
+    )
+    results.update(
+        {CFDCalculator: CFDCalculator(query_manager, settings, results).run()}
+    )
+    results.update(
+        {BurnupCalculator: BurnupCalculator(query_manager, settings, results).run()}
+    )
     settings["burnup_forecast_chart_data"] = output_path
     settings["burnup_forecast_chart"] = None
     random.seed(42)
@@ -823,19 +827,19 @@ def test_write_data_files_csv(query_manager, settings, results, tmp_path):
         csv_df = assert_forecast_csv_file_valid(output_csv)
         assert all(col.startswith("Trial ") for col in csv_df.columns if col != "Date")
         assert len(csv_df) == len(forecast_data), "CSV should have same number of rows"
-        assert len(csv_df.columns) == len(forecast_data.columns) + 1, (
-            "CSV should have Date + trial columns"
-        )
+        assert (
+            len(csv_df.columns) == len(forecast_data.columns) + 1
+        ), "CSV should have Date + trial columns"
         csv_dates = pd.to_datetime(csv_df["Date"]).dt.date
         forecast_dates = forecast_data.index.date
-        assert list(csv_dates) == list(forecast_dates), (
-            "CSV dates should match forecast dates"
-        )
+        assert list(csv_dates) == list(
+            forecast_dates
+        ), "CSV dates should match forecast dates"
     else:
         calculator.write()
-        assert not output_csv.exists(), (
-            "CSV file should not be created when forecast is None"
-        )
+        assert (
+            not output_csv.exists()
+        ), "CSV file should not be created when forecast is None"
 
 
 def test_write_data_files_json(query_manager, settings, results, tmp_path):
@@ -849,9 +853,9 @@ def test_write_data_files_json(query_manager, settings, results, tmp_path):
         assert_forecast_json_file_valid(output_json)
     else:
         calculator.write()
-        assert not output_json.exists(), (
-            "JSON file should not be created when forecast is None"
-        )
+        assert (
+            not output_json.exists()
+        ), "JSON file should not be created when forecast is None"
 
 
 def test_write_data_files_xlsx(query_manager, settings, results, tmp_path):
@@ -865,9 +869,9 @@ def test_write_data_files_xlsx(query_manager, settings, results, tmp_path):
         assert_forecast_xlsx_file_valid(output_xlsx)
     else:
         calculator.write()
-        assert not output_xlsx.exists(), (
-            "XLSX file should not be created when forecast is None"
-        )
+        assert (
+            not output_xlsx.exists()
+        ), "XLSX file should not be created when forecast is None"
 
 
 def test_write_data_files_multiple_formats(query_manager, settings, results, tmp_path):
@@ -886,9 +890,9 @@ def test_write_data_files_multiple_formats(query_manager, settings, results, tmp
         csv_df = assert_forecast_csv_file_valid(output_csv)
         json_df = assert_forecast_json_file_valid(output_json)
         xlsx_df = assert_forecast_xlsx_file_valid(output_xlsx)
-        assert len(csv_df) == len(json_df) == len(xlsx_df), (
-            "All formats should have same number of rows"
-        )
+        assert (
+            len(csv_df) == len(json_df) == len(xlsx_df)
+        ), "All formats should have same number of rows"
     else:
         calculator.write()
         assert not output_csv.exists(), "CSV file should not be created"
@@ -942,7 +946,9 @@ def test_write_data_files_with_fixed_seed(
     # This avoids patching private members and ensures reproducibility
     original_init = MonteCarloSimulator.__init__
 
-    def mock_init(self, trials=1000, random_seed=None, confidence=0.8):  # pylint: disable=unused-argument
+    def mock_init(
+        self, trials=1000, random_seed=None, confidence=0.8
+    ):  # pylint: disable=unused-argument
         """Mock __init__ to always use seed=42 for reproducibility.
 
         The random_seed parameter is intentionally unused - we always use 42

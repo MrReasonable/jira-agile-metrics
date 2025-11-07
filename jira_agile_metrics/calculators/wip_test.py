@@ -78,10 +78,12 @@ def test_calculate_wip(query_manager, settings, results):
 
 def test_calculate_wip_different_columns(query_manager, settings, results):
     """Test WIP calculation with different column structure."""
-    settings.update({
-        "committed_column": "Build",
-        "done_column": "Test",
-    })
+    settings.update(
+        {
+            "committed_column": "Build",
+            "done_column": "Test",
+        }
+    )
 
     calculator = WIPChartCalculator(query_manager, settings, results)
 
