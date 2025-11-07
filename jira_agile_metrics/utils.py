@@ -174,7 +174,13 @@ def create_throughput_sampler(
     throughput_data: pd.DataFrame, sample_buffer_size: int = 100
 ) -> callable:
     """Create a common throughput sampler function to eliminate code duplication."""
-    return _create_generic_sampler(throughput_data, "throughput", sample_buffer_size)
+    # Check for None or empty data first to avoid calling with irrelevant column name
+    if throughput_data is None or throughput_data.empty:
+        return _create_generic_sampler(None, "count", sample_buffer_size)
+    # Throughput DataFrame has column "count", not "throughput"
+    # Try "throughput" first for compatibility, fall back to "count"
+    column_name = "throughput" if "throughput" in throughput_data.columns else "count"
+    return _create_generic_sampler(throughput_data, column_name, sample_buffer_size)
 
 
 def to_json_string(value):

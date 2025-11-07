@@ -63,6 +63,7 @@ DATA_FILENAME_KEYS: Final[List[str]] = [
     "throughput_data",
     "percentiles_data",
     "impediments_data",
+    "burnup_forecast_chart_data",
     "lead_time_histogram_data",
     "lead_time_histogram_chart",
 ]

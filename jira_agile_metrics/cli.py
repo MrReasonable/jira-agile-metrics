@@ -7,9 +7,17 @@ import argparse
 import getpass
 import logging
 import os
+import sys
 
 from dotenv import load_dotenv
 from jira import JIRA
+
+try:
+    import colorlog
+
+    COLORLOG_AVAILABLE = True
+except ImportError:
+    COLORLOG_AVAILABLE = False
 
 from .calculator import run_calculators
 from .config import ConfigError, config_to_options
@@ -129,21 +137,55 @@ def run_server(_parser, args):
     webapp.run(host=host, port=port)
 
 
+def _should_use_colors():
+    """Determine if colored output should be used."""
+    if not COLORLOG_AVAILABLE:
+        return False
+    # Check if FORCE_COLOR is set (for Docker/non-TTY environments)
+    if os.environ.get("FORCE_COLOR") in ("1", "true", "yes"):
+        return True
+    # Check if we're in a TTY
+    if hasattr(sys.stdout, "isatty") and sys.stdout.isatty():
+        return True
+    return False
+
+
 def run_command_line(parser, args):
     """Run the command line interface."""
     if not args.config:
         parser.print_usage()
         return
 
-    logging.basicConfig(
-        format="[%(asctime)s %(levelname)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        level=(
-            logging.DEBUG
-            if args.very_verbose
-            else logging.INFO if args.verbose else logging.WARNING
-        ),
+    log_level = (
+        logging.DEBUG
+        if args.very_verbose
+        else logging.INFO if args.verbose else logging.WARNING
     )
+
+    if _should_use_colors():
+        # Use colorlog for colored output
+        handler = colorlog.StreamHandler()
+        handler.setFormatter(
+            colorlog.ColoredFormatter(
+                "%(log_color)s[%(asctime)s %(levelname)s]%(reset)s %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+                log_colors={
+                    "DEBUG": "cyan",
+                    "INFO": "green",
+                    "WARNING": "yellow",
+                    "ERROR": "red",
+                    "CRITICAL": "red,bg_white",
+                },
+            )
+        )
+        logging.basicConfig(level=log_level, handlers=[handler])
+    else:
+        # Use standard logging without colors
+        logging.basicConfig(
+            format="[%(asctime)s %(levelname)s] %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+            level=log_level,
+        )
 
     # Configuration and settings
     # (command line arguments override config file options)

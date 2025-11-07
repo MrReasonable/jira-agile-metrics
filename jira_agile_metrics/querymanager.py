@@ -63,13 +63,15 @@ class IssueSnapshot:
         self.to_string = transition_data["to_string"]
 
     def __eq__(self, other):
-        return all((
-            self.change == other.change,
-            self.key == other.key,
-            self.date.isoformat() == other.date.isoformat(),
-            self.from_string == other.from_string,
-            self.to_string == other.to_string,
-        ))
+        return all(
+            (
+                self.change == other.change,
+                self.key == other.key,
+                self.date.isoformat() == other.date.isoformat(),
+                self.from_string == other.from_string,
+                self.to_string == other.to_string,
+            )
+        )
 
     def __repr__(self):
         return (
