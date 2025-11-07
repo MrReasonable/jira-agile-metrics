@@ -184,18 +184,18 @@ def test_backlog_and_done_are_independent():
         # Should be approximately backlog_growth (2), not backlog_growth - throughput
         assert backlog_increase >= 0, "Backlog should not decrease"
         # In this test, backlog_growth is 2, so increase should be 2
-        assert (
-            backlog_increase == 2
-        ), f"Backlog increase should be backlog_growth (2), got {backlog_increase}"
+        assert backlog_increase == 2, (
+            f"Backlog increase should be backlog_growth (2), got {backlog_increase}"
+        )
 
     # Verify done growth is independent of backlog
     # Each period done increases by throughput (5), not affected by backlog_growth (2)
     for i in range(1, len(done_trial)):
         done_increase = done_trial[i] - done_trial[i - 1]
         # Should be throughput (5), not affected by backlog_growth
-        assert (
-            done_increase == 5
-        ), f"Done increase should be throughput (5), got {done_increase}"
+        assert done_increase == 5, (
+            f"Done increase should be throughput (5), got {done_increase}"
+        )
 
 
 def test_burnup_monte_carlo_horizon_runs_trials_with_samplers():

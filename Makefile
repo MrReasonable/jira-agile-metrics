@@ -135,13 +135,13 @@ pylint: ## Run pylint
 	@echo "$(GREEN)Running pylint on codebase...$(NC)"
 	$(PYLINT) $(LINT_PATHS)
 
-format: ## Format code with black
-	@echo "$(GREEN)Formatting code with black...$(NC)"
-	$(BLACK) $(LINT_PATHS)
+format: ## Format code with ruff
+	@echo "$(GREEN)Formatting code with ruff...$(NC)"
+	$(RUFF) format $(LINT_PATHS)
 
 format-check: ## Check code formatting without making changes
 	@echo "$(GREEN)Checking code formatting...$(NC)"
-	$(BLACK) $(LINT_PATHS) --check
+	$(RUFF) format $(LINT_PATHS) --check
 
 check: format-check lint ## Run all checks without making changes
 	@echo "$(GREEN)All checks passed!$(NC)"

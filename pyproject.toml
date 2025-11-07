@@ -21,7 +21,8 @@ exclude = '''
 line-length = 88
 exclude = [".venv", "venv", "env", "build", "dist", "__pycache__"]
 target-version = "py311"
-preview = true
+# Disable preview mode for better Black compatibility
+preview = false
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

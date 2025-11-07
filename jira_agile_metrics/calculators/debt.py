@@ -68,7 +68,14 @@ class DebtCalculator(BaseCalculator):
     def _initialize_series(self):
         """Initialize series structure for debt data."""
         series = self.create_common_series_structure(
-            ["key", "priority", "created", "resolved", "type", "environment"]
+            [
+                "key",
+                "priority",
+                "created",
+                "resolved",
+                "type",
+                "environment",
+            ]
         )
         series["age"] = {"data": [], "dtype": "timedelta64[ns]"}
         return series

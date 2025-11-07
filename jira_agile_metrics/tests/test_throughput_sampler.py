@@ -43,9 +43,9 @@ def test_create_throughput_sampler_with_throughput_column():
     assert any(s > 0 for s in samples), "At least some samples should be positive"
     # Verify samples are drawn from input data
     unique_values = set(throughput_data["throughput"])
-    assert set(samples).issubset(
-        unique_values
-    ), "Samples should only contain values from input data"
+    assert set(samples).issubset(unique_values), (
+        "Samples should only contain values from input data"
+    )
 
 
 def test_create_throughput_sampler_empty_data():

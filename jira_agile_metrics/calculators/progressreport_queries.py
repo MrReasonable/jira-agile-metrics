@@ -149,9 +149,7 @@ def _update_story_dates(epic, row, committed_column, done_column):
             epic.data["last_story_finished"] = row[done_column]
 
 
-def update_story_counts(
-    epic, query_manager, cycle, backlog_column, done_column
-):  # pylint: disable=too-many-locals
+def update_story_counts(epic, query_manager, cycle, backlog_column, done_column):  # pylint: disable=too-many-locals
     """Update story counts for an epic.
 
     Args:

@@ -511,7 +511,7 @@ class BurnupChartGenerator:
                 current_backlog = burnup_data[backlog_column].iloc[-1]
                 # Show breakdown if target equals backlog (default case)
                 if abs(target - current_backlog) < 0.01:
-                    return f"Target: {target:.0f} " f"(Backlog: {current_backlog:.0f})"
+                    return f"Target: {target:.0f} (Backlog: {current_backlog:.0f})"
 
             # Fallback to simple target
             return f"Target: {target:.0f}"

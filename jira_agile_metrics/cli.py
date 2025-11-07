@@ -318,12 +318,14 @@ def get_trello_client(connection, type_mapping):
     if not token:
         token = getpass.getpass("Token: ")
 
-    return TrelloClient({
-        "member": username,
-        "key": key,
-        "token": token,
-        "type_mapping": type_mapping,
-    })
+    return TrelloClient(
+        {
+            "member": username,
+            "key": key,
+            "token": token,
+            "type_mapping": type_mapping,
+        }
+    )
 
 
 if __name__ == "__main__":

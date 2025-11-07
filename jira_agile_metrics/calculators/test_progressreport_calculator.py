@@ -150,12 +150,12 @@ class TestOutcomeFinding(ProgressReportTestBase):
 
         settings = base_custom_settings.copy()
         settings["progress_report"]["outcome_query"] = "project=TEST AND type=Outcome"
-        settings["progress_report"]["templates"][
-            "epic"
-        ] = "project=TEST AND type=Epic AND outcome={outcome}"
-        settings["progress_report"]["templates"][
-            "story"
-        ] = "project=TEST AND type=Story"
+        settings["progress_report"]["templates"]["epic"] = (
+            "project=TEST AND type=Epic AND outcome={outcome}"
+        )
+        settings["progress_report"]["templates"]["story"] = (
+            "project=TEST AND type=Story"
+        )
 
         calculator = ProgressReportCalculator(query_manager, settings, {})
 
@@ -192,15 +192,15 @@ class TestOutcomeFinding(ProgressReportTestBase):
 
         settings = base_custom_settings.copy()
         settings["progress_report"]["outcome_query"] = "project=TEST AND type=Outcome"
-        settings["progress_report"]["outcome_fields"][
-            "deadline"
-        ] = None  # No deadline field
-        settings["progress_report"]["templates"][
-            "epic"
-        ] = "project=TEST AND type=Epic AND outcome={outcome}"
-        settings["progress_report"]["templates"][
-            "story"
-        ] = "project=TEST AND type=Story"
+        settings["progress_report"]["outcome_fields"]["deadline"] = (
+            None  # No deadline field
+        )
+        settings["progress_report"]["templates"]["epic"] = (
+            "project=TEST AND type=Epic AND outcome={outcome}"
+        )
+        settings["progress_report"]["templates"]["story"] = (
+            "project=TEST AND type=Story"
+        )
 
         calculator = ProgressReportCalculator(query_manager, settings, {})
 
@@ -479,9 +479,9 @@ class TestStoryCountUpdates(ProgressReportTestBase):
 
         settings = base_custom_settings.copy()
         settings["progress_report"]["templates"]["epic"] = "project=TEST AND type=Epic"
-        settings["progress_report"]["templates"][
-            "story"
-        ] = 'project=TEST AND type=Story AND epicLink="{epic}"'
+        settings["progress_report"]["templates"]["story"] = (
+            'project=TEST AND type=Story AND epicLink="{epic}"'
+        )
 
         # Create epic with story query
         epic = Epic(

@@ -52,10 +52,12 @@ class TestableThroughputCalculator(ThroughputCalculator):
 def cycle_data_fixture():
     """Create sample cycle data for testing."""
     dates = pd.date_range(start="2024-01-01", periods=60, freq="D")
-    return pd.DataFrame({
-        "completed_timestamp": dates,
-        "key": [f"ISSUE-{i}" for i in range(60)],
-    })
+    return pd.DataFrame(
+        {
+            "completed_timestamp": dates,
+            "key": [f"ISSUE-{i}" for i in range(60)],
+        }
+    )
 
 
 @pytest.fixture(name="calc_instance")

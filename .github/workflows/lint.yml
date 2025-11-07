@@ -24,9 +24,9 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install --editable .
         python -m pip install -r requirements-dev.txt
-    - name: Check code formatting with black
+    - name: Check code formatting with ruff
       run: |
-        black jira_agile_metrics/ jira_agile_metrics/tests/ setup.py --check
+        ruff format jira_agile_metrics/ jira_agile_metrics/tests/ setup.py --check
     - name: Run ruff
       run: |
         ruff check jira_agile_metrics/ jira_agile_metrics/tests/ setup.py

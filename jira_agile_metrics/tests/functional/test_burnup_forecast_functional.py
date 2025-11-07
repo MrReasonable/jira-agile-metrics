@@ -46,9 +46,9 @@ def test_burnup_forecast_generates_expected_data_structure(
 
     # Verify forecast produces a DataFrame (or None if insufficient data)
     # With our minimal fixture, we should get a DataFrame with trial columns
-    assert (
-        forecast_result is not None
-    ), "Forecast should produce a result with valid data"
+    assert forecast_result is not None, (
+        "Forecast should produce a result with valid data"
+    )
 
     # Verify structure
     validate_forecast_result_structure(forecast_result)
@@ -66,9 +66,9 @@ def test_burnup_forecast_generates_expected_data_structure(
 
     # Verify all trial columns have numeric data
     for col in forecast_result.columns:
-        assert pd.api.types.is_numeric_dtype(
-            forecast_result[col]
-        ), f"Trial column {col} should contain numeric data"
+        assert pd.api.types.is_numeric_dtype(forecast_result[col]), (
+            f"Trial column {col} should contain numeric data"
+        )
 
     # Verify forecast has reasonable progression
     validate_forecast_trial_values(forecast_result)
@@ -80,9 +80,9 @@ def test_burnup_forecast_generates_expected_data_structure(
     for trial_col in sample_trials:
         trial_values = forecast_result[trial_col].dropna()
         if len(trial_values) > 0:
-            assert (
-                trial_values.iloc[0] >= 2
-            ), f"Trial {trial_col} should start at least at 2 (completed items)"
+            assert trial_values.iloc[0] >= 2, (
+                f"Trial {trial_col} should start at least at 2 (completed items)"
+            )
 
 
 def test_burnup_forecast_generates_csv_output(
@@ -115,27 +115,27 @@ def test_burnup_forecast_generates_csv_output(
     forecast_result = results[BurnupForecastCalculator]
 
     # Verify forecast produces a DataFrame
-    assert (
-        forecast_result is not None
-    ), "Forecast should produce a result with valid data"
+    assert forecast_result is not None, (
+        "Forecast should produce a result with valid data"
+    )
 
     # Verify CSV file and load
     csv_df = assert_forecast_csv_file_valid(output_csv)
-    assert all(
-        col.startswith("Trial ") for col in csv_df.columns if col != "Date"
-    ), "All non-Date columns should be trial columns"
+    assert all(col.startswith("Trial ") for col in csv_df.columns if col != "Date"), (
+        "All non-Date columns should be trial columns"
+    )
 
     # Verify CSV structure matches forecast result
     assert len(csv_df) == len(forecast_result), "CSV should have same number of rows"
-    assert (
-        len(csv_df.columns) == len(forecast_result.columns) + 1
-    ), "CSV should have Date + trial columns"
+    assert len(csv_df.columns) == len(forecast_result.columns) + 1, (
+        "CSV should have Date + trial columns"
+    )
 
     # Verify dates match
     csv_dates = pd.to_datetime(csv_df["Date"])
-    assert pd.Index(csv_dates).equals(
-        forecast_result.index
-    ), "CSV dates should match forecast index"
+    assert pd.Index(csv_dates).equals(forecast_result.index), (
+        "CSV dates should match forecast index"
+    )
 
     # Set CSV index to Date for proper alignment with forecast_result
     csv_df_indexed = csv_df.set_index("Date")

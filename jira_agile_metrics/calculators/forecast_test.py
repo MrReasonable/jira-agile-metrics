@@ -827,19 +827,19 @@ def test_write_data_files_csv(query_manager, settings, results, tmp_path):
         csv_df = assert_forecast_csv_file_valid(output_csv)
         assert all(col.startswith("Trial ") for col in csv_df.columns if col != "Date")
         assert len(csv_df) == len(forecast_data), "CSV should have same number of rows"
-        assert (
-            len(csv_df.columns) == len(forecast_data.columns) + 1
-        ), "CSV should have Date + trial columns"
+        assert len(csv_df.columns) == len(forecast_data.columns) + 1, (
+            "CSV should have Date + trial columns"
+        )
         csv_dates = pd.to_datetime(csv_df["Date"]).dt.date
         forecast_dates = forecast_data.index.date
-        assert list(csv_dates) == list(
-            forecast_dates
-        ), "CSV dates should match forecast dates"
+        assert list(csv_dates) == list(forecast_dates), (
+            "CSV dates should match forecast dates"
+        )
     else:
         calculator.write()
-        assert (
-            not output_csv.exists()
-        ), "CSV file should not be created when forecast is None"
+        assert not output_csv.exists(), (
+            "CSV file should not be created when forecast is None"
+        )
 
 
 def test_write_data_files_json(query_manager, settings, results, tmp_path):
@@ -853,9 +853,9 @@ def test_write_data_files_json(query_manager, settings, results, tmp_path):
         assert_forecast_json_file_valid(output_json)
     else:
         calculator.write()
-        assert (
-            not output_json.exists()
-        ), "JSON file should not be created when forecast is None"
+        assert not output_json.exists(), (
+            "JSON file should not be created when forecast is None"
+        )
 
 
 def test_write_data_files_xlsx(query_manager, settings, results, tmp_path):
@@ -869,9 +869,9 @@ def test_write_data_files_xlsx(query_manager, settings, results, tmp_path):
         assert_forecast_xlsx_file_valid(output_xlsx)
     else:
         calculator.write()
-        assert (
-            not output_xlsx.exists()
-        ), "XLSX file should not be created when forecast is None"
+        assert not output_xlsx.exists(), (
+            "XLSX file should not be created when forecast is None"
+        )
 
 
 def test_write_data_files_multiple_formats(query_manager, settings, results, tmp_path):
@@ -890,9 +890,9 @@ def test_write_data_files_multiple_formats(query_manager, settings, results, tmp
         csv_df = assert_forecast_csv_file_valid(output_csv)
         json_df = assert_forecast_json_file_valid(output_json)
         xlsx_df = assert_forecast_xlsx_file_valid(output_xlsx)
-        assert (
-            len(csv_df) == len(json_df) == len(xlsx_df)
-        ), "All formats should have same number of rows"
+        assert len(csv_df) == len(json_df) == len(xlsx_df), (
+            "All formats should have same number of rows"
+        )
     else:
         calculator.write()
         assert not output_csv.exists(), "CSV file should not be created"
@@ -946,9 +946,7 @@ def test_write_data_files_with_fixed_seed(
     # This avoids patching private members and ensures reproducibility
     original_init = MonteCarloSimulator.__init__
 
-    def mock_init(
-        self, trials=1000, random_seed=None, confidence=0.8
-    ):  # pylint: disable=unused-argument
+    def mock_init(self, trials=1000, random_seed=None, confidence=0.8):  # pylint: disable=unused-argument
         """Mock __init__ to always use seed=42 for reproducibility.
 
         The random_seed parameter is intentionally unused - we always use 42

@@ -64,9 +64,9 @@ def test_burnup_forecast_chart_generation(
     burnup_data = results[BurnupCalculator]
     if not burnup_data.empty:
         last_burnup_date = burnup_data.index[-1]
-        assert (
-            forecast_result.index.min() >= last_burnup_date
-        ), "Forecast should start from or after last burnup date"
+        assert forecast_result.index.min() >= last_burnup_date, (
+            "Forecast should start from or after last burnup date"
+        )
 
     # Verify forecast has reasonable progression
     validate_forecast_trial_values(forecast_result)

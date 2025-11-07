@@ -146,13 +146,13 @@ def validate_forecast_result_structure(forecast_result):
     Returns:
         None (raises AssertionError if validation fails)
     """
-    assert isinstance(
-        forecast_result, pd.DataFrame
-    ), "Forecast result should be a DataFrame"
+    assert isinstance(forecast_result, pd.DataFrame), (
+        "Forecast result should be a DataFrame"
+    )
     assert len(forecast_result.columns) > 0, "Forecast should have trial columns"
-    assert isinstance(
-        forecast_result.index, pd.DatetimeIndex
-    ), "Forecast index should be datetime"
+    assert isinstance(forecast_result.index, pd.DatetimeIndex), (
+        "Forecast index should be datetime"
+    )
 
 
 def validate_forecast_trial_values(forecast_result, num_trials=3):
@@ -169,9 +169,9 @@ def validate_forecast_trial_values(forecast_result, num_trials=3):
     for trial_col in sample_trials:
         trial_values = forecast_result[trial_col].dropna()
         if len(trial_values) > 1:
-            assert (
-                trial_values >= 0
-            ).all(), f"Trial {trial_col} should have non-negative values"
+            assert (trial_values >= 0).all(), (
+                f"Trial {trial_col} should have non-negative values"
+            )
 
 
 # end of file

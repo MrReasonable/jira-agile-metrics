@@ -149,14 +149,18 @@ class TestPlotCfd:
             index=pd.date_range("2024-01-01", periods=3),
         )
 
-        with patch(
-            "jira_agile_metrics.calculators.progressreport_plotting.set_chart_style"
-        ), patch(
-            "jira_agile_metrics.calculators.progressreport_plotting.calculate_cfd_data",
-            return_value=mock_cfd_data,
-        ) as mock_calc_cfd, patch(
-            "jira_agile_metrics.calculators.progressreport_plotting.plt"
-        ) as mock_plt:
+        with (
+            patch(
+                "jira_agile_metrics.calculators.progressreport_plotting.set_chart_style"
+            ),
+            patch(
+                "jira_agile_metrics.calculators.progressreport_plotting.calculate_cfd_data",
+                return_value=mock_cfd_data,
+            ) as mock_calc_cfd,
+            patch(
+                "jira_agile_metrics.calculators.progressreport_plotting.plt"
+            ) as mock_plt,
+        ):
             mock_fig = Mock()
             mock_ax = Mock()
             mock_plt.subplots.return_value = (mock_fig, mock_ax)

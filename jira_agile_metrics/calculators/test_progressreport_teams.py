@@ -214,18 +214,18 @@ class TestTeamSampler(ProgressReportTestBase):
             team_config: The team configuration object
             initial_sampler: The initial sampler value before update
         """
-        assert (
-            "sampler" in team_config.throughput_config
-        ), "Sampler should be created in throughput_config"
-        assert (
-            team_config.throughput_config["sampler"] is not None
-        ), "Sampler should not be None"
-        assert (
-            team_config.throughput_config["sampler"] != initial_sampler
-        ), "Sampler should be different from initial state"
-        assert callable(
-            team_config.throughput_config["sampler"]
-        ), "Sampler should be callable"
+        assert "sampler" in team_config.throughput_config, (
+            "Sampler should be created in throughput_config"
+        )
+        assert team_config.throughput_config["sampler"] is not None, (
+            "Sampler should not be None"
+        )
+        assert team_config.throughput_config["sampler"] != initial_sampler, (
+            "Sampler should be different from initial state"
+        )
+        assert callable(team_config.throughput_config["sampler"]), (
+            "Sampler should be callable"
+        )
 
     @pytest.fixture
     def query_manager_for_sampler(self, base_custom_fields, base_custom_settings):
@@ -343,9 +343,9 @@ class TestTeamSampler(ProgressReportTestBase):
         # Range sampler should return values between min and max
         sampler_func = team_config.throughput_config["sampler"]
         test_values = [sampler_func() for _ in range(10)]
-        assert all(
-            1 <= val <= 5 for val in test_values
-        ), "Sampler should return values in range [1, 5]"
+        assert all(1 <= val <= 5 for val in test_values), (
+            "Sampler should return values in range [1, 5]"
+        )
 
     def test_update_team_sampler_empty_data(
         self, custom_query_manager, base_custom_settings
@@ -373,9 +373,9 @@ class TestTeamSampler(ProgressReportTestBase):
         # With empty data, should fall back to range sampler with min/max
         sampler_func = team_config.throughput_config["sampler"]
         test_values = [sampler_func() for _ in range(10)]
-        assert all(
-            0 <= val <= 10 for val in test_values
-        ), "Sampler should return values in range [0, 10]"
+        assert all(0 <= val <= 10 for val in test_values), (
+            "Sampler should return values in range [0, 10]"
+        )
 
     def test_update_team_sampler_single_value(
         self, query_manager_for_sampler, base_custom_settings
@@ -405,9 +405,9 @@ class TestTeamSampler(ProgressReportTestBase):
         # With single value (min == max), sampler should always return that value
         sampler_func = team_config.throughput_config["sampler"]
         test_values = [sampler_func() for _ in range(10)]
-        assert all(
-            val == 3 for val in test_values
-        ), "Sampler should return value 3 for single-value range"
+        assert all(val == 3 for val in test_values), (
+            "Sampler should return value 3 for single-value range"
+        )
 
 
 class TestTeamConfiguration(ProgressReportTestBase):
@@ -511,9 +511,9 @@ class TestTeamConfiguration(ProgressReportTestBase):
 
         team_config = settings["progress_report"]["teams"][0]
         error = calculator.validate_single_team(team_config)
-        assert (
-            error is not None
-        ), "Team with invalid WIP should produce validation error"
+        assert error is not None, (
+            "Team with invalid WIP should produce validation error"
+        )
         assert "wip" in error.lower() and ">= 1" in error
 
     def test_team_config_validation_missing_wip(
@@ -595,9 +595,9 @@ class TestTeamConfiguration(ProgressReportTestBase):
             "throughput_samples_window": None,
         }
         error = calculator.validate_single_team(raw_team_config)
-        assert (
-            error is not None
-        ), "Incomplete throughput range should produce validation error"
+        assert error is not None, (
+            "Incomplete throughput range should produce validation error"
+        )
         assert "min throughput" in error.lower() and "max throughput" in error.lower()
 
     def test_team_config_validation_inverted_throughput_range(
@@ -639,9 +639,9 @@ class TestTeamConfiguration(ProgressReportTestBase):
             "throughput_samples_window": None,
         }
         error = calculator.validate_single_team(raw_team_config)
-        assert (
-            error is not None
-        ), "Inverted throughput range should produce validation error"
+        assert error is not None, (
+            "Inverted throughput range should produce validation error"
+        )
         assert "min throughput" in error.lower() and "max throughput" in error.lower()
 
     def test_team_config_validation_conflicting_sampler_config(
@@ -684,9 +684,9 @@ class TestTeamConfiguration(ProgressReportTestBase):
             "throughput_samples_window": None,
         }
         error = calculator.validate_single_team(raw_team_config)
-        assert (
-            error is not None
-        ), "Conflicting sampler config should produce validation error"
+        assert error is not None, (
+            "Conflicting sampler config should produce validation error"
+        )
         assert "throughput samples" in error.lower()
 
     def test_team_config_validation_missing_samples_window(
@@ -728,9 +728,9 @@ class TestTeamConfiguration(ProgressReportTestBase):
             "throughput_samples_window": None,  # Missing
         }
         error = calculator.validate_single_team(raw_team_config)
-        assert (
-            error is not None
-        ), "Missing samples window should produce validation error"
+        assert error is not None, (
+            "Missing samples window should produce validation error"
+        )
         assert "throughput samples window" in error.lower()
 
     def test_team_config_invalid_integer_values(self):

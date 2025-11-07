@@ -72,7 +72,12 @@ class BurnupCalculator(Calculator):
         box = ax.get_position()
         handles, labels = ax.get_legend_handles_labels()
         ax.set_position(
-            [box.x0, box.y0 + box.height * 0.1, box.width, box.height * 0.9]
+            [
+                box.x0,
+                box.y0 + box.height * 0.1,
+                box.width,
+                box.height * 0.9,
+            ]
         )
 
         ax.legend(

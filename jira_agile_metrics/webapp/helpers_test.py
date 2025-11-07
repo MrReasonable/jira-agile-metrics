@@ -465,6 +465,6 @@ def test_get_archive_cleanup_on_error():
     finally:
         # Assert that the temp directory was removed, even if exception was raised
         assert temp_path is not None, "temp_path should have been captured"
-        assert not os.path.exists(
-            temp_path
-        ), f"Temp directory {temp_path} should have been removed"
+        assert not os.path.exists(temp_path), (
+            f"Temp directory {temp_path} should have been removed"
+        )

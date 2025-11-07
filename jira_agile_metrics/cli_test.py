@@ -160,11 +160,13 @@ class TestErrorHandling:
             config_file.flush()
             # Use temporary output directory to avoid writing to project root
             with tempfile.TemporaryDirectory() as outdir:
-                args = parser.parse_args([
-                    config_file.name,
-                    "--output-directory",
-                    outdir,
-                ])
+                args = parser.parse_args(
+                    [
+                        config_file.name,
+                        "--output-directory",
+                        outdir,
+                    ]
+                )
 
                 # Mock config_to_options to raise ConfigError
                 mocker.patch(
@@ -192,11 +194,13 @@ Query: project = "TEST"
             config_file.flush()
             # Use temporary output directory to avoid writing to project root
             with tempfile.TemporaryDirectory() as outdir:
-                args = parser.parse_args([
-                    config_file.name,
-                    "--output-directory",
-                    outdir,
-                ])
+                args = parser.parse_args(
+                    [
+                        config_file.name,
+                        "--output-directory",
+                        outdir,
+                    ]
+                )
 
                 mocker.patch("jira_agile_metrics.cli.config_to_options")
                 mocker.patch("jira_agile_metrics.cli.override_options")
@@ -408,15 +412,17 @@ class TestCommandLineArguments:
     def test_parser_accepts_connection_options(self):
         """Test parser accepts connection options."""
         parser = configure_argument_parser()
-        args = parser.parse_args([
-            "--domain",
-            "https://test.jira.com",
-            "--username",
-            "user",
-            "--password",
-            "pass",
-            "config.yml",
-        ])
+        args = parser.parse_args(
+            [
+                "--domain",
+                "https://test.jira.com",
+                "--username",
+                "user",
+                "--password",
+                "pass",
+                "config.yml",
+            ]
+        )
         assert args.domain == "https://test.jira.com"
         assert args.username == "user"
         assert args.password == "pass"
@@ -424,12 +430,14 @@ class TestCommandLineArguments:
     def test_parser_accepts_proxy_options(self):
         """Test parser accepts proxy options."""
         parser = configure_argument_parser()
-        args = parser.parse_args([
-            "--http-proxy",
-            "http://proxy.local:8080",
-            "--https-proxy",
-            "https://proxy.local:8080",
-            "config.yml",
-        ])
+        args = parser.parse_args(
+            [
+                "--http-proxy",
+                "http://proxy.local:8080",
+                "--https-proxy",
+                "https://proxy.local:8080",
+                "config.yml",
+            ]
+        )
         assert args.http_proxy == "http://proxy.local:8080"
         assert args.https_proxy == "https://proxy.local:8080"
