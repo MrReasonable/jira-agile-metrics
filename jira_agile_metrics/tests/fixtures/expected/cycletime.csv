@@ -1,6 +1,6 @@
 ID,Link,Name,Backlog,Committed,Build,Test,Done,Type,Status,Resolution,Blocked Days
 I-1,https://example.org/browse/I-1,Implement user authentication feature,2021-01-01,2021-01-05,2021-01-10,2021-01-20,2021-01-20,Story,Done,Done,0
-I-2,https://example.org/browse/I-2,Add payment processing integration,2021-01-03,2021-01-07,2021-01-12,2021-01-18,2021-01-25,Story,Done,Done,0
+I-2,https://example.org/browse/I-2,Add payment processing integration,2021-01-03,2021-01-07,2021-01-12,2021-01-18,2021-01-25,Story,Done,Done,3
 I-3,https://example.org/browse/I-3,Design new dashboard UI,2021-01-10,2021-01-15,2021-01-22,2021-01-28,2021-02-05,Story,Done,Done,0
 I-4,https://example.org/browse/I-4,Fix login timeout issue,2021-01-15,2021-01-16,2021-01-20,2021-01-25,2021-01-28,Bug,Done,Done,0
 I-5,https://example.org/browse/I-5,Implement search functionality,2021-01-20,2021-01-25,2021-02-01,2021-02-08,2021-02-12,Story,Done,Done,0

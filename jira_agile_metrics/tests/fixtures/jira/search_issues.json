@@ -57,6 +57,18 @@
           ]
         },
         {
+          "created": "2021-01-14T10:00:00.000+0000",
+          "items": [
+            { "field": "Flagged", "fromString": null, "toString": "Impediment" }
+          ]
+        },
+        {
+          "created": "2021-01-17T10:00:00.000+0000",
+          "items": [
+            { "field": "Flagged", "fromString": "Impediment", "toString": null }
+          ]
+        },
+        {
           "created": "2021-01-18T10:00:00.000+0000",
           "items": [
             { "field": "status", "fromString": "Build", "toString": "QA" }
