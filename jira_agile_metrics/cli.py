@@ -159,9 +159,7 @@ def run_command_line(parser, args):
     log_level = (
         logging.DEBUG
         if args.very_verbose
-        else logging.INFO
-        if args.verbose
-        else logging.WARNING
+        else logging.INFO if args.verbose else logging.WARNING
     )
 
     if _should_use_colors():
@@ -318,12 +316,14 @@ def get_trello_client(connection, type_mapping):
     if not token:
         token = getpass.getpass("Token: ")
 
-    return TrelloClient({
-        "member": username,
-        "key": key,
-        "token": token,
-        "type_mapping": type_mapping,
-    })
+    return TrelloClient(
+        {
+            "member": username,
+            "key": key,
+            "token": token,
+            "type_mapping": type_mapping,
+        }
+    )
 
 
 if __name__ == "__main__":
