@@ -52,6 +52,7 @@ docker run --rm \
   -e JIRA_URL="$JIRA_URL" \
   -e PYTHONPATH=/app \
   -e MPLBACKEND=agg \
+  -e FORCE_COLOR=1 \
   jira-agile-metrics-dev \
   python -m jira_agile_metrics.cli "$@" -vv
 
