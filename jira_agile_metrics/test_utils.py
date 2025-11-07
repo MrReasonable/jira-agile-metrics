@@ -282,11 +282,14 @@ def create_common_defect_test_settings():
         "defects_type_values": ["Config", "Data", "Code"],
         "defects_environment_field": "Environment",
         "defects_environment_values": ["SIT", "UAT", "PROD"],
-        "defects_by_priority_chart": "defects-by-priority.png",
+        # Set output paths to None by default to prevent files from being
+        # written to project root. Tests that need to write files should
+        # override these with tmp_path-based paths.
+        "defects_by_priority_chart": None,
         "defects_by_priority_chart_title": "Defects by priority",
-        "defects_by_type_chart": "defects-by-type.png",
+        "defects_by_type_chart": None,
         "defects_by_type_chart_title": "Defects by type",
-        "defects_by_environment_chart": "defects-by-environment.png",
+        "defects_by_environment_chart": None,
         "defects_by_environment_chart_title": "Defects by environment",
     }
 

@@ -30,11 +30,14 @@ def fixture_settings(base_minimal_settings):
     return extend_dict(
         base_minimal_settings,
         {
-            "impediments_data": "impediments.csv",
-            "impediments_chart": "impediments.png",
-            "impediments_days_chart": "impediments-days.png",
-            "impediments_status_chart": "impediments-status.png",
-            "impediments_status_days_chart": "impediments-status-days.png",
+            # Set output paths to None by default to prevent files from being
+            # written to project root. Tests that need to write files should
+            # override these with tmp_path-based paths.
+            "impediments_data": None,
+            "impediments_chart": None,
+            "impediments_days_chart": None,
+            "impediments_status_chart": None,
+            "impediments_status_days_chart": None,
         },
     )
 
