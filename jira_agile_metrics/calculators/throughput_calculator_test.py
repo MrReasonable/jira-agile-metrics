@@ -142,11 +142,9 @@ def test_calculate_throughput_no_window_params(calc_instance, cycle_data):
 
     # Verify all values are non-negative integers (counts)
     assert (result["count"] >= 0).all(), "All count values should be non-negative"
-    assert result["count"].dtype in [
-        int,
-        "int64",
-        "int32",
-    ], f"Count column should be integer type, got {result['count'].dtype}"
+    assert pd.api.types.is_integer_dtype(result["count"]), (
+        f"Count column should be integer type, got {result['count'].dtype}"
+    )
 
 
 def test_calculate_window_parameters_daily(calc_instance):
@@ -314,17 +312,25 @@ def test_calculate_fixed_window_throughput(calc_instance, cycle_data):
     assert (result["count"] >= 0).all()
     # Counts may be float64 due to fillna(0), but values should be integers
     assert (result["count"] % 1 == 0).all()  # All values are whole numbers
-    # With cycle_data having 60 issues (one per day from 2024-01-01 to 2024-02-29),
-    # a 30-day window should capture 30 issues, so sum should be 30
-    assert result["count"].sum() == 30
-    # Verify index is properly sorted and continuous (daily frequency)
-    assert result.index.is_monotonic_increasing
-    # Verify index frequency is daily
-    assert result.index.freq == "D" or result.index.freqstr == "D"
     # Verify the window covers the last 30 days of data
     # (end date should be the last completion date, start should be 29 days before)
     expected_end = cycle_data["completed_timestamp"].max()
     expected_start = expected_end - pd.Timedelta(days=29)
+    # Calculate expected count from fixture data within the window
+    # This makes the test resilient to fixture changes
+    window_mask = (cycle_data["completed_timestamp"] >= expected_start) & (
+        cycle_data["completed_timestamp"] <= expected_end
+    )
+    expected_count = window_mask.sum()
+    assert result["count"].sum() == expected_count, (
+        f"Sum of counts ({result['count'].sum()}) should equal "
+        f"number of issues in window ({expected_count})"
+    )
+    # Verify index is properly sorted and continuous (daily frequency)
+    assert result.index.is_monotonic_increasing
+    # Verify index frequency is daily (using infer_freq for robustness)
+    inferred_freq = pd.infer_freq(result.index)
+    assert inferred_freq == "D", f"Expected daily frequency, got {inferred_freq}"
     assert result.index.min() == expected_start
     assert result.index.max() == expected_end
 
@@ -495,5 +501,7 @@ def test_create_throughput_sampler(calc_instance):
 
     assert callable(sampler)
     # Test that sampler returns values
-    samples = [sampler() for _ in range(10)]
+    samples = [sampler() for _ in range(100)]
+    # Verify sampled values are members of the expected set
+    # (not that all values must appear)
     assert all(s in [1, 2, 3, 4, 5] for s in samples)
