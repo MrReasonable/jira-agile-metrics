@@ -3,6 +3,8 @@
 This module contains unit tests for the WIP calculator.
 """
 
+import os
+
 import pytest
 
 from ..test_utils import (
@@ -76,12 +78,10 @@ def test_calculate_wip(query_manager, settings, results):
 
 def test_calculate_wip_different_columns(query_manager, settings, results):
     """Test WIP calculation with different column structure."""
-    settings.update(
-        {
-            "committed_column": "Build",
-            "done_column": "Test",
-        }
-    )
+    settings.update({
+        "committed_column": "Build",
+        "done_column": "Test",
+    })
 
     calculator = WIPChartCalculator(query_manager, settings, results)
 
@@ -100,3 +100,89 @@ def test_calculate_wip_different_columns(query_manager, settings, results):
         {"wip": 0.0},
         {"wip": 0.0},
     ]
+
+
+def test_write_chart(query_manager, settings, results, tmp_path):
+    """Test writing WIP chart."""
+    output_file = str(tmp_path / "wip.png")
+    settings_extended = extend_dict(
+        settings,
+        {
+            "wip_chart": output_file,
+            "wip_chart_title": "Test WIP Chart",
+            "wip_frequency": "D",
+            "wip_window": None,
+            "date_format": "%Y-%m-%d",
+        },
+    )
+
+    calculator = WIPChartCalculator(query_manager, settings_extended, results)
+    result = calculator.run()
+    results[WIPChartCalculator] = result
+    calculator.write()
+
+    assert os.path.exists(output_file)
+
+
+def test_write_chart_with_window(query_manager, settings, results, tmp_path):
+    """Test writing WIP chart with window filtering."""
+    output_file = str(tmp_path / "wip.png")
+    settings_extended = extend_dict(
+        settings,
+        {
+            "wip_chart": output_file,
+            "wip_chart_title": "Test WIP Chart",
+            "wip_frequency": "D",
+            "wip_window": 5,
+            "date_format": "%Y-%m-%d",
+        },
+    )
+
+    calculator = WIPChartCalculator(query_manager, settings_extended, results)
+    result = calculator.run()
+    results[WIPChartCalculator] = result
+    calculator.write()
+
+    assert os.path.exists(output_file)
+
+
+def test_write_chart_empty_data(
+    query_manager, settings, base_minimal_cycle_time_columns, tmp_path
+):
+    """Test writing WIP chart with empty data."""
+    output_file = str(tmp_path / "wip.png")
+    results = create_common_empty_cfd_results(base_minimal_cycle_time_columns)
+    settings_extended = extend_dict(
+        settings,
+        {
+            "wip_chart": output_file,
+            "wip_frequency": "D",
+            "wip_window": None,
+            "date_format": "%Y-%m-%d",
+        },
+    )
+
+    calculator = WIPChartCalculator(query_manager, settings_extended, results)
+    result = calculator.run()
+    results[WIPChartCalculator] = result
+    calculator.write()
+
+    # Chart should not be created with empty data
+    assert not os.path.exists(output_file)
+
+
+def test_write_no_output_file(query_manager, settings, results):
+    """Test write() when no output file is specified."""
+    settings_extended = extend_dict(
+        settings,
+        {
+            "wip_chart": None,
+            "wip_frequency": "D",
+            "wip_window": None,
+        },
+    )
+
+    calculator = WIPChartCalculator(query_manager, settings_extended, results)
+    calculator.run()
+    # Should not raise an error
+    calculator.write()

@@ -70,17 +70,32 @@ def save_chart(fig: plt.Figure, output_file: str) -> None:
 def normalize_trial_length(
     trial: list, expected_length: int, trial_idx: int
 ) -> Optional[list]:
-    """Normalize a trial to expected_length+1 (preserving initial_state).
+    """Normalize a trial to match expected_length or expected_length+1.
+
+    This function handles two trial formats:
+    1. Trials without initial_state: [forecast_value1, forecast_value2, ...]
+       - Expected length: expected_length
+    2. Trials with initial_state: [initial_state, forecast_value1, ...]
+       - Expected length: expected_length + 1
+
+    Normalization behavior:
+    - Exact match (expected_length or expected_length+1): Return as-is
+    - Too long (> expected_length+1): Truncate to expected_length+1
+    - Too short (< expected_length): Pad to expected_length (assumes no initial_state)
+      Note: Too-short trials are assumed to have no initial_state and are padded
+      to expected_length, not expected_length+1. This preserves the last forecast
+      value for the remaining periods.
 
     Args:
-        trial: Trial data list
-        expected_length: Expected length of forecast values
+        trial: Trial data list, either [forecast_values...] or
+               [initial_state, forecast_values...]
+        expected_length: Expected length of forecast values (excluding initial_state)
         trial_idx: Index of trial for logging purposes
 
     Returns:
         Normalized trial list, or None if invalid/empty. The returned list has:
         - Length expected_length when only forecast values are present
-          (no initial_state)
+          (no initial_state detected)
         - Length expected_length+1 when an initial_state is included
         - None if the trial is empty or invalid
     """
@@ -113,6 +128,12 @@ def normalize_trial_length(
 
     # Handle too-short trials by padding with the last value to expected_length
     # (trial_len < expected_length is the only remaining case)
+    # Note: We pad to expected_length (not expected_length+1) because we assume
+    # too-short trials don't have an initial_state. This is a design decision:
+    # - Trials of length expected_length are treated as forecast-only (no initial_state)
+    # - Trials of length expected_length+1 are treated as having initial_state
+    # - Trials shorter than expected_length are assumed to be forecast-only and
+    #   padded to expected_length, preserving the last value for remaining periods
     last_value = trial[-1]
     normalized = trial + [last_value] * (expected_length - trial_len)
     logger.warning(

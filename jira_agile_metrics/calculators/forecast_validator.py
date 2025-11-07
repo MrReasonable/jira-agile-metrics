@@ -37,15 +37,28 @@ class ForecastParameters:
 class ForecastDataValidator:
     """Handles validation of forecast input data and parameters."""
 
-    def __init__(self, fallback_items_per_month: Optional[float] = None):
+    def __init__(
+        self,
+        fallback_items_per_month: Optional[float] = None,
+        fallback_min_items_per_month: float = 0.01,
+        fallback_max_items_per_month: float = 5.0,
+    ):
         """Initialize the forecast data validator.
 
         Args:
             fallback_items_per_month: Optional fallback throughput (items/month) to use
                 when no historical completions are available. If None, will be computed
-                dynamically as max(1.0 / months_of_history, 0.01). Defaults to None.
+                dynamically as max(1.0 / months_of_history, 0.01), then clamped to
+                [fallback_min_items_per_month, fallback_max_items_per_month].
+                Defaults to None.
+            fallback_min_items_per_month: Minimum bound for dynamic fallback throughput
+                calculation. Defaults to 0.01.
+            fallback_max_items_per_month: Maximum bound for dynamic fallback throughput
+                calculation. Defaults to 5.0.
         """
         self._fallback_items_per_month = fallback_items_per_month
+        self._fallback_min_items_per_month = fallback_min_items_per_month
+        self._fallback_max_items_per_month = fallback_max_items_per_month
 
     def validate_run_prerequisites(self, cycle_data: pd.DataFrame) -> bool:
         """Validate prerequisites for running the forecast."""
@@ -144,26 +157,44 @@ class ForecastDataValidator:
             # in settings to adjust for your team's expected velocity.
             if self._fallback_items_per_month is not None:
                 avg_items_per_month = self._fallback_items_per_month
+                fallback_source = "explicit setting"
+                clamp_info = (
+                    f"(bounds: [{self._fallback_min_items_per_month:.3f}, "
+                    f"{self._fallback_max_items_per_month:.3f}])"
+                )
             else:
                 # Compute reasonable default: use 1.0 / months_of_history
-                # (ensuring at least 0.01 items/month minimum). This provides a
-                # throughput estimate that scales inversely with historical period
-                # length, but is less pessimistic than the previous 0.001 constant.
+                # This provides a throughput estimate that scales inversely with
+                # historical period length. The value is then clamped to
+                # [fallback_min_items_per_month, fallback_max_items_per_month] to
+                # prevent extreme values for very short or very long histories.
                 # For example:
-                # - 0.1 months (3 days): ~10 items/month
-                # - 1 month: 1 item/month
-                # - 12 months: ~0.083 items/month (but capped at 0.01 minimum)
-                avg_items_per_month = max(1.0 / months_of_history, 0.01)
+                # - 0.1 months (3 days): ~10 items/month -> clamped to max (5.0)
+                # - 1 month: 1 item/month -> unchanged
+                # - 12 months: ~0.083 items/month -> clamped to min (0.01)
+                dynamic_value = 1.0 / months_of_history
+                avg_items_per_month = min(
+                    max(dynamic_value, self._fallback_min_items_per_month),
+                    self._fallback_max_items_per_month,
+                )
+                fallback_source = "dynamic calculation"
+                clamp_info = (
+                    f"clamped to [{self._fallback_min_items_per_month:.3f}, "
+                    f"{self._fallback_max_items_per_month:.3f}]"
+                )
 
             logger.warning(
                 "No historical completions found (completed_items=%d, "
                 "months_of_history=%.2f). Using fallback throughput of %.3f "
-                "items/month. This may produce very long forecast horizons. "
-                "Consider setting 'burnup_forecast_chart_fallback_items_per_month' "
-                "in your configuration to match your team's expected velocity.",
+                "items/month (%s, %s). This may produce very long forecast "
+                "horizons. Consider setting "
+                "'burnup_forecast_chart_fallback_items_per_month' in your "
+                "configuration to match your team's expected velocity.",
                 completed_items,
                 months_of_history,
                 avg_items_per_month,
+                fallback_source,
+                clamp_info,
             )
         else:
             # Compute throughput as completed_items / months_of_history

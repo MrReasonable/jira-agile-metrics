@@ -91,6 +91,9 @@ def _create_default_options():
             "burnup_forecast_chart_throughput_window": 60,
             "burnup_forecast_chart_throughput_window_end": None,
             "burnup_forecast_chart_backlog_growth_window": None,
+            "burnup_forecast_chart_fallback_items_per_month": None,
+            "burnup_forecast_chart_fallback_min_items_per_month": 0.01,
+            "burnup_forecast_chart_fallback_max_items_per_month": 5.0,
             "wip_frequency": "1W-MON",
             "wip_window": None,
             "wip_chart": None,
@@ -258,11 +261,22 @@ def _parse_float_values(output_config, settings):
         "burnup_forecast_chart_deadline_confidence",
         "burnup_forecast_chart_confidence",
         "burnup_forecast_chart_horizon_multiplier",
+        "burnup_forecast_chart_fallback_items_per_month",
+        "burnup_forecast_chart_fallback_min_items_per_month",
+        "burnup_forecast_chart_fallback_max_items_per_month",
     ]
 
     for key in float_keys:
         if expand_key(key) in output_config:
-            settings[key] = force_float(key, output_config[expand_key(key)])
+            value = output_config[expand_key(key)]
+            # Special handling for fallback_items_per_month which can be None
+            if (
+                key == "burnup_forecast_chart_fallback_items_per_month"
+                and value is None
+            ):
+                settings[key] = None
+            else:
+                settings[key] = force_float(key, value)
 
 
 def _parse_date_values(output_config, settings):

@@ -81,7 +81,13 @@ class BurnupForecastCalculator(Calculator):
         self._validator = ForecastDataValidator(
             fallback_items_per_month=self.settings.get(
                 "burnup_forecast_chart_fallback_items_per_month", None
-            )
+            ),
+            fallback_min_items_per_month=self.settings.get(
+                "burnup_forecast_chart_fallback_min_items_per_month", 0.01
+            ),
+            fallback_max_items_per_month=self.settings.get(
+                "burnup_forecast_chart_fallback_max_items_per_month", 5.0
+            ),
         )
         self._throughput_calculator = ThroughputCalculator()
         # Initialize Monte Carlo simulator with configurable parameters

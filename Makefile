@@ -211,9 +211,7 @@ docker-test-e2e: docker-build-dev ## Run e2e tests inside Docker
 
 docker-test-all: ## Run unit, functional, and e2e tests inside Docker
 	@echo "$(GREEN)Running all tests in Docker...$(NC)"
-	$(MAKE) docker-test
-	$(MAKE) docker-test-functional
-	$(MAKE) docker-test-e2e
+	$(MAKE) docker-test && $(MAKE) docker-test-functional && $(MAKE) docker-test-e2e
 
 docker-lint: docker-build-dev ## Run linters (ruff and pylint) inside Docker
 	@echo "$(GREEN)Running ruff and pylint in Docker...$(NC)"
@@ -225,9 +223,7 @@ docker-format: docker-build-dev ## Format code with black inside Docker
 
 docker-check: docker-build-dev ## Run format-check and linters inside Docker
 	@echo "$(GREEN)Checking formatting and lint in Docker...$(NC)"
-	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest black $(LINT_PATHS) --check
-	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest ruff check $(LINT_PATHS)
-	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest pylint $(LINT_PATHS)
+	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest sh -c "black $(LINT_PATHS) --check && ruff check $(LINT_PATHS) && pylint $(LINT_PATHS)"
 
 docker-cli: docker-build-prod ## Run CLI with config.yml via Docker
 	@echo "$(GREEN)Running CLI via Docker...$(NC)"

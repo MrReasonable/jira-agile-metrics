@@ -142,9 +142,11 @@ def test_calculate_throughput_no_window_params(calc_instance, cycle_data):
 
     # Verify all values are non-negative integers (counts)
     assert (result["count"] >= 0).all(), "All count values should be non-negative"
-    assert result["count"].dtype in [int, "int64", "int32"], (
-        f"Count column should be integer type, got {result['count'].dtype}"
-    )
+    assert result["count"].dtype in [
+        int,
+        "int64",
+        "int32",
+    ], f"Count column should be integer type, got {result['count'].dtype}"
 
 
 def test_calculate_window_parameters_daily(calc_instance):

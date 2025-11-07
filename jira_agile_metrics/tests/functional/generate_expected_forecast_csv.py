@@ -45,11 +45,13 @@ def main():
     settings = _create_base_settings()
     settings = get_burnup_base_settings(settings)
     settings.update(get_default_forecast_settings())
-    settings.update({
-        "burnup_forecast_chart": os.devnull,
-        "burnup_forecast_chart_data": None,
-        "burnup_forecast_chart_trials": 20,
-    })
+    settings.update(
+        {
+            "burnup_forecast_chart": os.devnull,
+            "burnup_forecast_chart_data": None,
+            "burnup_forecast_chart_trials": 20,
+        }
+    )
 
     # Determine output path
     fixtures_dir = Path(__file__).resolve().parent.parent / "fixtures" / "expected"

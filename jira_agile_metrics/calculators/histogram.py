@@ -23,12 +23,14 @@ class HistogramCalculator(Calculator):
     a dictionary with keys `bin_values` and `bin_edges` of numpy arrays
     """
 
+    CSV_HISTOGRAM_COLUMNS = ["Range", "Items"]
+
     def run(self):
         cycle_data = self.get_result(CycleTimeCalculator)
 
         # Check if cycle_time column exists and has timedelta data
         if "cycle_time" not in cycle_data.columns:
-            return pd.Series([], name="Items", index=[])
+            return pd.Series([], name=self.CSV_HISTOGRAM_COLUMNS[1], index=[])
 
         cycle_time_series = cycle_data["cycle_time"]
 
@@ -36,7 +38,7 @@ class HistogramCalculator(Calculator):
         if cycle_time_series.empty or not pd.api.types.is_timedelta64_dtype(
             cycle_time_series
         ):
-            return pd.Series([], name="Items", index=[])
+            return pd.Series([], name=self.CSV_HISTOGRAM_COLUMNS[1], index=[])
 
         cycle_times = cycle_time_series.dt.days.dropna().tolist()
 
@@ -53,7 +55,7 @@ class HistogramCalculator(Calculator):
                 continue
             index.append(f"{edges[i - 1]:.01f} to {edges[i]:.01f}")
 
-        return pd.Series(values, name="Items", index=index)
+        return pd.Series(values, name=self.CSV_HISTOGRAM_COLUMNS[1], index=index)
 
     def write(self):
         data = self.get_result()
@@ -106,7 +108,7 @@ class HistogramCalculator(Calculator):
             else:
                 # Reset index to convert it to a named column
                 file_data_to_write = file_data.reset_index()
-                file_data_to_write.columns = ["Range", "Items"]
+                file_data_to_write.columns = self.CSV_HISTOGRAM_COLUMNS
                 file_data_to_write.to_csv(output_file, header=True, index=False)
 
     def write_chart(self, _data, output_file):
@@ -121,8 +123,18 @@ class HistogramCalculator(Calculator):
             subset=["cycle_time"]
         )
 
+        # Check if we have any data before trying to use .dt accessor
+        if len(chart_data.index) == 0:
+            logger.warning("Need at least 2 completed items to draw histogram")
+            return
+
         # The `window` calculation and the chart output will fail if we don't
         # have at least two valid data points.
+        # Check if cycle_time is a timedelta type before using .dt accessor
+        if not pd.api.types.is_timedelta64_dtype(chart_data["cycle_time"]):
+            logger.warning("Cycle time column must be timedelta type to draw histogram")
+            return
+
         ct_days = chart_data["cycle_time"].dt.days
         if len(ct_days.index) < 2:
             logger.warning("Need at least 2 completed items to draw histogram")
@@ -225,7 +237,7 @@ class HistogramCalculator(Calculator):
             if i == 0:
                 continue
             index.append(f"{edges[i - 1]:.01f} to {edges[i]:.01f}")
-        file_data = pd.Series(values, name="Items", index=index)
+        file_data = pd.Series(values, name=self.CSV_HISTOGRAM_COLUMNS[1], index=index)
         for output_file in output_files:
             output_extension = get_extension(output_file)
             logger.info("Writing lead time histogram data to %s", output_file)
@@ -238,7 +250,7 @@ class HistogramCalculator(Calculator):
             else:
                 # Reset index to convert it to a named column
                 file_data_to_write = file_data.reset_index()
-                file_data_to_write.columns = ["Range", "Items"]
+                file_data_to_write.columns = self.CSV_HISTOGRAM_COLUMNS
                 file_data_to_write.to_csv(output_file, header=True, index=False)
 
     def write_lead_time_chart(self, _data, output_file):

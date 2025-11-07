@@ -4,6 +4,7 @@ This module provides functionality to calculate impediments metrics from JIRA da
 """
 
 import logging
+import os
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -33,16 +34,37 @@ class ImpedimentsCalculator(BaseCalculator):
     Raw data can be written to `impediments_data`.
     """
 
+    def _has_valid_output_config(self, setting_name):
+        """Check if a setting is configured with a non-empty value.
+
+        Args:
+            setting_name: The name of the setting to check.
+
+        Returns:
+            bool: True if the setting exists and has a non-empty value,
+                False otherwise. For lists, returns True if any element
+                is truthy. For strings, returns True if the string is
+                non-empty.
+        """
+        value = self.settings.get(setting_name)
+        if not value:
+            return False
+        if isinstance(value, list):
+            return any(value)
+        return True
+
     def run(self):
         # This calculation is expensive.
         # Only run it if we are going to write something
-        if not (
-            self.settings["impediments_data"]
-            or self.settings["impediments_chart"]
-            or self.settings["impediments_days_chart"]
-            or self.settings["impediments_status_chart"]
-            or self.settings["impediments_status_days_chart"]
-        ):
+        # Check that settings are explicitly configured (not None and not empty)
+        has_output = (
+            self._has_valid_output_config("impediments_data")
+            or self._has_valid_output_config("impediments_chart")
+            or self._has_valid_output_config("impediments_days_chart")
+            or self._has_valid_output_config("impediments_status_chart")
+            or self._has_valid_output_config("impediments_status_days_chart")
+        )
+        if not has_output:
             logger.debug(
                 "Not calculating impediments data as no output files specified"
             )
@@ -81,30 +103,56 @@ class ImpedimentsCalculator(BaseCalculator):
         if data is None:
             return
 
-        if self.settings["impediments_data"]:
+        # Only write files if explicitly configured (not None and not empty)
+        if self.settings.get("impediments_data"):
             output_files = self.settings["impediments_data"]
             # Handle both string and list formats
             if isinstance(output_files, str):
                 output_files = [output_files]
-            self.write_data(data, output_files)
+            # Filter out empty strings
+            output_files = [f for f in output_files if f]
+            if output_files:
+                self.write_data(data, output_files)
 
-        if self.settings["impediments_chart"]:
-            self.write_impediments_chart(data, self.settings["impediments_chart"])
+        if self.settings.get("impediments_chart"):
+            output_file = self.settings["impediments_chart"]
+            if output_file:  # Ensure it's not empty string
+                logger.debug(
+                    "Writing impediments chart to: %s (cwd: %s)",
+                    output_file,
+                    os.getcwd(),
+                )
+                self.write_impediments_chart(data, output_file)
 
-        if self.settings["impediments_days_chart"]:
-            self.write_impediments_days_chart(
-                data, self.settings["impediments_days_chart"]
-            )
+        if self.settings.get("impediments_days_chart"):
+            output_file = self.settings["impediments_days_chart"]
+            if output_file:  # Ensure it's not empty string
+                logger.debug(
+                    "Writing impediments days chart to: %s (cwd: %s)",
+                    output_file,
+                    os.getcwd(),
+                )
+                self.write_impediments_days_chart(data, output_file)
 
-        if self.settings["impediments_status_chart"]:
-            self.write_impediments_status_chart(
-                data, self.settings["impediments_status_chart"]
-            )
+        if self.settings.get("impediments_status_chart"):
+            output_file = self.settings["impediments_status_chart"]
+            if output_file:  # Ensure it's not empty string
+                logger.debug(
+                    "Writing impediments status chart to: %s (cwd: %s)",
+                    output_file,
+                    os.getcwd(),
+                )
+                self.write_impediments_status_chart(data, output_file)
 
-        if self.settings["impediments_status_days_chart"]:
-            self.write_impediments_status_days_chart(
-                data, self.settings["impediments_status_days_chart"]
-            )
+        if self.settings.get("impediments_status_days_chart"):
+            output_file = self.settings["impediments_status_days_chart"]
+            if output_file:  # Ensure it's not empty string
+                logger.debug(
+                    "Writing impediments status days chart to: %s (cwd: %s)",
+                    output_file,
+                    os.getcwd(),
+                )
+                self.write_impediments_status_days_chart(data, output_file)
 
     def write_data(self, data, output_files):
         """Write impediments data to output files."""
