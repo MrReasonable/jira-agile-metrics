@@ -21,6 +21,8 @@ RUN pip install --no-cache-dir /app
 
 # Run with a headless matplotlib backend
 ENV MPLBACKEND="agg"
+# Enable colored output in Docker
+ENV FORCE_COLOR="1"
 
 # Add entry point, which runs `jira-agile-metrics` for each config file
 ADD docker-scripts/batch-entrypoint.sh /batch-entrypoint.sh

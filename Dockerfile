@@ -54,5 +54,7 @@ RUN pip install --no-cache-dir /app && \
 
 # Run with a headless matplotlib backend
 ENV MPLBACKEND="agg"
+# Enable colored output in Docker
+ENV FORCE_COLOR="1"
 
 ENTRYPOINT ["jira-agile-metrics"]

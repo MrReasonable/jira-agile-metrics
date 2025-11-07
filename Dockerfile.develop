@@ -64,3 +64,5 @@ EXPOSE 5000
 
 # Run with a headless matplotlib backend
 ENV MPLBACKEND="agg"
+# Enable colored output in Docker
+ENV FORCE_COLOR="1"

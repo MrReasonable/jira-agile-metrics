@@ -16,3 +16,5 @@ ENV STATIC_PATH=/app/jira_agile_metrics/webapp/static
 
 # Run with a headless matplotlib backend
 ENV MPLBACKEND="agg"
+# Enable colored output in Docker (for any CLI usage)
+ENV FORCE_COLOR="1"
