@@ -26,6 +26,19 @@ def jira_client():
     return FileJiraClient(fixtures_path("jira"))
 
 
+def _create_query_manager_settings():
+    """Create minimal settings for QueryManager.
+
+    Returns:
+        Dictionary with minimal QueryManager settings.
+    """
+    return {
+        "attributes": {},
+        "known_values": {},
+        "max_results": False,
+    }
+
+
 @pytest.fixture()
 def query_manager(request):
     """Create a QueryManager fixture with minimal settings.
@@ -34,29 +47,37 @@ def query_manager(request):
         request: Pytest request object to access fixtures.
     """
     client = request.getfixturevalue("jira_client")
-    return QueryManager(
-        client,
-        settings={
-            "attributes": {},
-            "known_values": {},
-            "max_results": False,
-        },
-    )
+    return QueryManager(client, settings=_create_query_manager_settings())
 
 
-@pytest.fixture()
-def simple_cycle_settings(tmp_path):
-    """Create simple cycle time settings for functional tests."""
-    output_csv = tmp_path / "cycletime.csv"
-    settings = {
+def _create_base_settings(cycle_time_data=None):
+    """Create base settings dictionary for functional tests.
+
+    Args:
+        cycle_time_data: Optional list of cycle time data output paths.
+            If None, defaults to empty list.
+
+    Returns:
+        Dictionary with base settings.
+    """
+    if cycle_time_data is None:
+        cycle_time_data = []
+    return {
         "cycle": _get_standard_cycle_config(),
         "committed_column": "Committed",
         "done_column": "Done",
         "attributes": {},
         "queries": [{"jql": "project=TEST"}],
         "query_attribute": None,
-        "cycle_time_data": [str(output_csv)],
+        "cycle_time_data": cycle_time_data,
     }
+
+
+@pytest.fixture()
+def simple_cycle_settings(tmp_path):
+    """Create simple cycle time settings for functional tests."""
+    output_csv = tmp_path / "cycletime.csv"
+    settings = _create_base_settings(cycle_time_data=[str(output_csv)])
     return settings, output_csv
 
 

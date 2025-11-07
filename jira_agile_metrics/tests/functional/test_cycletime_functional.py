@@ -15,6 +15,9 @@ def test_cycletime_functional_generates_expected_csv(
     """Test that cycle time calculator generates CSV matching expected fixture."""
     settings, output_csv = simple_cycle_settings
 
+    # Include impediment_flags to match expected CSV generation
+    settings = {**settings, "impediment_flags": ["Impediment", "Awaiting input"]}
+
     run_calculators([CycleTimeCalculator], query_manager, settings)
 
     expected_path = (
