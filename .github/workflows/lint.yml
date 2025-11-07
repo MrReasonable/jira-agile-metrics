@@ -1,4 +1,4 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# This workflow will install Python dependencies and run all linting checks
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
 name: Lint
@@ -7,11 +7,10 @@ on: [push, pull_request]
 
 jobs:
   lint:
-    name: Lint
-    runs-on: ${{ matrix.os }}
+    name: Linting
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest]
         python-version: [3.8]
 
     steps:
@@ -23,20 +22,14 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install --upgrade pre-commit
         python -m pip install --editable .
-        python -m pip install --upgrade pytest
-        python -m pip install --upgrade pylint
-    - name: Lint with black and flake8
-      run: pre-commit run --all-files
-    - name: Lint with pylint
+        python -m pip install -r requirements-dev.txt
+    - name: Check code formatting with black
       run: |
-        # Stop the build if there are Python syntax errors or undefined names
-        pylint --errors-only jira_agile_metrics
-        # Exit-zero treats all errors as warnings.
-        pylint --exit-zero jira_agile_metrics > pylint_results.txt
-    - name: Upload pylint results
-      uses: actions/upload-artifact@v2
-      with:
-        name: pylint_results
-        path: pylint_results.txt
+        black jira_agile_metrics/ jira_agile_metrics/tests/ setup.py --check
+    - name: Run ruff
+      run: |
+        ruff check jira_agile_metrics/ jira_agile_metrics/tests/ setup.py
+    - name: Run pylint
+      run: |
+        pylint jira_agile_metrics/ jira_agile_metrics/tests/ setup.py
