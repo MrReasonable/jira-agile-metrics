@@ -26,6 +26,8 @@ def pytest_collection_modifyitems(config, items):
         config: Pytest config object (required by hook signature)
         items: List of test items collected by pytest
     """
+    # Reference config to satisfy pylint (required by pytest hookspec)
+    _ = config.rootdir
     functional_dir = Path(__file__).parent.resolve()
     for item in items:
         # Get the test file path from the item's location
