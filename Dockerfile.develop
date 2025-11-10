@@ -1,5 +1,3 @@
-FROM python:3
-
 #
 # Docker image for building the app and running tests. Can be used in lieu of
 # a virtualenv with all dependencies install to make development easier.
@@ -35,6 +33,8 @@ FROM python:3
 #
 # This will remove `__pycache__` and `.pyc` files.
 #
+
+FROM python:3.14-slim
 
 # Install build dependencies required for scipy and other packages
 RUN apt-get update && apt-get install -y \

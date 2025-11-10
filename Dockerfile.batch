@@ -1,12 +1,38 @@
-FROM python:3
+FROM python:3.14-slim
 
 LABEL version="0.6"
 LABEL description="Produce charts and data files of Agile metrics extracted \
 from JIRA in a batch."
 
-# Install requirments first to make future rebuilds faster
+# Install requirements - do everything in one RUN to avoid persisting build dependencies
 COPY ./requirements.txt /requirements.txt
-RUN pip install --no-cache-dir -r /requirements.txt
+RUN apt-get update && \
+    # Install build dependencies (needed for scipy, numpy, statsmodels compilation)
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        python3-dev \
+        gfortran \
+        libopenblas-dev \
+        liblapack-dev \
+        libffi-dev && \
+    # Install Python packages
+    pip install --no-cache-dir -r /requirements.txt && \
+    # Install runtime libraries (needed for scipy/numpy to work)
+    apt-get install -y --no-install-recommends \
+        libopenblas0 \
+        liblapack3 && \
+    # Remove build dependencies (in same layer so they're not persisted)
+    apt-get purge -y --auto-remove \
+        build-essential \
+        python3-dev \
+        gfortran \
+        libffi-dev \
+        libopenblas-dev \
+        liblapack-dev && \
+    # Clean up apt cache and temporary files
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives* && \
+    rm /requirements.txt
 
 # Config will be read from /config
 VOLUME /config
@@ -25,7 +51,7 @@ ENV MPLBACKEND="agg"
 ENV FORCE_COLOR="1"
 
 # Add entry point, which runs `jira-agile-metrics` for each config file
-ADD docker-scripts/batch-entrypoint.sh /batch-entrypoint.sh
+COPY docker-scripts/batch-entrypoint.sh /batch-entrypoint.sh
 RUN chmod +x /batch-entrypoint.sh
 
 ENTRYPOINT ["/batch-entrypoint.sh"]

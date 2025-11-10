@@ -1,4 +1,4 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# This workflow will install Python dependencies and run tests
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
 name: Tests
@@ -8,18 +8,14 @@ on: [push, pull_request]
 jobs:
   unit-tests:
     name: Unit tests
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        python-version: [3.11]
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+    - uses: actions/checkout@v5
+    - name: Set up Python 3.14
+      uses: actions/setup-python@v6
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.14'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -27,22 +23,21 @@ jobs:
         python -m pip install --editable .
     - name: Run unit tests
       run: |
-        pytest --strict -v --ignore=jira_agile_metrics/tests/functional --ignore=jira_agile_metrics/tests/e2e -m "not e2e"
+        # Exclude functional and e2e tests via marker filter
+        # All functional tests are marked with pytest.mark.functional (via conftest.py)
+        # All e2e tests are marked with @pytest.mark.e2e
+        pytest --strict -v -m "not e2e and not functional"
 
   functional-tests:
     name: Functional tests
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        python-version: [3.11]
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+    - uses: actions/checkout@v5
+    - name: Set up Python 3.14
+      uses: actions/setup-python@v6
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.14'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -50,22 +45,18 @@ jobs:
         python -m pip install --editable .
     - name: Run functional tests
       run: |
-        pytest --strict -v jira_agile_metrics/tests/functional
+        pytest --strict -v -m functional
 
   e2e-tests:
     name: E2E tests
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        python-version: [3.11]
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+    - uses: actions/checkout@v5
+    - name: Set up Python 3.14
+      uses: actions/setup-python@v6
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.14'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
