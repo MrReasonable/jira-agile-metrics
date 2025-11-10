@@ -23,8 +23,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        python -m pip install -r requirements.txt
         python -m pip install --editable .
-        python -m pip install --upgrade pytest
     - name: Run unit tests
       run: |
         pytest -v --ignore=jira_agile_metrics/tests/functional --ignore=jira_agile_metrics/tests/e2e -m "not e2e"
@@ -46,8 +46,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        python -m pip install -r requirements.txt
         python -m pip install --editable .
-        python -m pip install --upgrade pytest
     - name: Run functional tests
       run: |
         pytest -v jira_agile_metrics/tests/functional
@@ -69,8 +69,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        python -m pip install -r requirements.txt
         python -m pip install --editable .
-        python -m pip install --upgrade pytest
     - name: Run e2e tests
       run: |
         pytest -v -m e2e jira_agile_metrics/tests/e2e
