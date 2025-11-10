@@ -64,4 +64,4 @@ jobs:
         python -m pip install --editable .
     - name: Run e2e tests
       run: |
-        pytest --strict -v -m e2e jira_agile_metrics/tests/e2e
+        pytest --strict -v -m e2e
