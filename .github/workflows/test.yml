@@ -27,7 +27,7 @@ jobs:
         python -m pip install --editable .
     - name: Run unit tests
       run: |
-        pytest -v --ignore=jira_agile_metrics/tests/functional --ignore=jira_agile_metrics/tests/e2e -m "not e2e"
+        pytest --strict -v --ignore=jira_agile_metrics/tests/functional --ignore=jira_agile_metrics/tests/e2e -m "not e2e"
 
   functional-tests:
     name: Functional tests
@@ -50,7 +50,7 @@ jobs:
         python -m pip install --editable .
     - name: Run functional tests
       run: |
-        pytest -v jira_agile_metrics/tests/functional
+        pytest --strict -v jira_agile_metrics/tests/functional
 
   e2e-tests:
     name: E2E tests
@@ -73,4 +73,4 @@ jobs:
         python -m pip install --editable .
     - name: Run e2e tests
       run: |
-        pytest -v -m e2e jira_agile_metrics/tests/e2e
+        pytest --strict -v -m e2e jira_agile_metrics/tests/e2e

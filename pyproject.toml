@@ -31,7 +31,7 @@ extend-select = [
     # Whitespace / EOF hygiene to align with IDE warnings
     "W291",  # trailing whitespace
     "W292",  # no newline at end of file
-    "W391",  # blank line at end of file
+    # W391 (blank line at end of file) requires preview mode, which is disabled for Black compatibility
 ]
 
 [tool.ruff.format]
@@ -55,7 +55,7 @@ jira-agile-metrics = "jira_agile_metrics.cli:main"
 
 [project.optional-dependencies]
 testing = [
-    "pytest>=8.4.2",
+    "pytest>=9.0.0",
     "pytest-mock",
     "mock",
 ]
@@ -84,3 +84,8 @@ exclude_lines = [
 markers = [
     "e2e: marks tests as end-to-end (deselect with '-m \"not e2e\"')",
 ]
+strict = true
+strict_config = true
+strict_markers = true
+strict_parametrization_ids = true
+strict_xfail = true
