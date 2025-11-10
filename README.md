@@ -4,7 +4,7 @@ A tool to extract Agile metrics and charts from JIRA projects and Trello Boards.
 
 ## Installation
 
-Requires Python 3.8 or later.
+Requires Python 3.11 or later.
 
 Install Python 3 and the `pip` package manager. Then run:
 
@@ -895,14 +895,14 @@ Here is an example:
     Waste chart title: Waste
 
 This will show withdrawn items broken down by the period in which they were
-withdrawn for the the 10 most recent periods. The default period length is
-monthlyasfd, but here we have set it to `2W-WED`, which means a two-week period
+withdrawn for the 10 most recent periods. The default period length is
+monthly, but here we have set it to `2W-WED`, which means a two-week period
 starting on a Wednesday. `Waste window` and `Waste frequency` are both
 optional.
 
 ## Progress report
 
-An status report that uses Monte Carlo simulation forecasting at the epic
+A status report that uses Monte Carlo simulation forecasting at the epic
 level.
 
 The report is presented as a self-contained HTML file with embedded
@@ -944,7 +944,7 @@ outcome deadline is the default for all epics.)
 The simulation takes into account that a single team may have multiple epics to
 complete. A team can be configured to have an epic WIP limit of 1 (the default)
 or more. If the team is working on more than one epic at a time, it is assumed
-to distribute its throughout roughly evenly across all active epics, and to work
+to distribute its throughput roughly evenly across all active epics, and to work
 through the epics in the order in which their respective outcomes are listed in
 the configuration file, and then in the order in which they are returned by the
 query used to find them.
@@ -1144,7 +1144,7 @@ YAML, know that:
 
 * Comments start with `#`
 * Sections are defined with a name followed by a colon, and then an indented
-  block underneath. `Connection`, `Output`, `Workflow` and `Attributes` area
+  block underneath. `Connection`, `Output`, `Workflow` and `Attributes` are
   all sections in the example above.
 * Indentation has to use spaces, not tabs!
 * Single values can be set using `Key: value` pairs. For example,
@@ -1154,7 +1154,7 @@ YAML, know that:
   of each list value. In the example above, the `QA` list contains
   the values `Code review` and `Test`.
 
-The sections for `Workflow` is required. Additionally, you must either specfiy a
+The sections for `Workflow` is required. Additionally, you must either specify a
 single `Query`, or a block of `Queries` (see below). Connection details must
 be set either in the `Connection` file or as command line arguments.
 
@@ -1265,7 +1265,7 @@ file.
 These options affect multiple charts and files.
 
 - `Quantiles: <list>` – Quantiles to use when calculating percentiles.
-- `Backlog column: <name>` --Name of the backlog column. Defaults to the first column.
+- `Backlog column: <name>` – Name of the backlog column. Defaults to the first column.
 - `Committed column: <name>` – Name of the column from which work is considered
    committed. Defaults to the second column.
 - `Final column: <name>` – Name of the final 'work' column. Defaults to the
@@ -1335,7 +1335,7 @@ of filenames, or a single filename.
 - `Burnup window: <number>` – Number of recent periods to show in burnup.
    Defaults to showing all periods.
 - `Burnup chart: <filename>.png` – Draw simple burn-up chart.
-- `Burnup-chart-title <title>` – Title for burn-up charts_scatterplot.
+- `Burnup chart title: <title>` – Title for burn-up chart.
 
 ### Burnup forecast chart
 
@@ -1425,7 +1425,7 @@ of filenames, or a single filename.
 
 - `Defects by priority chart: <filename>.png` – Draw stacked bar chart of
    defects grouped by priority over time.
-- `defects-by priority chart title: <title>` – Title for defects-by-priority
+- `Defects by priority chart title: <title>` – Title for defects-by-priority
    chart.
 
 - `Defects by type chart: <filename>.png` – Draw stacked bar chart of defects
@@ -1522,7 +1522,7 @@ of filenames, or a single filename.
 
 ### 0.25
 
-- Added suppport for Trello.
+- Added support for Trello.
 
 ### 0.24
 
@@ -1554,7 +1554,7 @@ of filenames, or a single filename.
 ### 0.20
 
 - Use a cumulative distribution function definition of a percentile when
-  calculating chance of hitting the deadilne (basically: if the deadline is
+  calculating chance of hitting the deadline (basically: if the deadline is
   in the same week as the forecast worst case date, treat it as 100% not 50%
   likely)
 

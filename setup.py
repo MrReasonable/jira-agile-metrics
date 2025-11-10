@@ -52,7 +52,7 @@ def main():
         keywords="agile jira analytics metrics",
         packages=setuptools.find_packages(exclude=["contrib", "docs", "tests*"]),
         install_requires=install_requires,
-        python_requires=">=3.8",
+        python_requires=">=3.11",
         include_package_data=True,
         package_data={
             "jira_agile_metrics.webapp": ["templates/*.*", "static/*.*"],

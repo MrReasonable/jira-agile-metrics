@@ -48,7 +48,7 @@ name = "jira-agile-metrics"
 version = "0.25"
 description = "Agile metrics and summary data extracted from JIRA"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 
 [project.scripts]
 jira-agile-metrics = "jira_agile_metrics.cli:main"
