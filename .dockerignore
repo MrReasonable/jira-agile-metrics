@@ -1,10 +1,12 @@
+# Git files
 .git
+.gitignore
+.github
 
-# Important for pytest to work
+# Python cache files
 **/__pycache__
 **/*.pyc
 **/*.pyo
-
 *$py.class
 
 # C extensions
@@ -14,6 +16,8 @@
 .Python
 *.egg-info/
 .installed.cfg
+*.egg
+.eggs/
 
 # Unit test / coverage reports
 htmlcov/
@@ -21,31 +25,26 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.pytest_cache
 nosetests.xml
 coverage.xml
 *,cover
 
-
-# VS Code
-.vscode
-.flake8
-.pytest_cache
+# Build and distribution artifacts
+build/
+dist/
 
 # Local virtual environments and caches
-.venv/
 venv/
+.venv/
 .mypy_cache/
 .ruff_cache/
 .pytype/
 
-# Build and distribution artifacts
-build/
-dist/
-*.egg
-.eggs/
-
 # IDE/editor and OS files
+.vscode
 .idea/
+.flake8
 .DS_Store
 .ipynb_checkpoints/
 
