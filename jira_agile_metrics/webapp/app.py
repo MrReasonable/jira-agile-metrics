@@ -24,6 +24,7 @@ from flask import (
     session,
     url_for,
 )
+from jira.exceptions import JIRAError
 
 from ..calculator import run_calculators
 from ..calculators.ageingwip import AgeingWIPChartCalculator
@@ -41,6 +42,7 @@ from ..calculators.progressreport import ProgressReportCalculator
 from ..calculators.scatterplot import ScatterplotCalculator
 from ..calculators.waste import WasteCalculator
 from ..config import config_to_options
+from ..config.exceptions import ChartGenerationError, ConfigError
 from ..config_main import CALCULATORS
 from ..querymanager import QueryManager
 from ..utils import find_backlog_and_done_columns
@@ -95,14 +97,18 @@ if not app.secret_key:
     )
     app.secret_key = secrets.token_hex(32)
 
-# Common exceptions that chart routes should catch
+# Common exceptions that chart routes should catch during request handling
+# These are runtime exceptions that can occur during chart generation,
+# not critical startup/config errors that should propagate
 CHART_ROUTE_EXCEPTIONS = (
-    ValueError,
-    AttributeError,
-    KeyError,
-    ImportError,
-    RuntimeError,
-    FileNotFoundError,
+    ValueError,  # Data validation errors from pandas, bokeh, etc.
+    AttributeError,  # Data access errors
+    KeyError,  # Dictionary access errors
+    FileNotFoundError,  # Path validation errors during config loading
+    ConfigError,  # Configuration errors (e.g., missing JIRA credentials)
+    ChartGenerationError,  # Chart generation errors from matplotlib/pandas/numpy
+    JIRAError,  # JIRA API errors (authentication, API failures, etc.)
+    ConnectionError,  # Network connectivity issues
 )
 
 
@@ -119,7 +125,7 @@ def get_real_results():
         or not options["connection"].get("password")
         or not options["connection"].get("domain")
     ):
-        raise RuntimeError(
+        raise ConfigError(
             "JIRA credentials (domain, username, password) must be set in config.yml "
             "under the Connection section."
         )

@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 from flask import session
 from jira import exceptions as jira_exceptions
+from jira.exceptions import JIRAError
 
 from jira_agile_metrics.calculators.burnup import BurnupCalculator
 from jira_agile_metrics.calculators.cfd import CFDCalculator
@@ -189,7 +190,7 @@ class TestSetQueryRoute:
 def test_burnup_route_requires_config(test_client):
     """Test that burnup route handles missing config gracefully."""
     # This will fail without JIRA config
-    # The route will catch RuntimeError and display error message
+    # The route will catch ConfigError and display error message
     response = test_client.get("/burnup")
     assert response.status_code == 200
     # Should contain error message about missing credentials
@@ -377,7 +378,6 @@ class TestChartRouteErrorHandling:
             ("/burnup", ValueError("Invalid data")),
             ("/burnup", AttributeError("Missing attribute")),
             ("/burnup", KeyError("Missing key")),
-            ("/burnup", ImportError("Import failed")),
             ("/cfd", ValueError("Invalid data")),
             ("/histogram", KeyError("Missing key")),
             ("/scatterplot", AttributeError("Missing attribute")),
@@ -402,11 +402,35 @@ class TestChartRouteErrorHandling:
         # Should render template with empty chart
         assert b"danger" in response.data or b"warning" in response.data
 
-    def test_chart_route_handles_runtime_error(self, test_client, mocker):
-        """Test that chart routes handle RuntimeError gracefully."""
+    def test_chart_route_handles_config_error(self, test_client, mocker):
+        """Test that chart routes handle ConfigError gracefully."""
         mocker.patch(
             "jira_agile_metrics.webapp.app.get_real_results",
-            side_effect=RuntimeError("Runtime error"),
+            side_effect=ConfigError("Configuration error"),
+        )
+
+        response = test_client.get("/burnup")
+        assert response.status_code == 200
+        # Should render template with empty chart
+        assert b"danger" in response.data or b"warning" in response.data
+
+    def test_chart_route_handles_jira_error(self, test_client, mocker):
+        """Test that chart routes handle JIRAError gracefully."""
+        mocker.patch(
+            "jira_agile_metrics.webapp.app.get_real_results",
+            side_effect=JIRAError(status_code=401, text="Unauthorized"),
+        )
+
+        response = test_client.get("/burnup")
+        assert response.status_code == 200
+        # Should render template with empty chart
+        assert b"danger" in response.data or b"warning" in response.data
+
+    def test_chart_route_handles_connection_error(self, test_client, mocker):
+        """Test that chart routes handle ConnectionError gracefully."""
+        mocker.patch(
+            "jira_agile_metrics.webapp.app.get_real_results",
+            side_effect=ConnectionError("Connection failed"),
         )
 
         response = test_client.get("/burnup")
