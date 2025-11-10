@@ -83,6 +83,7 @@ exclude_lines = [
 [tool.pytest.ini_options]
 markers = [
     "e2e: marks tests as end-to-end (deselect with '-m \"not e2e\"')",
+    "functional: marks tests as functional (deselect with '-m \"not functional\"')",
 ]
 strict = true
 strict_config = true

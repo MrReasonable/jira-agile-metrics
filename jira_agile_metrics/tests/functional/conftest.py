@@ -15,6 +15,30 @@ from jira_agile_metrics.test_file_jira_client import FileJiraClient
 from jira_agile_metrics.tests.e2e.e2e_config import _get_standard_cycle_config
 
 
+def pytest_collection_modifyitems(config, items):
+    """Automatically mark all tests in the functional directory.
+
+    This hook runs during test collection and adds the 'functional' marker to all
+    test items found in this directory. This allows us to consolidate marker
+    application in one place rather than requiring pytestmark in each test file.
+
+    Args:
+        config: Pytest config object (unused, required by hook signature)
+        items: List of test items collected by pytest
+    """
+    functional_dir = Path(__file__).parent.resolve()
+    for item in items:
+        # Get the test file path from the item's location
+        # item.location is a tuple: (filepath, lineno, testname)
+        test_file_path = Path(item.location[0]).resolve()
+        # Check if the test file is in the functional directory
+        if (
+            functional_dir in test_file_path.parents
+            or test_file_path.parent == functional_dir
+        ):
+            item.add_marker(pytest.mark.functional)
+
+
 def fixtures_path(*parts):
     """Return path to test fixtures directory."""
     return str(Path(__file__).resolve().parent.parent.joinpath("fixtures", *parts))
