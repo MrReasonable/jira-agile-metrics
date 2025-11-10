@@ -107,9 +107,9 @@ test-e2e: ## Run end-to-end tests (full application flow)
 	@echo "$(GREEN)Running end-to-end tests...$(NC)"
 	$(PYTEST) -v -m e2e
 
-test-coverage: ## Run tests with coverage (excludes functional tests)
+test-coverage: ## Run tests with coverage (excludes functional and e2e tests)
 	@echo "$(GREEN)Running tests with coverage...$(NC)"
-	$(PYTEST) --cov=jira_agile_metrics --cov-report=html --cov-report=term -m "not functional"
+	$(PYTEST) --cov=jira_agile_metrics --cov-report=html --cov-report=term -m "not e2e and not functional"
 
 test-verbose: ## Run tests with verbose output
 	@echo "$(GREEN)Running tests with verbose output...$(NC)"
