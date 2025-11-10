@@ -95,21 +95,21 @@ clean-venv: clean ## Remove virtual environment
 
 ## Testing targets
 
-test: ## Run tests with pytest
-	@echo "$(GREEN)Running tests...$(NC)"
-	$(PYTEST) -v
+test: ## Run unit tests (excludes functional and e2e tests)
+	@echo "$(GREEN)Running unit tests...$(NC)"
+	$(PYTEST) -v -m "not e2e and not functional"
 
 test-functional: ## Run functional tests (CSV E2E)
 	@echo "$(GREEN)Running functional tests...$(NC)"
-	$(PYTEST) -v jira_agile_metrics/tests/functional
+	$(PYTEST) -v -m functional
 
 test-e2e: ## Run end-to-end tests (full application flow)
 	@echo "$(GREEN)Running end-to-end tests...$(NC)"
-	$(PYTEST) -v -m e2e jira_agile_metrics/tests/e2e
+	$(PYTEST) -v -m e2e
 
 test-coverage: ## Run tests with coverage (excludes functional tests)
 	@echo "$(GREEN)Running tests with coverage...$(NC)"
-	$(PYTEST) --cov=jira_agile_metrics --cov-report=html --cov-report=term --ignore=jira_agile_metrics/tests/functional
+	$(PYTEST) --cov=jira_agile_metrics --cov-report=html --cov-report=term -m "not functional"
 
 test-verbose: ## Run tests with verbose output
 	@echo "$(GREEN)Running tests with verbose output...$(NC)"
@@ -197,17 +197,17 @@ docker-build-prod: ## Build production CLI Docker image
 	@echo "$(GREEN)Building production Docker image...$(NC)"
 	docker build -t $(DOCKER_IMAGE_PROD):latest -f Dockerfile .
 
-docker-test: docker-build-dev ## Run tests inside Docker
-	@echo "$(GREEN)Running tests in Docker...$(NC)"
-	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest pytest -v
+docker-test: docker-build-dev ## Run unit tests inside Docker
+	@echo "$(GREEN)Running unit tests in Docker...$(NC)"
+	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest pytest -v -m "not e2e and not functional"
 
 docker-test-functional: docker-build-dev ## Run functional tests inside Docker
 	@echo "$(GREEN)Running functional tests in Docker...$(NC)"
-	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest pytest -v jira_agile_metrics/tests/functional
+	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest pytest -v -m functional
 
 docker-test-e2e: docker-build-dev ## Run e2e tests inside Docker
 	@echo "$(GREEN)Running e2e tests in Docker...$(NC)"
-	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest pytest -v -m e2e jira_agile_metrics/tests/e2e
+	docker run --rm -v $(PWD):/app -w /app $(DOCKER_IMAGE_DEV):latest pytest -v -m e2e
 
 docker-test-all: ## Run unit, functional, and e2e tests inside Docker
 	@echo "$(GREEN)Running all tests in Docker...$(NC)"
