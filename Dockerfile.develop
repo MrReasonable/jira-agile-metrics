@@ -37,6 +37,7 @@
 FROM python:3.14-slim
 
 # Install build dependencies required for scipy and other packages
+# All linting and formatting tools are now Python-based (installed via requirements-dev.txt)
 RUN apt-get update && apt-get install -y \
     gfortran \
     gcc \

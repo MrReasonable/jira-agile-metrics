@@ -7,4 +7,4 @@ services:
       - "80:80"
     environment:
       - MPLBACKEND=agg
-    restart: unless-stopped 
+    restart: unless-stopped
