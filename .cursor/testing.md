@@ -1,10 +1,21 @@
 # Testing Guidelines
 
+## Quick Reference
+
+| Concept | Location |
+|---------|----------|
+| Calculator base class API | [API Reference: Calculator Base Class](api.md#calculator-base-class) |
+| Calculator pattern design | [Architecture: Calculator Pattern](architecture.md#calculator-pattern) |
+| Calculator code examples | [Patterns: Calculator Patterns](patterns.md#calculator-patterns) |
+| Calculator testing patterns | [Patterns: Testing Patterns](patterns.md#testing-patterns) |
+| Creating new calculators | [Development: Creating a New Calculator](development.md#creating-a-new-calculator) |
+| Development workflow | [Development: Development Workflow](development.md#development-workflow) |
+
 ## Test Organization
 
 ### Test Directory Structure
 
-```
+```text
 jira_agile_metrics/
 ├── calculators/
 │   ├── cycletime.py
@@ -31,18 +42,21 @@ jira_agile_metrics/
 ### Test Types
 
 **Unit Tests:**
+
 - Test individual functions/classes in isolation
 - Mock external dependencies
 - Fast execution
 - Located alongside source files: `{module}_test.py`
 
 **Functional Tests:**
+
 - Test calculators with real data fixtures
 - Verify output file generation
 - Check data correctness
 - Located in `tests/functional/`
 
 **E2E Tests:**
+
 - Test full CLI workflow
 - Verify end-to-end data flow
 - Test configuration loading
@@ -50,40 +64,267 @@ jira_agile_metrics/
 
 ## Test Fixtures
 
-### Common Fixtures (conftest.py)
+### Fixture Locations
 
-**JIRA Client:**
+Fixtures are defined in `conftest.py` files that pytest automatically discovers:
+
+- **Functional tests**: `jira_agile_metrics/tests/functional/conftest.py`
+
+  - Provides fixtures for testing calculators with real data fixtures
+  - Uses `FileJiraClient` with JSON fixture data from `tests/fixtures/jira/`
+
+- **Unit tests**: `jira_agile_metrics/conftest.py`
+
+  - Provides fixtures for testing individual components in isolation
+  - Uses `FauxJIRA` mock objects for fast, isolated tests
+
+### Functional Test Fixtures
+
+These fixtures are available for tests in `tests/functional/`:
+
+#### `jira_client`
+
+- **Type**: `FileJiraClient`
+- **Purpose**: Provides a JIRA client that reads from JSON fixture files
+- **Location**: `jira_agile_metrics/tests/functional/conftest.py:49`
+- **Usage**:
+
 ```python
-@pytest.fixture()
-def jira_client():
-    """Create a FileJiraClient fixture using test data."""
-    return FileJiraClient(fixtures_path("jira"))
+def test_something(jira_client):
+    # jira_client is a FileJiraClient instance
+    issues = jira_client.search_issues("project=TEST")
 ```
 
-**Query Manager:**
+#### `query_manager`
+
+- **Type**: `QueryManager`
+- **Purpose**: Provides a QueryManager instance configured for functional tests
+- **Location**: `jira_agile_metrics/tests/functional/conftest.py:68`
+- **Dependencies**: Requires `jira_client` fixture
+- **Settings**: Minimal QueryManager settings (attributes, known_values,
+  max_results)
+- **Usage**:
+
 ```python
-@pytest.fixture()
-def query_manager(request):
-    """Create a QueryManager fixture with minimal settings."""
-    client = request.getfixturevalue("jira_client")
-    return QueryManager(client, settings=_create_query_manager_settings())
+def test_calculator(query_manager):
+    # query_manager is ready to use with test data
+    data = query_manager.get_cycle_time_data()
 ```
 
-**Settings:**
+#### `simple_cycle_settings`
+
+- **Type**: `tuple[dict, Path]`
+- **Purpose**: Returns a tuple of `(settings_dict, output_file_path)` with
+  basic cycle time configuration
+- **Location**: `jira_agile_metrics/tests/functional/conftest.py:102`
+- **Returns**:
+  - First element: Settings dictionary with cycle config, columns, queries,
+    and cycle_time_data
+  - Second element: Path object for the output CSV file (in temporary directory)
+- **Usage**:
+
+```python
+def test_calculator(query_manager, simple_cycle_settings):
+    settings_dict, output_file = simple_cycle_settings
+    # Modify settings if needed
+    settings = {**settings_dict, "my_setting": "value"}
+    calculator = MyCalculator(query_manager, settings, {})
+    calculator.write()
+    assert output_file.exists()
+```
+
+**Settings Dictionary Contents:**
+
+- `cycle`: Standard cycle configuration (from `e2e_config._get_standard_cycle_config()`)
+- `committed_column`: "Committed"
+- `done_column`: "Done"
+- `attributes`: Empty dict
+- `queries`: `[{"jql": "project=TEST"}]`
+- `query_attribute`: None
+- `cycle_time_data`: List containing the output CSV path
+
+### Unit Test Fixtures
+
+These fixtures are available for unit tests (files named `*_test.py` alongside
+source files):
+
+#### `base_minimal_settings`
+
+- **Type**: `dict`
+- **Purpose**: Minimal settings dictionary required for QueryManager
+  and cycle time calculations
+- **Location**: `jira_agile_metrics/conftest.py:54`
+- **Contents**:
+  - `attributes`: `{}`
+  - `known_values`: `{"Release": ["R1", "R3"]}`
+  - `max_results`: `None`
+  - `verbose`: `False`
+  - `cycle`: Common cycle configuration
+  - `query_attribute`: `None`
+  - `queries`: `[{"jql": "(filter=123)", "value": None}]`
+  - `backlog_column`: "Backlog"
+  - `committed_column`: "Committed"
+  - `done_column`: "Done"
+
+#### `base_custom_settings`
+
+- **Type**: `dict`
+- **Purpose**: Settings with custom fields and attributes (extends
+  `base_minimal_settings`)
+- **Location**: `jira_agile_metrics/conftest.py:73`
+- **Additional fields**: Includes attributes for Release, Team, Estimate,
+  and progress_report configuration
+
+#### `base_minimal_fields`
+
+- **Type**: `list[dict]`
+- **Purpose**: List of basic JIRA field definitions (no custom fields)
+- **Location**: `jira_agile_metrics/conftest.py:115`
+- **Fields**: summary, issuetype, status, resolution, created, updated,
+  project, reporter, assignee, priority, type, labels, components, fixVersions, resolutiondate, customfield_100
+
+#### `base_custom_fields`
+
+- **Type**: `list[dict]`
+- **Purpose**: Field definitions including custom fields (extends
+  `base_minimal_fields`)
+- **Location**: `jira_agile_metrics/conftest.py:138`
+- **Additional fields**: customfield_001 (Team), customfield_002 (Size),
+  customfield_003 (Releases)
+
+#### `minimal_query_manager`
+
+- **Type**: `QueryManager`
+- **Purpose**: QueryManager with minimal setup (no custom fields)
+- **Location**: `jira_agile_metrics/conftest.py:183`
+- **Dependencies**: `base_minimal_fields`, `base_minimal_settings`
+- **Uses**: `FauxJIRA` mock with empty issues list
+
+#### `custom_query_manager`
+
+- **Type**: `QueryManager`
+- **Purpose**: QueryManager capable of handling custom fields
+- **Location**: `jira_agile_metrics/conftest.py:190`
+- **Dependencies**: `base_custom_fields`, `base_custom_settings`
+
+#### `base_minimal_cycle_time_results`
+
+- **Type**: `dict[type, pd.DataFrame]`
+- **Purpose**: Minimal cycle time results dictionary (mimics
+  CycleTimeCalculator output)
+- **Location**: `jira_agile_metrics/conftest.py:203`
+
+#### `large_cycle_time_results`
+
+- **Type**: `dict[type, pd.DataFrame]`
+- **Purpose**: Larger cycle time results for testing with more data
+- **Location**: `jira_agile_metrics/conftest.py:213`
+
+#### `base_minimal_cycle_time_columns`
+
+- **Type**: `list[str]`
+- **Purpose**: Column names for cycle time results without custom fields
+- **Location**: `jira_agile_metrics/conftest.py:149`
+
+### Creating Custom Fixtures
+
+#### For Functional Tests
+
+Add fixtures to `jira_agile_metrics/tests/functional/conftest.py`:
+
 ```python
 @pytest.fixture()
-def simple_cycle_settings(tmp_path):
-    """Create simple cycle time settings for functional tests."""
-    output_csv = tmp_path / "cycletime.csv"
-    settings = _create_base_settings(cycle_time_data=[str(output_csv)])
-    return settings, output_csv
+def my_custom_settings(tmp_path, simple_cycle_settings):
+    """Create custom settings for my specific test needs."""
+    settings_dict, _ = simple_cycle_settings
+    custom_output = tmp_path / "my_output.csv"
+    
+    return {
+        **settings_dict,
+        "my_custom_data": str(custom_output),
+        "my_custom_setting": "value",
+    }, custom_output
 ```
+
+#### For Unit Tests
+
+Add fixtures to `jira_agile_metrics/conftest.py` or in your test file:
+
+```python
+# In your test file
+@pytest.fixture()
+def my_custom_settings(base_minimal_settings):
+    """Extend base settings for my calculator."""
+    return {
+        **base_minimal_settings,
+        "my_calculator_data": "output.csv",
+    }
+```
+
+#### In-Test Fixtures
+
+For fixtures specific to a single test file, define them in that file:
+
+```python
+# In my_calculator_test.py
+@pytest.fixture()
+def calculator_instance(query_manager, settings):
+    """Create a calculator instance for testing."""
+    return MyCalculator(query_manager, settings, {})
+```
+
+### Fixture Usage Examples
+
+**Functional Test Example:**
+See `jira_agile_metrics/tests/functional/test_cycletime_functional.py`:
+
+```python
+def test_cycletime_generates_expected_csv(query_manager, simple_cycle_settings):
+    settings, output_csv = simple_cycle_settings
+    calculator = CycleTimeCalculator(query_manager, settings, {})
+    calculator.run()
+    calculator.write()
+    assert output_csv.exists()
+```
+
+**Unit Test Example:**
+See `jira_agile_metrics/calculators/cycletime_test.py`:
+
+```python
+def test_empty(base_custom_fields, test_settings):
+    jira = FauxJIRA(fields=base_custom_fields, issues=[])
+    query_manager = QueryManager(jira, test_settings)
+    calculator = CycleTimeCalculator(query_manager, test_settings, {})
+    result = calculator.run()
+    assert result is None
+```
+
+### Helper Functions
+
+The functional test conftest also provides helper functions (not fixtures):
+
+- `get_burnup_base_settings(base_settings)`: Get settings for burnup-related tests
+- `get_default_forecast_settings()`: Get default forecast test settings
+- `run_forecast_calculators(query_mgr, settings)`: Run forecast calculator chain
+- `validate_forecast_result_structure(forecast_result)`: Validate forecast
+  DataFrame structure
 
 ## Test Patterns
 
 ### Calculator Testing
 
+**Related Documentation:**
+
+- [Calculator Patterns](patterns.md#calculator-patterns) - Calculator
+  implementation examples
+- [Calculator Pattern Architecture](architecture.md#calculator-pattern) -
+  System design
+- [Calculator Base Class API](api.md#calculator-base-class) - API reference
+- [Creating New Calculators](development.md#creating-a-new-calculator) -
+  Development guide
+
 **Basic Pattern:**
+
 ```python
 def test_calculator_basic(query_manager, simple_cycle_settings):
     """Test calculator with basic settings."""
@@ -98,27 +339,32 @@ def test_calculator_basic(query_manager, simple_cycle_settings):
 ```
 
 **With Dependencies:**
+
 ```python
-def test_calculator_with_dependencies(query_manager, base_minimal_settings):
+def test_calculator_with_dependencies(query_manager, simple_cycle_settings):
     """Test calculator that depends on other calculators."""
     # Run prerequisite calculator first
-    cycle_calc = CycleTimeCalculator(query_manager, base_minimal_settings, {})
+    settings_dict, _ = simple_cycle_settings
+    cycle_calc = CycleTimeCalculator(query_manager, settings_dict, {})
     cycle_data = cycle_calc.run()
     
     # Now run dependent calculator
-    settings = {**base_minimal_settings, "my_setting": "value"}
-    my_calc = MyCalculator(query_manager, settings, {CycleTimeCalculator: cycle_data})
+    settings = {**settings_dict, "my_setting": "value"}
+    my_calc = MyCalculator(query_manager, settings, {CycleTimeCalculator:
+    cycle_data})
     result = my_calc.run()
     
     assert result is not None
 ```
 
 **Empty Data Handling:**
+
 ```python
-def test_calculator_with_empty_data(query_manager, base_minimal_settings):
+def test_calculator_with_empty_data(query_manager, simple_cycle_settings):
     """Test calculator handles empty data gracefully."""
     # Create settings with no matching issues
-    settings = {**base_minimal_settings, "queries": [{"jql": "project=NONEXISTENT"}]}
+    settings_dict, _ = simple_cycle_settings
+    settings = {**settings_dict, "queries": [{"jql": "project=NONEXISTENT"}]}
     calculator = MyCalculator(query_manager, settings, {})
     
     result = calculator.run()
@@ -129,6 +375,7 @@ def test_calculator_with_empty_data(query_manager, base_minimal_settings):
 ### Data Validation Testing
 
 **CSV Output Validation:**
+
 ```python
 def test_csv_output_format(tmp_path, query_manager, settings):
     """Test CSV output has correct format."""
@@ -147,6 +394,7 @@ def test_csv_output_format(tmp_path, query_manager, settings):
 ```
 
 **DataFrame Content Validation:**
+
 ```python
 def test_dataframe_content(query_manager, settings):
     """Test DataFrame has correct content."""
@@ -162,6 +410,7 @@ def test_dataframe_content(query_manager, settings):
 ### Chart Testing
 
 **Chart File Generation:**
+
 ```python
 def test_chart_generation(tmp_path, query_manager, settings):
     """Test chart file is generated."""
@@ -198,10 +447,12 @@ pytest -m "e2e"              # Only e2e tests
 ### Test Markers
 
 **Available Markers:**
+
 - `@pytest.mark.functional` - Functional tests
 - `@pytest.mark.e2e` - End-to-end tests
 
 **Using Markers:**
+
 ```python
 @pytest.mark.functional
 def test_functional_case():
@@ -227,6 +478,7 @@ pytest --cov=jira_agile_metrics --cov-report=term-missing --cov-fail-under=80
 ### Do's
 
 ✅ **Test behavior, not implementation:**
+
 ```python
 # Good: Test the result
 assert result["cycle_time"] == 10
@@ -236,6 +488,7 @@ assert calculator._internal_counter == 5
 ```
 
 ✅ **Use descriptive test names:**
+
 ```python
 # Good
 def test_calculator_handles_empty_data_gracefully():
@@ -245,6 +498,7 @@ def test_calculator():
 ```
 
 ✅ **Test edge cases:**
+
 ```python
 def test_calculator_with_zero_issues():
 def test_calculator_with_missing_dates():
@@ -252,12 +506,14 @@ def test_calculator_with_invalid_workflow():
 ```
 
 ✅ **Keep tests independent:**
+
 ```python
 # Each test should be able to run in isolation
 # Don't rely on test execution order
 ```
 
 ✅ **Use fixtures for common setup:**
+
 ```python
 # Good: Reusable fixture
 @pytest.fixture()
@@ -270,6 +526,7 @@ def calculator_settings():
 ### Don'ts
 
 ❌ **Don't test external libraries:**
+
 ```python
 # Bad: Testing pandas functionality
 def test_pandas_dataframe():
@@ -278,6 +535,7 @@ def test_pandas_dataframe():
 ```
 
 ❌ **Don't make tests too complex:**
+
 ```python
 # Bad: Complex test with many assertions
 def test_everything():
@@ -287,6 +545,7 @@ def test_everything():
 ```
 
 ❌ **Don't ignore test failures:**
+
 ```python
 # Bad: Ignoring known failures
 @pytest.mark.xfail
@@ -295,6 +554,7 @@ def test_broken_feature():
 ```
 
 ❌ **Don't use real API calls in unit tests:**
+
 ```python
 # Bad: Real API call
 def test_with_real_jira():
@@ -345,6 +605,7 @@ def test_with_logging():
 ### GitHub Actions
 
 **Test Workflow:**
+
 ```yaml
 # .github/workflows/test.yml
 name: Tests
@@ -362,6 +623,7 @@ jobs:
 ### Pre-commit Hooks
 
 **Running Tests Before Commit:**
+
 ```bash
 # Install pre-commit
 pip install pre-commit
@@ -378,25 +640,29 @@ pre-commit run --all-files
 ### Updating Test Data
 
 When API responses change:
+
 1. Update fixture files in `tests/fixtures/jira/`
-2. Regenerate expected outputs if needed
-3. Run tests to verify
+1. Regenerate expected outputs if needed
+1. Run tests to verify
 
 ### Refactoring Tests
 
 When refactoring code:
+
 1. Run all tests first
-2. Refactor incrementally
-3. Run tests after each change
-4. Update tests if behavior changes
+1. Refactor incrementally
+1. Run tests after each change
+1. Update tests if behavior changes
 
 ### Test Performance
 
 **Slow Tests:**
+
 - Mark with `@pytest.mark.slow`
 - Run separately: `pytest -m "not slow"`
 
 **Parallel Execution:**
+
 ```bash
 # Install pytest-xdist
 pip install pytest-xdist
@@ -404,4 +670,3 @@ pip install pytest-xdist
 # Run tests in parallel
 pytest -n auto
 ```
-

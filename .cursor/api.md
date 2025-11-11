@@ -1,6 +1,31 @@
 # API Reference
 
+## Quick Reference
+
+| Concept | Location |
+|---------|----------|
+| Calculator pattern design | [Architecture: Calculator Pattern](architecture.md#calculator-pattern) |
+| Calculator code examples | [Patterns: Calculator Patterns](patterns.md#calculator-patterns) |
+| Creating new calculators | [Development: Creating a New Calculator](development.md#creating-a-new-calculator) |
+| Query Manager architecture | [Architecture: Query Manager Pattern](architecture.md#query-manager-pattern) |
+| Configuration system design | [Architecture: Configuration System](architecture.md#configuration-system) |
+| Configuration patterns | [Patterns: Configuration Patterns](patterns.md#configuration-patterns) |
+| Chart generation architecture | [Architecture: Chart Generation](architecture.md#chart-generation) |
+| Chart generation patterns | [Patterns: Chart Generation Patterns](patterns.md#chart-generation-patterns) |
+| Error handling architecture | [Architecture: Error Handling Patterns](architecture.md#error-handling-patterns) |
+| Error handling patterns | [Patterns: Error Handling Patterns](patterns.md#error-handling-patterns) |
+| Testing calculators | [Testing: Calculator Testing](testing.md#calculator-testing) |
+
 ## Calculator Base Class
+
+**Related Documentation:**
+
+- [Calculator Pattern Architecture](architecture.md#calculator-pattern) -
+  System design and execution order
+- [Calculator Patterns](patterns.md#calculator-patterns) - Code examples
+  and usage patterns
+- [Creating New Calculators](development.md#creating-a-new-calculator) -
+  Step-by-step guide
 
 ```python
 class Calculator:
@@ -12,7 +37,8 @@ class Calculator:
         Args:
             query_manager: QueryManager instance for data access
             settings: Dictionary of configuration settings
-            results: Shared results dictionary for inter-calculator communication
+            results: Shared results dictionary for inter-calculator
+communication
         """
         
     def run(self, now=None):
@@ -32,15 +58,35 @@ class Calculator:
         """Get results from a previous calculator.
         
         Args:
-            calculator: Calculator class to get results from (defaults to self)
+            calculator: Calculator class to get results from. If omitted or 
+                explicitly set to None, defaults to the current calculator's 
+                class (self.__class__). Both `get_result()`
+                and `get_result(None)` 
+                behave identically and return the current calculator's result.
             default: Default value if result not found
             
         Returns:
-            Results from specified calculator or default
+            Results from specified calculator or default value if not found
+            
+        Examples:
+            # Get current calculator's result (both forms are equivalent)
+            result = self.get_result()          # Returns self's result
+            result = self.get_result(None)      # Returns self's result (same
+            as above)
+            
+            # Get another calculator's result
+            cycle_data = self.get_result(CycleTimeCalculator)
         """
 ```
 
 ## Configuration API
+
+**Related Documentation:**
+
+- [Configuration System Architecture](architecture.md#configuration-system) -
+  Configuration flow and structure
+- [Configuration Patterns](patterns.md#configuration-patterns) - Validation
+  and inheritance examples
 
 ### Loading Configuration
 
@@ -72,6 +118,11 @@ class ConfigError(Exception):
 ```
 
 ## Query Manager API
+
+**Related Documentation:**
+
+- [Query Manager Pattern Architecture](architecture.md#query-manager-pattern) -
+  Design and responsibilities
 
 ```python
 class QueryManager:
@@ -161,9 +212,11 @@ def run_calculators(calculators, query_manager, settings):
 ### Flask Routes
 
 **Dashboard:**
+
 - `GET /` - Main dashboard with chart links
 
 **Chart Routes:**
+
 - `GET /burnup` - Interactive burnup chart
 - `GET /burnup-forecast` - Burnup forecast with Monte Carlo
 - `GET /cfd` - Cumulative Flow Diagram
@@ -180,6 +233,7 @@ def run_calculators(calculators, query_manager, settings):
 - `GET /progress` - Progress report
 
 **Configuration:**
+
 - `POST /set_query` - Set custom JQL query
 
 ### Web Application Usage
@@ -227,6 +281,13 @@ Options:
 
 ## Utility Functions
 
+**Related Documentation:**
+
+- [Chart Generation Architecture](architecture.md#chart-generation) - Static
+  and interactive charts
+- [Chart Generation Patterns](patterns.md#chart-generation-patterns) - Code
+  examples
+
 ### Chart Styling
 
 ```python
@@ -247,7 +308,8 @@ def apply_chart_style(fig, ax, title=None, xlabel=None, ylabel=None):
 ### Data Utilities
 
 ```python
-from jira_agile_metrics.utils import breakdown_by_month, create_monthly_bar_chart
+from jira_agile_metrics.utils import breakdown_by_month,
+create_monthly_bar_chart
 
 def breakdown_by_month(data, date_field, group_field=None):
     """Break down data by month.
@@ -265,7 +327,8 @@ def breakdown_by_month(data, date_field, group_field=None):
 ### Type Utilities
 
 ```python
-from jira_agile_metrics.config.type_utils import force_int, force_float, force_date
+from jira_agile_metrics.config.type_utils import force_int, force_float,
+force_date
 
 def force_int(value, default=None):
     """Convert value to integer with default fallback."""
@@ -320,6 +383,12 @@ class BurnupForecastCalculator(Calculator):
 ```
 
 ## Error Handling
+
+**Related Documentation:**
+
+- [Error Handling Architecture](architecture.md#error-handling-patterns) -
+  Configuration, data, and API error patterns
+- [Error Handling Patterns](patterns.md#error-handling-patterns) - Code examples
 
 ### Common Exceptions
 
@@ -420,4 +489,3 @@ class MyCustomCalculator(Calculator):
         if self.settings.get("my_metric_data"):
             self.write_data_file(result, self.settings["my_metric_data"])
 ```
-

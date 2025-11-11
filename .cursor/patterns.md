@@ -1,6 +1,29 @@
 # Common Patterns & Best Practices
 
+## Quick Reference
+
+| Concept | Location |
+|---------|----------|
+| Calculator base class | [API: Calculator Base Class](api.md#calculator-base-class) |
+| Calculator pattern design | [Architecture: Calculator Pattern](architecture.md#calculator-pattern) |
+| Creating new calculators | [Development: Creating a New Calculator](development.md#creating-a-new-calculator) |
+| Calculator execution order | [Architecture: Calculator Dependencies](architecture.md#calculator-dependencies) |
+| Query Manager API | [API: Query Manager API](api.md#query-manager-api) |
+| Configuration system | [Architecture: Configuration System](architecture.md#configuration-system) |
+| Chart styling utilities | [API: Chart Styling](api.md#chart-styling) |
+| Test fixtures | [Testing: Test Fixtures](testing.md#test-fixtures) |
+| Calculator testing | [Testing: Calculator Testing](testing.md#calculator-testing) |
+
 ## Calculator Patterns
+
+**Related Documentation:**
+
+- [Calculator Base Class API](api.md#calculator-base-class) - Complete API
+  reference
+- [Calculator Pattern Architecture](architecture.md#calculator-pattern) -
+  System design details
+- [Creating New Calculators](development.md#creating-a-new-calculator) -
+  Step-by-step guide
 
 ### Basic Calculator Pattern
 
@@ -94,6 +117,13 @@ def run(self, now=None):
 
 ## Chart Generation Patterns
 
+**Related Documentation:**
+
+- [Chart Generation Architecture](architecture.md#chart-generation) - Static
+  and interactive charts
+- [Chart Styling API](api.md#chart-styling) - `apply_chart_style` function
+  reference
+
 ### Matplotlib Static Chart
 
 ```python
@@ -171,6 +201,13 @@ def create_windowed_chart(data, output_file, window=30):
 
 ## Data Processing Patterns
 
+**Related Documentation:**
+
+- [Data Structures](architecture.md#data-structures) - Cycle Time
+  and CFD data formats
+- [Performance Optimizations](architecture.md#performance-optimizations) -
+  Pandas operations and memory management
+
 ### Pandas DataFrame Operations
 
 ```python
@@ -234,6 +271,13 @@ def create_monthly_analysis(data, date_field, value_field):
 
 ## Configuration Patterns
 
+**Related Documentation:**
+
+- [Configuration System Architecture](architecture.md#configuration-system) -
+  Configuration flow and structure
+- [Configuration API](api.md#configuration-api) - `config_to_options`
+  and `ConfigError`
+
 ### Configuration Validation
 
 ```python
@@ -279,6 +323,12 @@ def load_config_with_extends(config_path):
 ```
 
 ## Error Handling Patterns
+
+**Related Documentation:**
+
+- [Error Handling Architecture](architecture.md#error-handling-patterns) -
+  Configuration, data, and API error patterns
+- [Error Handling API](api.md#error-handling) - Common exceptions and usage
 
 ### Graceful Degradation
 
@@ -360,6 +410,138 @@ def process_large_dataset(data):
 
 ## Testing Patterns
 
+**Related Documentation:**
+
+- [Testing Guidelines](testing.md) - Complete testing documentation
+- [Test Fixtures](testing.md#test-fixtures) - Detailed fixture documentation
+- [Calculator Testing](testing.md#calculator-testing) - Calculator test patterns
+
+**Note on Fixture Names:** The canonical fixture names used in tests are:
+
+- `query_manager` - QueryManager instance for data access
+- `simple_cycle_settings` - Returns tuple of `(settings_dict, output_file)` with basic cycle time settings
+
+For complete fixture documentation including all available fixtures, their
+types, purposes, and usage examples, see the [Test Fixtures](testing.md#test-fixtures) section in the testing guidelines.
+
+### Testing Fixtures Reference
+
+The repository provides pytest fixtures in two locations:
+
+- **Unit test fixtures**: `jira_agile_metrics/conftest.py` - For tests
+  alongside source files (`*_test.py`)
+- **Functional test fixtures**: `jira_agile_metrics/tests/functional/conftest.py` - For tests in `tests/functional/`
+
+#### Functional Test Fixtures
+
+These fixtures are available for functional tests (in `tests/functional/`):
+
+- **`jira_client`** → `FileJiraClient` instance that reads from JSON fixture
+  files (`tests/fixtures/jira/`)
+- **`query_manager`** → `QueryManager` instance configured with minimal
+  settings, uses `jira_client` fixture
+- **`simple_cycle_settings`** → Returns `tuple[dict, Path]` of `(settings_dict, output_file_path)` with:
+  - Settings dict: cycle config, committed/done columns, queries,
+    cycle_time_data
+  - Output file: Temporary CSV path for cycle time data
+
+**Example usage:**
+
+```python
+def test_calculator(query_manager, simple_cycle_settings):
+    settings, output_file = simple_cycle_settings
+    # Modify settings as needed
+    settings["my_data"] = str(output_file)
+    calculator = MyCalculator(query_manager, settings, {})
+    calculator.write()
+    assert output_file.exists()
+```
+
+**See examples:**
+
+- [`test_cfd_functional.py:12`](../../jira_agile_metrics/tests/functional/test_cfd_functional.py#L12) - CFD calculator test
+- [`test_burnup_functional.py:10`](../../jira_agile_metrics/tests/functional/test_burnup_functional.py#L10) - Burnup calculator test
+- [`test_burnup_forecast_functional.py:213`](../../jira_agile_metrics/tests/functional/test_burnup_forecast_functional.py#L213) - Forecast output format tests
+
+#### Unit Test Fixtures
+
+These fixtures are available for unit tests (files named `*_test.py` alongside
+source files):
+
+- **`base_minimal_settings`** → Minimal settings dict with cycle config,
+  queries, column names
+- **`base_custom_settings`** → Extended settings with custom fields (Release,
+  Team, Estimate) and progress_report config
+- **`base_minimal_fields`** → List of basic JIRA field definitions (no custom
+  fields)
+- **`base_custom_fields`** → Field definitions including custom fields (Team,
+  Size, Releases)
+- **`minimal_query_manager`** → `QueryManager` with minimal setup (uses
+  `FauxJIRA` mock, no custom fields)
+- **`custom_query_manager`** → `QueryManager` capable of handling custom fields
+- **`base_minimal_cycle_time_results`** → Minimal cycle time results dict
+  (mimics `CycleTimeCalculator` output)
+- **`large_cycle_time_results`** → Larger cycle time results
+  for testing with more data
+- **`base_minimal_cycle_time_columns`** → Column names
+  for cycle time results without custom fields
+- **`base_cfd_columns`** → Column names for CFD calculator results
+- **`minimal_cfd_results`** → Results dict with CFD data included
+- **`mock_trello_api`** → Mock Trello API for testing Trello integrations
+
+**Example usage:**
+
+```python
+def test_calculator_with_custom_fields(custom_query_manager,
+base_custom_settings):
+    calculator = MyCalculator(custom_query_manager, base_custom_settings, {})
+    result = calculator.run()
+    assert result is not None
+```
+
+#### Creating Custom Fixtures
+
+**For functional tests**, add fixtures to
+`jira_agile_metrics/tests/functional/conftest.py`:
+
+```python
+@pytest.fixture()
+def my_custom_settings(tmp_path, simple_cycle_settings):
+    """Create custom settings for specific test needs."""
+    settings_dict, _ = simple_cycle_settings
+    custom_output = tmp_path / "my_output.csv"
+    
+    return {
+        **settings_dict,
+        "my_custom_data": str(custom_output),
+        "my_custom_setting": "value",
+    }, custom_output
+```
+
+**For unit tests**, add fixtures to `jira_agile_metrics/conftest.py`
+or in your test file:
+
+```python
+# In your test file (e.g., my_calculator_test.py)
+@pytest.fixture()
+def my_custom_settings(base_minimal_settings):
+    """Extend base settings for my calculator."""
+    return {
+        **base_minimal_settings,
+        "my_calculator_data": "output.csv",
+    }
+```
+
+**For fixtures specific to a single test file**, define them in that file:
+
+```python
+# In my_calculator_test.py
+@pytest.fixture()
+def calculator_instance(minimal_query_manager, base_minimal_settings):
+    """Create a calculator instance for testing."""
+    return MyCalculator(minimal_query_manager, base_minimal_settings, {})
+```
+
 ### Calculator Test Pattern
 
 ```python
@@ -401,6 +583,11 @@ def test_with_mocked_api():
 
 ## Performance Patterns
 
+**Related Documentation:**
+
+- [Performance Optimizations](architecture.md#performance-optimizations) -
+  Caching, data processing, and memory management
+
 ### Caching Pattern
 
 ```python
@@ -441,14 +628,23 @@ def process_large_file(file_path):
 
 ## Best Practices Summary
 
-1. **Always validate inputs** before processing
-2. **Handle empty data gracefully** - return None or empty DataFrame
-3. **Use vectorized operations** in pandas
-4. **Close matplotlib figures** to free memory
-5. **Log important events** at appropriate levels
-6. **Use type hints** for better code clarity
-7. **Write tests** for all new functionality
-8. **Document public APIs** with docstrings
-9. **Follow calculator pattern** for consistency
-10. **Cache expensive operations** when appropriate
-
+1. **[Critical]** **Always validate inputs** before processing - prevents
+   runtime errors and improves error messages; see [Validation Before Processing pattern](#validation-before-processing)
+1. **[Critical]** **Handle empty data gracefully** - return None
+   or empty DataFrame to avoid crashes; see [Empty Data Handling Pattern](#empty-data-handling-pattern)
+1. **[Recommended]** **Use vectorized operations** in pandas - significantly
+   faster than row-by-row iteration; see [Pandas DataFrame Operations](#pandas-dataframe-operations)
+1. **[Critical]** **Close matplotlib figures** to free memory - prevents memory
+   leaks in long-running processes; see [Matplotlib Static Chart](#matplotlib-static-chart)
+1. **[Recommended]** **Log important events** at appropriate levels - enables
+   debugging and monitoring; see [Structured Logging](#structured-logging)
+1. **[Critical]** **Use type hints** for better code clarity - improves IDE
+   support and documentation; see development guidelines
+1. **[Critical]** **Write tests** for all new functionality - ensures
+   correctness and prevents regressions; see [Testing Patterns](#testing-patterns)
+1. **[Critical]** **Document public APIs** with docstrings - enables
+   maintainability and usage; see [Basic Calculator Pattern](#basic-calculator-pattern)
+1. **[Critical]** **Follow calculator pattern** for consistency - ensures
+   calculators work together correctly; see [Basic Calculator Pattern](#basic-calculator-pattern)
+1. **[Optional]** **Cache expensive operations** when appropriate - improves
+   performance for repeated calculations; see [Caching Pattern](#caching-pattern)
