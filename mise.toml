@@ -1,0 +1,56 @@
+[env]
+# Load env from the dotenv file after tools have defined environment variables
+_.file = {path = ".env", tools = true}
+_.python.venv = {path = ".venv", create = true}
+
+[tasks.black]
+run = ".venv/bin/black"
+
+[tasks.flake8]
+run = ".venv/bin/flake8"
+
+# Formatting and linting tasks (all Python-based)
+[tasks.format-markdown]
+run = ".venv/bin/mdformat"
+
+[tasks.format-toml]
+run = ".venv/bin/toml-sort"
+
+[tasks.format-yaml]
+run = ".venv/bin/yamlfix"
+
+[tasks.install-all]
+run = ".venv/bin/pip install -r requirements.txt"
+
+# Install packages into the virtual environment
+[tasks.install-deps]
+run = ".venv/bin/pip install -r requirements-prod.txt"
+
+[tasks.install-dev]
+run = ".venv/bin/pip install -r requirements-dev.txt"
+
+# Install development tools (all Python-based, installed via requirements-dev.txt)
+[tasks.install-tools]
+run = "echo 'All development tools are Python-based and installed via requirements-dev.txt'"
+
+[tasks.lint-markdown]
+run = ".venv/bin/pymarkdown scan"
+
+[tasks.lint-yaml]
+run = ".venv/bin/yamllint"
+
+[tasks.mypy]
+run = ".venv/bin/mypy"
+
+[tasks.pylint]
+run = ".venv/bin/pylint"
+
+[tasks.pytest]
+run = ".venv/bin/pytest"
+
+[tasks.ruff]
+run = ".venv/bin/ruff"
+
+[tools]
+1password = "latest"
+python = "3.14.0"
