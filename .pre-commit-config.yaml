@@ -4,8 +4,69 @@ repos:
     rev: v0.14.2
     hooks:
       - id: ruff
-        args: ['--select=E,F,W,I']
+        args: ["--select=E,F,W,I"]
       - id: ruff-format
+
+  # Markdown formatting
+  - repo: https://github.com/hukkin/mdformat
+    rev: 0.3.5
+    hooks:
+      - id: mdformat
+        additional_dependencies: ["mdformat-pymarkdown"]
+
+  # Markdown linting (uses pymarkdown)
+  - repo: local
+    hooks:
+      - id: pymarkdown
+        name: pymarkdown
+        entry: pymarkdown scan
+        language: system
+        types: [markdown]
+        pass_filenames: true
+
+  # YAML formatting
+  - repo: https://github.com/lyz-code/yamlfix
+    rev: 1.35.0
+    hooks:
+      - id: yamlfix
+        args: ["--config-file", ".yamllint.yml"]
+
+  # YAML linting (uses .yamllint.yml config)
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: ["-c", ".yamllint.yml"]
+
+  # TOML formatting
+  - repo: local
+    hooks:
+      - id: toml-sort
+        name: toml-sort
+        entry: toml-sort
+        language: system
+        types: [toml]
+        pass_filenames: true
+
+  # Makefile linting (syntax validation)
+  - repo: local
+    hooks:
+      - id: mbake-lint
+        name: mbake-lint
+        entry: mbake validate
+        language: system
+        types: [makefile]
+        pass_filenames: true
+
+  # Makefile validation (check referenced files exist)
+  - repo: local
+    hooks:
+      - id: makefile-checker
+        name: makefile-checker
+        entry: python3 scripts/check_makefile.py
+        language: system
+        types: [makefile]
+        pass_filenames: false
 
   # Pytest - run tests
   # Only runs when Python files are staged (via types: [python])

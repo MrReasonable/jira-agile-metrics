@@ -1,3 +1,20 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jira-agile-metrics"
+version = "0.25"
+description = "Agile metrics and summary data extracted from JIRA"
+readme = "README.md"
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+testing = ["pytest>=9.0.0", "pytest-mock", "mock"]
+
+[project.scripts]
+jira-agile-metrics = "jira_agile_metrics.cli:main"
+
 [tool.black]
 line-length = 88
 include = '\.pyi?$'
@@ -17,6 +34,37 @@ exclude = '''
 )/
 '''
 
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "def __repr__",
+  "raise AssertionError",
+  "raise NotImplementedError",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+  "class .*\\bProtocol\\):",
+  "@(abc\\.)?abstractmethod"
+]
+
+[tool.coverage.run]
+omit = [
+  "*/tests/functional/*",
+  "*/test_file_jira_client.py",
+  "setup.py",
+  "*/conftest.py"
+]
+
+[tool.pytest.ini_options]
+markers = [
+  "e2e: marks tests as end-to-end (deselect with '-m \"not e2e\"')",
+  "functional: marks tests as functional (deselect with '-m \"not functional\"')"
+]
+strict = true
+strict_config = true
+strict_markers = true
+strict_parametrization_ids = true
+strict_xfail = true
+
 [tool.ruff]
 line-length = 88
 exclude = [".venv", "venv", "env", "build", "dist", "__pycache__"]
@@ -24,69 +72,16 @@ target-version = "py311"
 # Disable preview mode for better Black compatibility
 preview = false
 
-[tool.ruff.lint]
-select = ["E", "F", "W", "I"]
-ignore = []
-extend-select = [
-    # Whitespace / EOF hygiene to align with IDE warnings
-    "W291",  # trailing whitespace
-    "W292",  # no newline at end of file
-    # W391 (blank line at end of file) requires preview mode, which is disabled for Black compatibility
-]
-
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 line-ending = "lf"
 
-[build-system]
-requires = ["setuptools>=64", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "jira-agile-metrics"
-version = "0.25"
-description = "Agile metrics and summary data extracted from JIRA"
-readme = "README.md"
-requires-python = ">=3.11"
-
-[project.scripts]
-jira-agile-metrics = "jira_agile_metrics.cli:main"
-
-[project.optional-dependencies]
-testing = [
-    "pytest>=9.0.0",
-    "pytest-mock",
-    "mock",
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = []
+extend-select = [
+  # Whitespace / EOF hygiene to align with IDE warnings
+  "W291", # trailing whitespace
+  "W292" # no newline at end of file
 ]
-
-[tool.coverage.run]
-omit = [
-    "*/tests/functional/*",
-    "*/test_file_jira_client.py",
-    "setup.py",
-    "*/conftest.py",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:",
-    "class .*\\bProtocol\\):",
-    "@(abc\\.)?abstractmethod",
-]
-
-[tool.pytest.ini_options]
-markers = [
-    "e2e: marks tests as end-to-end (deselect with '-m \"not e2e\"')",
-    "functional: marks tests as functional (deselect with '-m \"not functional\"')",
-]
-strict = true
-strict_config = true
-strict_markers = true
-strict_parametrization_ids = true
-strict_xfail = true
